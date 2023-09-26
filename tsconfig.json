@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"moduleResolution": "node",
+		"target": "ES2018",
+		"lib": ["dom", "es2018"],
+		"module": "commonjs",
+		"strict": true,
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"strictNullChecks": false
+	},
+	"include": ["./backend/*/*.ts", "./backend/server.ts"],
+	"exclude": ["node_modules", ".vscode"]
+}

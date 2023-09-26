@@ -1,0 +1,61 @@
+{
+	"name": "todo-list-app",
+	"version": "1.0.0",
+	"description": "",
+	"main": "./backend/server.ts",
+	"scripts": {
+		"server": "NODE_ENV=development nodemon ./backend/server.ts",
+		"start": "pm2 start -x ts-node -- server.ts",
+		"test": "NODE_ENV=test mocha -r ts-node/register backend/tests/*.test.ts"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ThibaultG94/todo-list-app.git"
+	},
+	"author": "",
+	"license": "ISC",
+	"bugs": {
+		"url": "https://github.com/ThibaultG94/todo-list-app/issues"
+	},
+	"homepage": "https://github.com/ThibaultG94/todo-list-app#readme",
+	"dependencies": {
+		"@sentry/node": "^7.54.0",
+		"bcryptjs": "^2.4.3",
+		"cookie-parser": "^1.4.6",
+		"cors": "^2.8.5",
+		"dotenv": "^16.0.3",
+		"express": "^4.18.2",
+		"express-rate-limit": "^6.7.1",
+		"joi": "^17.9.2",
+		"jsonwebtoken": "^9.0.0",
+		"mongoose": "^7.2.0",
+		"nodemailer": "^6.9.3",
+		"nodemon": "^2.0.22",
+		"passport": "^0.6.0",
+		"passport-local": "^1.0.0",
+		"redis": "^4.6.7",
+		"swagger-express-ts": "^1.1.0",
+		"ts-node": "^10.9.1",
+		"typedoc": "^0.24.8",
+		"winston": "^3.10.0"
+	},
+	"devDependencies": {
+		"@types/bcryptjs": "^2.4.2",
+		"@types/chai": "^4.3.5",
+		"@types/cookie-parser": "^1.4.3",
+		"@types/cors": "^2.8.13",
+		"@types/express": "^4.17.17",
+		"@types/jsonwebtoken": "^9.0.2",
+		"@types/mocha": "^10.0.1",
+		"@types/node": "^20.2.1",
+		"@types/nodemailer": "^6.4.8",
+		"@types/supertest": "^2.0.12",
+		"chai": "^4.3.7",
+		"mocha": "^10.2.0",
+		"mongodb-memory-server": "^8.12.2",
+		"sinon": "^15.1.0",
+		"supertest": "^6.3.3",
+		"ts-mocha": "^10.0.0",
+		"typescript": "^5.0.4"
+	}
+}
