@@ -11,6 +11,6 @@
 		"forceConsistentCasingInFileNames": true,
 		"strictNullChecks": false
 	},
-	"include": ["./backend/*/*.ts", "./backend/server.ts"],
+	"include": ["./*/*.ts", "./server.ts"],
 	"exclude": ["node_modules", ".vscode"]
 }
