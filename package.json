@@ -1,23 +1,23 @@
 {
-	"name": "todo-list-app",
-	"version": "1.0.0",
-	"description": "",
-	"main": "./backend/server.ts",
+	"name": "task-manager-backend",
+	"version": "2.0.0",
+	"description": "About Backend service for Task Manager app, built with TypeScript, Node.js, Express, MongoDB, and Redis",
+	"main": "./server.ts",
 	"scripts": {
-		"server": "NODE_ENV=development nodemon ./backend/server.ts",
+		"server": "NODE_ENV=development nodemon ./server.ts",
 		"start": "pm2 start -x ts-node -- server.ts",
-		"test": "NODE_ENV=test mocha -r ts-node/register backend/tests/*.test.ts"
+		"test": "NODE_ENV=test mocha -r ts-node/register tests/*.test.ts"
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/ThibaultG94/todo-list-app.git"
+		"url": "git+https://github.com/ThibaultG94/Task-manager-backend"
 	},
-	"author": "",
+	"author": "Thibault Guilhem",
 	"license": "ISC",
 	"bugs": {
-		"url": "https://github.com/ThibaultG94/todo-list-app/issues"
+		"url": "https://github.com/ThibaultG94/Task-manager-backend/issues"
 	},
-	"homepage": "https://github.com/ThibaultG94/todo-list-app#readme",
+	"homepage": "https://github.com/ThibaultG94/Task-manager-backend#readme",
 	"dependencies": {
 		"@sentry/node": "^7.54.0",
 		"bcryptjs": "^2.4.3",
