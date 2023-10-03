@@ -6,11 +6,11 @@ const logger = winston.createLogger({
 	defaultMeta: { service: 'task-manager-service' },
 	transports: [
 		new winston.transports.File({
-			filename: './backend/logs/error.log',
+			filename: './logs/error.log',
 			level: 'error',
 		}),
 		new winston.transports.File({
-			filename: './backend/logs/combined.log',
+			filename: './logs/combined.log',
 		}),
 	],
 });
