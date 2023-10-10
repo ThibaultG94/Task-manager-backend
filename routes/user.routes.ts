@@ -43,6 +43,9 @@ router.post(
 // Route to get a user's account information by their id
 router.get('/:id/account', validateUserID, auth, getUser);
 
+// Route to get user's from a same workspace basics information by the workspace id
+router.get('/:workspaceId/members', validateUserID, auth, getUser);
+
 // Route to update a user's information by their id
 router.put('/:id/update', validateUserID, auth, updateUser);
 

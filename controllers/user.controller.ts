@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import refreshTokenModel from '../models/refreshToken.model';
 import workspaceModel from '../models/workspace.model';
+import { Workspace } from '../types/types';
 import logger from '../config/logger';
 
 // Enpoint to create a user
@@ -317,6 +318,54 @@ export const getUser = async (req: express.Request, res: express.Response) => {
 
 		// Send the user data back in the response
 		res.status(200).json({ user });
+	} catch (err) {
+		const result = (err as Error).message;
+		logger.error(result);
+
+		res.status(500).json({ message: 'Internal server error' });
+	}
+};
+
+export const getUsers = async (req: express.Request, res: express.Response) => {
+	try {
+		const workspace: Workspace = await workspaceModel.findById(
+			req.params.id
+		);
+
+		if (!req.user) {
+			return res.status(401).json({ message: 'User not authenticated' });
+		}
+
+		if (!workspace) {
+			return res
+				.status(400)
+				.json({ message: 'This workspace does not exist' });
+		}
+
+		if (
+			req.user._id !== workspace.userId &&
+			!workspace.members.includes(req.user._id)
+		) {
+			return res.status(403).json({
+				message:
+					'You do not have sufficient rights to perform this action',
+			});
+		}
+
+		const members = workspace.members;
+
+		const users = members.forEach(async (member) => {
+			const user = await UserModel.findById(member);
+			const userData = {
+				id: user?._id,
+				username: user?.username,
+				email: user?.email,
+			};
+
+			return userData;
+		});
+
+		res.status(200).json(users);
 	} catch (err) {
 		const result = (err as Error).message;
 		logger.error(result);
