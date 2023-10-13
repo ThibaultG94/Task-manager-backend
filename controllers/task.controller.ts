@@ -312,9 +312,8 @@ export const getUrgentTasks = async (
 	req: express.Request,
 	res: express.Response
 ) => {
-	const userId = req.params.userId;
-
 	try {
+		const userId = req.params.userId;
 		const urgentTasks: ExtendedTask[] = await TaskModel.find({
 			userId: userId,
 			deadline: { $exists: true },
@@ -349,9 +348,8 @@ export const getUserTasks = async (
 	req: express.Request,
 	res: express.Response
 ) => {
-	const userId = req.params.userId;
-
 	try {
+		const userId = req.params.userId;
 		const userTasks: ExtendedTask[] = await TaskModel.find({
 			userId: userId,
 		});
@@ -414,9 +412,8 @@ export const getShortTermTasks = async (
 	req: express.Request,
 	res: express.Response
 ) => {
-	const userId = req.params.userId;
-
 	try {
+		const userId = req.params.userId;
 		const shortTermCategories = [
 			'retard-tasks',
 			'today-tasks',
@@ -450,9 +447,8 @@ export const getMidTermTasks = async (
 	req: express.Request,
 	res: express.Response
 ) => {
-	const userId = req.params.userId;
-
 	try {
+		const userId = req.params.userId;
 		const midTermCategories = [
 			'this-week-tasks',
 			'this-weekend-tasks',
@@ -487,9 +483,8 @@ export const getLongTermTasks = async (
 	req: express.Request,
 	res: express.Response
 ) => {
-	const userId = req.params.userId;
-
 	try {
+		const userId = req.params.userId;
 		const longTermCategories = [
 			'this-month-tasks',
 			'this-year-tasks',
@@ -524,9 +519,8 @@ export const getArchivedTasks = async (
 	req: express.Request,
 	res: express.Response
 ) => {
-	const userId = req.params.userId;
-
 	try {
+		const userId = req.params.userId;
 		const archivedTasks: ExtendedTask[] = await TaskModel.find({
 			userId: userId,
 			status: 'Archived',
