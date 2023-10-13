@@ -460,11 +460,20 @@ export const getMidTermTasks = async (
 			'next-weekend-tasks',
 		];
 
-		const midTermTasks: ExtendedTask[] = await TaskModel.find({
-			userId: userId,
-			status: { $ne: 'Archived' },
-			category: { $in: midTermCategories },
-		});
+		const tasks = (await TaskModel.find({
+			userId: userId, // Include only tasks that belong to the specified userId
+			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
+		})) as Task[];
+
+		const midTermTasks = [];
+
+		for (const task of tasks) {
+			const day = await FormatDateForDisplay(task.deadline);
+			const category = GetCategoryDay(day, task.status, task.deadline);
+			if (midTermCategories.includes(category)) {
+				midTermTasks.push(task);
+			}
+		}
 
 		return res.status(200).json({ midTermTasks });
 	} catch (error) {
@@ -488,11 +497,20 @@ export const getLongTermTasks = async (
 			'becoming-tasks',
 		];
 
-		const longTermTasks: ExtendedTask[] = await TaskModel.find({
-			userId: userId,
-			status: { $ne: 'Archived' },
-			category: { $in: longTermCategories },
-		});
+		const tasks = (await TaskModel.find({
+			userId: userId, // Include only tasks that belong to the specified userId
+			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
+		})) as Task[];
+
+		const longTermTasks = [];
+
+		for (const task of tasks) {
+			const day = await FormatDateForDisplay(task.deadline);
+			const category = GetCategoryDay(day, task.status, task.deadline);
+			if (longTermCategories.includes(category)) {
+				longTermTasks.push(task);
+			}
+		}
 
 		return res.status(200).json({ longTermTasks });
 	} catch (error) {
