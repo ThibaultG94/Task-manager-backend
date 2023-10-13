@@ -10,6 +10,7 @@ import {
 	refreshUserToken,
 	logoutUser,
 	getMe,
+	getUsers,
 } from '../controllers/user.controller';
 import {
 	validate,
@@ -44,7 +45,7 @@ router.post(
 router.get('/:id/account', validateUserID, auth, getUser);
 
 // Route to get user's from a same workspace basics information by the workspace id
-router.get('/:workspaceId/members', validateUserID, auth, getUser);
+router.get('/:workspaceId/members', auth, getUsers);
 
 // Route to update a user's information by their id
 router.put('/:id/update', validateUserID, auth, updateUser);

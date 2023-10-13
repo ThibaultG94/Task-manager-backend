@@ -423,11 +423,20 @@ export const getShortTermTasks = async (
 			'tomorrow-tasks',
 		];
 
-		const shortTermTasks: ExtendedTask[] = await TaskModel.find({
-			userId: userId,
-			status: { $ne: 'Archived' },
-			category: { $in: shortTermCategories },
-		});
+		const tasks = (await TaskModel.find({
+			userId: userId, // Include only tasks that belong to the specified userId
+			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
+		})) as Task[];
+
+		const shortTermTasks = [];
+
+		for (const task of tasks) {
+			const day = await FormatDateForDisplay(task.deadline);
+			const category = GetCategoryDay(day, task.status, task.deadline);
+			if (shortTermCategories.includes(category)) {
+				shortTermTasks.push(task);
+			}
+		}
 
 		return res.status(200).json({ shortTermTasks });
 	} catch (error) {

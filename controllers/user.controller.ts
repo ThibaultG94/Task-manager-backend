@@ -336,19 +336,26 @@ export const getUsers = async (req: express.Request, res: express.Response) => {
 			return res.status(401).json({ message: 'User not authenticated' });
 		}
 
-		if (!workspace) {
-			return res
-				.status(400)
-				.json({ message: 'This workspace does not exist' });
+		if (!req.params.id) {
+			return res.status(400).json({
+				message: 'There is no workspace id in the request',
+				id: req.params.id,
+			});
 		}
 
-		if (
-			req.user._id !== workspace.userId &&
-			!workspace.members.includes(req.user._id)
-		) {
+		if (!workspace) {
+			return res.status(400).json({
+				message: 'This workspace does not exist',
+				id: req.params.id,
+			});
+		}
+
+		if (!workspace.members.includes(req.user._id)) {
+			const userId = req.user._id;
 			return res.status(403).json({
 				message:
 					'You do not have sufficient rights to perform this action',
+				id: userId,
 			});
 		}
 
