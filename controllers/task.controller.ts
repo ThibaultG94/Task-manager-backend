@@ -526,37 +526,95 @@ export const getThisWeekTasks = async (
 	}
 };
 
-export const getMidTermTasks = async (
+export const getThisWeekendTasks = async (
 	req: express.Request,
 	res: express.Response
 ) => {
 	try {
 		const userId = req.params.userId;
-		const midTermCategories = [
-			'this-weekend-tasks',
-			'next-week-tasks',
-			'next-weekend-tasks',
-		];
+		const thisWeekendCategories = ['this-weekend-tasks'];
 
 		const tasks = (await TaskModel.find({
 			userId: userId, // Include only tasks that belong to the specified userId
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
-		const midTermTasks = [];
+		const thisWeekendTasks = [];
 
 		for (const task of tasks) {
 			const day = await FormatDateForDisplay(task.deadline);
 			const category = GetCategoryDay(day, task.status, task.deadline);
-			if (midTermCategories.includes(category)) {
-				midTermTasks.push(task);
+			if (thisWeekendCategories.includes(category)) {
+				thisWeekendTasks.push(task);
 			}
 		}
 
-		return res.status(200).json({ midTermTasks });
+		return res.status(200).json({ thisWeekendTasks });
 	} catch (error) {
 		res.status(500).json({
-			message: 'An error occurred while retrieving mid-term tasks',
+			message: 'An error occurred while retrieving this weekend tasks',
+		});
+	}
+};
+
+export const getNextWeekTasks = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const userId = req.params.userId;
+		const nextWeekCategories = ['next-week-tasks'];
+
+		const tasks = (await TaskModel.find({
+			userId: userId, // Include only tasks that belong to the specified userId
+			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
+		})) as Task[];
+
+		const nextWeekTasks = [];
+
+		for (const task of tasks) {
+			const day = await FormatDateForDisplay(task.deadline);
+			const category = GetCategoryDay(day, task.status, task.deadline);
+			if (nextWeekCategories.includes(category)) {
+				nextWeekTasks.push(task);
+			}
+		}
+
+		return res.status(200).json({ nextWeekTasks });
+	} catch (error) {
+		res.status(500).json({
+			message: 'An error occurred while retrieving next week tasks',
+		});
+	}
+};
+
+export const getNextWeekendTasks = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const userId = req.params.userId;
+		const nextWeekendCategories = ['next-weekend-tasks'];
+
+		const tasks = (await TaskModel.find({
+			userId: userId, // Include only tasks that belong to the specified userId
+			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
+		})) as Task[];
+
+		const nextWeekendTasks = [];
+
+		for (const task of tasks) {
+			const day = await FormatDateForDisplay(task.deadline);
+			const category = GetCategoryDay(day, task.status, task.deadline);
+			if (nextWeekendCategories.includes(category)) {
+				nextWeekendTasks.push(task);
+			}
+		}
+
+		return res.status(200).json({ nextWeekendTasks });
+	} catch (error) {
+		res.status(500).json({
+			message: 'An error occurred while retrieving next weekend tasks',
 		});
 	}
 };

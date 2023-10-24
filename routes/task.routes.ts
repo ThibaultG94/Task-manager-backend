@@ -9,13 +9,15 @@ import {
 	getUrgentTasks,
 	getUserTasks,
 	updateTaskCategories,
-	getMidTermTasks,
 	getLongTermTasks,
 	getArchivedTasks,
 	getOverdueTasks,
 	getTodayTasks,
 	getTomorrowTasks,
 	getThisWeekTasks,
+	getThisWeekendTasks,
+	getNextWeekTasks,
+	getNextWeekendTasks,
 } from '../controllers/task.controller';
 import {
 	validateUserID,
@@ -57,8 +59,14 @@ router.get('/:userId/tomorrow', auth, getTomorrowTasks);
 // Route to get all this week tasks for a specific user
 router.get('/:userId/this-week', auth, getThisWeekTasks);
 
-// Route to get all mid-term tasks for a specific user
-router.get('/:userId/mid-term', auth, getMidTermTasks);
+// Route to get all this weekend tasks for a specific user
+router.get('/:userId/this-weekend', auth, getThisWeekendTasks);
+
+// Route to get all next week tasks for a specific user
+router.get('/:userId/next-week', auth, getNextWeekTasks);
+
+// Route to get all next weekend tasks for a specific user
+router.get('/:userId/next-weekend', auth, getNextWeekendTasks);
 
 // Route to get all long-term tasks for a specific user
 router.get('/:userId/long-term', auth, getLongTermTasks);
