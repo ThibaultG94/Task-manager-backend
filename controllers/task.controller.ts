@@ -432,7 +432,7 @@ export const getOverdueTasks = async (
 		return res.status(200).json({ overdueTasks });
 	} catch (error) {
 		res.status(500).json({
-			message: 'An error occurred while retrieving short-term tasks',
+			message: 'An error occurred while retrieving overdue tasks',
 		});
 	}
 };
@@ -461,7 +461,7 @@ export const getTodayTasks = async (
 		return res.status(200).json({ todayTasks });
 	} catch (error) {
 		res.status(500).json({
-			message: 'An error occurred while retrieving short-term tasks',
+			message: 'An error occurred while retrieving today tasks',
 		});
 	}
 };
@@ -490,7 +490,38 @@ export const getTomorrowTasks = async (
 		return res.status(200).json({ tomorrowTasks });
 	} catch (error) {
 		res.status(500).json({
-			message: 'An error occurred while retrieving short-term tasks',
+			message: 'An error occurred while retrieving tomorrow tasks',
+		});
+	}
+};
+
+export const getThisWeekTasks = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const userId = req.params.userId;
+		const thisWeekCategories = ['this-week-tasks'];
+
+		const tasks = (await TaskModel.find({
+			userId: userId, // Include only tasks that belong to the specified userId
+			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
+		})) as Task[];
+
+		const thisWeekTasks = [];
+
+		for (const task of tasks) {
+			const day = await FormatDateForDisplay(task.deadline);
+			const category = GetCategoryDay(day, task.status, task.deadline);
+			if (thisWeekCategories.includes(category)) {
+				thisWeekTasks.push(task);
+			}
+		}
+
+		return res.status(200).json({ thisWeekTasks });
+	} catch (error) {
+		res.status(500).json({
+			message: 'An error occurred while retrieving this week tasks',
 		});
 	}
 };
@@ -502,7 +533,6 @@ export const getMidTermTasks = async (
 	try {
 		const userId = req.params.userId;
 		const midTermCategories = [
-			'this-week-tasks',
 			'this-weekend-tasks',
 			'next-week-tasks',
 			'next-weekend-tasks',

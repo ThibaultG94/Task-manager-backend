@@ -15,6 +15,7 @@ import {
 	getOverdueTasks,
 	getTodayTasks,
 	getTomorrowTasks,
+	getThisWeekTasks,
 } from '../controllers/task.controller';
 import {
 	validateUserID,
@@ -50,8 +51,11 @@ router.get('/:userId/overdue', auth, getOverdueTasks);
 // Route to get all today tasks for a specific user
 router.get('/:userId/today', auth, getTodayTasks);
 
-// Route to get all today tasks for a specific user
+// Route to get all tomorrow tasks for a specific user
 router.get('/:userId/tomorrow', auth, getTomorrowTasks);
+
+// Route to get all this week tasks for a specific user
+router.get('/:userId/this-week', auth, getThisWeekTasks);
 
 // Route to get all mid-term tasks for a specific user
 router.get('/:userId/mid-term', auth, getMidTermTasks);
