@@ -49,13 +49,13 @@ router.get('/:userId/all-tasks', auth, getUserTasks);
 router.get('/:userId/short-term', auth, getShortTermTasks);
 
 // Route to get all overdue tasks for a specific user
-router.get('/:userId/tasks/overdue', auth, getOverdueTasks);
+router.get('/:userId/overdue', auth, getOverdueTasks);
 
 // Route to get all today tasks for a specific user
-router.get('/:userId/tasks/today', auth, getTodayTasks);
+router.get('/:userId/today', auth, getTodayTasks);
 
 // Route to get all today tasks for a specific user
-router.get('/:userId/tasks/tomorrow', auth, getTomorrowTasks);
+router.get('/:userId/tomorrow', auth, getTomorrowTasks);
 
 // Route to get all mid-term tasks for a specific user
 router.get('/:userId/mid-term', auth, getMidTermTasks);

@@ -455,16 +455,16 @@ export const getOverdueTasks = async (
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
-		const overDueTasks = [];
+		const overdueTasks = [];
 
 		for (const task of tasks) {
 			const day = await FormatDateForDisplay(task.deadline);
 			if (day === 'En retard') {
-				overDueTasks.push(task);
+				overdueTasks.push(task);
 			}
 		}
 
-		return res.status(200).json({ overDueTasks });
+		return res.status(200).json({ overdueTasks });
 	} catch (error) {
 		res.status(500).json({
 			message: 'An error occurred while retrieving short-term tasks',
