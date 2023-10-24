@@ -408,41 +408,6 @@ export const updateTaskCategories = async (
 	}
 };
 
-export const getShortTermTasks = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.userId;
-		const shortTermCategories = [
-			'retard-tasks',
-			'today-tasks',
-			'tomorrow-tasks',
-		];
-
-		const tasks = (await TaskModel.find({
-			userId: userId, // Include only tasks that belong to the specified userId
-			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
-		})) as Task[];
-
-		const shortTermTasks = [];
-
-		for (const task of tasks) {
-			const day = await FormatDateForDisplay(task.deadline);
-			const category = GetCategoryDay(day, task.status, task.deadline);
-			if (shortTermCategories.includes(category)) {
-				shortTermTasks.push(task);
-			}
-		}
-
-		return res.status(200).json({ shortTermTasks });
-	} catch (error) {
-		res.status(500).json({
-			message: 'An error occurred while retrieving short-term tasks',
-		});
-	}
-};
-
 export const getOverdueTasks = async (
 	req: express.Request,
 	res: express.Response

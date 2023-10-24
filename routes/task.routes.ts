@@ -9,7 +9,6 @@ import {
 	getUrgentTasks,
 	getUserTasks,
 	updateTaskCategories,
-	getShortTermTasks,
 	getMidTermTasks,
 	getLongTermTasks,
 	getArchivedTasks,
@@ -44,9 +43,6 @@ router.get('/:userId/urgent', auth, getUrgentTasks);
 
 // Route to get all tasks for a specific user
 router.get('/:userId/all-tasks', auth, getUserTasks);
-
-// Route to get all short-term tasks for a specific user
-router.get('/:userId/short-term', auth, getShortTermTasks);
 
 // Route to get all overdue tasks for a specific user
 router.get('/:userId/overdue', auth, getOverdueTasks);
