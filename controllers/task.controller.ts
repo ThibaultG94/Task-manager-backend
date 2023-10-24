@@ -465,7 +465,69 @@ export const getOverdueTasks = async (
 		}
 
 		return res.status(200).json({ overDueTasks });
-	} catch (error) {}
+	} catch (error) {
+		res.status(500).json({
+			message: 'An error occurred while retrieving short-term tasks',
+		});
+	}
+};
+
+export const getTodayTasks = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const userId = req.params.userId;
+
+		const tasks = (await TaskModel.find({
+			userId: userId, // Include only tasks that belong to the specified userId
+			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
+		})) as Task[];
+
+		const todayTasks = [];
+
+		for (const task of tasks) {
+			const day = await FormatDateForDisplay(task.deadline);
+			if (day === "Aujourd'hui") {
+				todayTasks.push(task);
+			}
+		}
+
+		return res.status(200).json({ todayTasks });
+	} catch (error) {
+		res.status(500).json({
+			message: 'An error occurred while retrieving short-term tasks',
+		});
+	}
+};
+
+export const getTomorrowTasks = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const userId = req.params.userId;
+
+		const tasks = (await TaskModel.find({
+			userId: userId, // Include only tasks that belong to the specified userId
+			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
+		})) as Task[];
+
+		const tomorrowTasks = [];
+
+		for (const task of tasks) {
+			const day = await FormatDateForDisplay(task.deadline);
+			if (day === 'Demain') {
+				tomorrowTasks.push(task);
+			}
+		}
+
+		return res.status(200).json({ tomorrowTasks });
+	} catch (error) {
+		res.status(500).json({
+			message: 'An error occurred while retrieving short-term tasks',
+		});
+	}
 };
 
 export const getMidTermTasks = async (
