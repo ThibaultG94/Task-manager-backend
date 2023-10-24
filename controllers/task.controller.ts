@@ -443,6 +443,31 @@ export const getShortTermTasks = async (
 	}
 };
 
+export const getOverdueTasks = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const userId = req.params.userId;
+
+		const tasks = (await TaskModel.find({
+			userId: userId, // Include only tasks that belong to the specified userId
+			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
+		})) as Task[];
+
+		const overDueTasks = [];
+
+		for (const task of tasks) {
+			const day = await FormatDateForDisplay(task.deadline);
+			if (day === 'En retard') {
+				overDueTasks.push(task);
+			}
+		}
+
+		return res.status(200).json({ overDueTasks });
+	} catch (error) {}
+};
+
 export const getMidTermTasks = async (
 	req: express.Request,
 	res: express.Response
