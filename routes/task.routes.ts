@@ -9,7 +9,6 @@ import {
 	getUrgentTasks,
 	getUserTasks,
 	updateTaskCategories,
-	getLongTermTasks,
 	getArchivedTasks,
 	getOverdueTasks,
 	getTodayTasks,
@@ -18,6 +17,10 @@ import {
 	getThisWeekendTasks,
 	getNextWeekTasks,
 	getNextWeekendTasks,
+	getThisMonthTasks,
+	getThisYearTasks,
+	getNextYearTasks,
+	getBecomingTasks,
 } from '../controllers/task.controller';
 import {
 	validateUserID,
@@ -68,8 +71,17 @@ router.get('/:userId/next-week', auth, getNextWeekTasks);
 // Route to get all next weekend tasks for a specific user
 router.get('/:userId/next-weekend', auth, getNextWeekendTasks);
 
-// Route to get all long-term tasks for a specific user
-router.get('/:userId/long-term', auth, getLongTermTasks);
+// Route to get all this month tasks for a specific user
+router.get('/:userId/this-month', auth, getThisMonthTasks);
+
+// Route to get all this year tasks for a specific user
+router.get('/:userId/this-year', auth, getThisYearTasks);
+
+// Route to get all next year tasks for a specific user
+router.get('/:userId/next-year', auth, getNextYearTasks);
+
+// Route to get all becoming tasks for a specific user
+router.get('/:userId/becoming', auth, getBecomingTasks);
 
 // Route to get all archived tasks for a specific user
 router.get('/:userId/archived', auth, getArchivedTasks);

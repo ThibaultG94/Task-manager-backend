@@ -619,38 +619,126 @@ export const getNextWeekendTasks = async (
 	}
 };
 
-export const getLongTermTasks = async (
+export const getThisMonthTasks = async (
 	req: express.Request,
 	res: express.Response
 ) => {
 	try {
 		const userId = req.params.userId;
-		const longTermCategories = [
-			'this-month-tasks',
-			'this-year-tasks',
-			'next-year-tasks',
-			'becoming-tasks',
-		];
+		const thisMonthCategories = ['this-month-tasks'];
 
 		const tasks = (await TaskModel.find({
 			userId: userId, // Include only tasks that belong to the specified userId
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
-		const longTermTasks = [];
+		const thisMonthTasks = [];
 
 		for (const task of tasks) {
 			const day = await FormatDateForDisplay(task.deadline);
 			const category = GetCategoryDay(day, task.status, task.deadline);
-			if (longTermCategories.includes(category)) {
-				longTermTasks.push(task);
+			if (thisMonthCategories.includes(category)) {
+				thisMonthTasks.push(task);
 			}
 		}
 
-		return res.status(200).json({ longTermTasks });
+		return res.status(200).json({ thisMonthTasks });
 	} catch (error) {
 		res.status(500).json({
-			message: 'An error occurred while retrieving long-term tasks',
+			message: 'An error occurred while retrieving this month tasks',
+		});
+	}
+};
+
+export const getThisYearTasks = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const userId = req.params.userId;
+		const thisYearCategories = ['this-year-tasks'];
+
+		const tasks = (await TaskModel.find({
+			userId: userId, // Include only tasks that belong to the specified userId
+			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
+		})) as Task[];
+
+		const thisYearTasks = [];
+
+		for (const task of tasks) {
+			const day = await FormatDateForDisplay(task.deadline);
+			const category = GetCategoryDay(day, task.status, task.deadline);
+			if (thisYearCategories.includes(category)) {
+				thisYearTasks.push(task);
+			}
+		}
+
+		return res.status(200).json({ thisYearTasks });
+	} catch (error) {
+		res.status(500).json({
+			message: 'An error occurred while retrieving this year tasks',
+		});
+	}
+};
+
+export const getNextYearTasks = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const userId = req.params.userId;
+		const nextYearCategories = ['next-year-tasks'];
+
+		const tasks = (await TaskModel.find({
+			userId: userId, // Include only tasks that belong to the specified userId
+			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
+		})) as Task[];
+
+		const nextYearTasks = [];
+
+		for (const task of tasks) {
+			const day = await FormatDateForDisplay(task.deadline);
+			const category = GetCategoryDay(day, task.status, task.deadline);
+			if (nextYearCategories.includes(category)) {
+				nextYearTasks.push(task);
+			}
+		}
+
+		return res.status(200).json({ nextYearTasks });
+	} catch (error) {
+		res.status(500).json({
+			message: 'An error occurred while retrieving next year tasks',
+		});
+	}
+};
+
+export const getBecomingTasks = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const userId = req.params.userId;
+		const becomingCategories = ['becoming-tasks'];
+
+		const tasks = (await TaskModel.find({
+			userId: userId, // Include only tasks that belong to the specified userId
+			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
+		})) as Task[];
+
+		const becomingTasks = [];
+
+		for (const task of tasks) {
+			const day = await FormatDateForDisplay(task.deadline);
+			const category = GetCategoryDay(day, task.status, task.deadline);
+			if (becomingCategories.includes(category)) {
+				becomingTasks.push(task);
+			}
+		}
+
+		return res.status(200).json({ becomingTasks });
+	} catch (error) {
+		res.status(500).json({
+			message: 'An error occurred while retrieving becoming tasks',
 		});
 	}
 };
