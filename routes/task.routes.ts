@@ -21,6 +21,7 @@ import {
 	getThisYearTasks,
 	getNextYearTasks,
 	getBecomingTasks,
+	getNextMonthTasks,
 } from '../controllers/task.controller';
 import {
 	validateUserID,
@@ -73,6 +74,9 @@ router.get('/:userId/next-weekend', auth, getNextWeekendTasks);
 
 // Route to get all this month tasks for a specific user
 router.get('/:userId/this-month', auth, getThisMonthTasks);
+
+// Route to get all next month tasks for a specific user
+router.get('/:userId/next-month', auth, getNextMonthTasks);
 
 // Route to get all this year tasks for a specific user
 router.get('/:userId/this-year', auth, getThisYearTasks);

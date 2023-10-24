@@ -650,6 +650,37 @@ export const getThisMonthTasks = async (
 	}
 };
 
+export const getNextMonthTasks = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const userId = req.params.userId;
+		const nextMonthCategories = ['next-month-tasks'];
+
+		const tasks = (await TaskModel.find({
+			userId: userId, // Include only tasks that belong to the specified userId
+			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
+		})) as Task[];
+
+		const nextMonthTasks = [];
+
+		for (const task of tasks) {
+			const day = await FormatDateForDisplay(task.deadline);
+			const category = GetCategoryDay(day, task.status, task.deadline);
+			if (nextMonthCategories.includes(category)) {
+				nextMonthTasks.push(task);
+			}
+		}
+
+		return res.status(200).json({ nextMonthTasks });
+	} catch (error) {
+		res.status(500).json({
+			message: 'An error occurred while retrieving next month tasks',
+		});
+	}
+};
+
 export const getThisYearTasks = async (
 	req: express.Request,
 	res: express.Response
