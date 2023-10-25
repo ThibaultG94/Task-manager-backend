@@ -10,6 +10,15 @@ import { ExtendedTask } from '../types/types';
 import { GetCategoryDay } from '../utils/GetCategoryDay';
 import { FormatDateForDisplay } from '../utils/FormatDateForDisplay';
 
+type Priority = 'Urgent' | 'High' | 'Medium' | 'Low';
+
+const priorityValues: { [key in Priority]: number } = {
+	Urgent: 4,
+	High: 3,
+	Medium: 2,
+	Low: 1,
+};
+
 // Endpoint to get a task by id
 export const getTask = async (req: express.Request, res: express.Response) => {
 	try {
@@ -420,7 +429,7 @@ export const getOverdueTasks = async (
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
-		const overdueTasks = [];
+		let overdueTasks = [];
 
 		for (const task of tasks) {
 			const day = await FormatDateForDisplay(task.deadline);
@@ -428,6 +437,21 @@ export const getOverdueTasks = async (
 				overdueTasks.push(task);
 			}
 		}
+
+		overdueTasks = overdueTasks.sort((a, b) => {
+			if (
+				new Date(a.deadline).getTime() ===
+				new Date(b.deadline).getTime()
+			) {
+				return (
+					priorityValues[b.priority as Priority] -
+					priorityValues[a.priority as Priority]
+				);
+			}
+			return (
+				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+			);
+		});
 
 		return res.status(200).json({ overdueTasks });
 	} catch (error) {
@@ -449,7 +473,7 @@ export const getTodayTasks = async (
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
-		const todayTasks = [];
+		let todayTasks = [];
 
 		for (const task of tasks) {
 			const day = await FormatDateForDisplay(task.deadline);
@@ -457,6 +481,21 @@ export const getTodayTasks = async (
 				todayTasks.push(task);
 			}
 		}
+
+		todayTasks = todayTasks.sort((a, b) => {
+			if (
+				new Date(a.deadline).getTime() ===
+				new Date(b.deadline).getTime()
+			) {
+				return (
+					priorityValues[b.priority as Priority] -
+					priorityValues[a.priority as Priority]
+				);
+			}
+			return (
+				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+			);
+		});
 
 		return res.status(200).json({ todayTasks });
 	} catch (error) {
@@ -478,7 +517,7 @@ export const getTomorrowTasks = async (
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
-		const tomorrowTasks = [];
+		let tomorrowTasks = [];
 
 		for (const task of tasks) {
 			const day = await FormatDateForDisplay(task.deadline);
@@ -486,6 +525,21 @@ export const getTomorrowTasks = async (
 				tomorrowTasks.push(task);
 			}
 		}
+
+		tomorrowTasks = tomorrowTasks.sort((a, b) => {
+			if (
+				new Date(a.deadline).getTime() ===
+				new Date(b.deadline).getTime()
+			) {
+				return (
+					priorityValues[b.priority as Priority] -
+					priorityValues[a.priority as Priority]
+				);
+			}
+			return (
+				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+			);
+		});
 
 		return res.status(200).json({ tomorrowTasks });
 	} catch (error) {
@@ -508,7 +562,7 @@ export const getThisWeekTasks = async (
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
-		const thisWeekTasks = [];
+		let thisWeekTasks = [];
 
 		for (const task of tasks) {
 			const day = await FormatDateForDisplay(task.deadline);
@@ -517,6 +571,21 @@ export const getThisWeekTasks = async (
 				thisWeekTasks.push(task);
 			}
 		}
+
+		thisWeekTasks = thisWeekTasks.sort((a, b) => {
+			if (
+				new Date(a.deadline).getTime() ===
+				new Date(b.deadline).getTime()
+			) {
+				return (
+					priorityValues[b.priority as Priority] -
+					priorityValues[a.priority as Priority]
+				);
+			}
+			return (
+				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+			);
+		});
 
 		return res.status(200).json({ thisWeekTasks });
 	} catch (error) {
@@ -539,7 +608,7 @@ export const getThisWeekendTasks = async (
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
-		const thisWeekendTasks = [];
+		let thisWeekendTasks = [];
 
 		for (const task of tasks) {
 			const day = await FormatDateForDisplay(task.deadline);
@@ -548,6 +617,21 @@ export const getThisWeekendTasks = async (
 				thisWeekendTasks.push(task);
 			}
 		}
+
+		thisWeekendTasks = thisWeekendTasks.sort((a, b) => {
+			if (
+				new Date(a.deadline).getTime() ===
+				new Date(b.deadline).getTime()
+			) {
+				return (
+					priorityValues[b.priority as Priority] -
+					priorityValues[a.priority as Priority]
+				);
+			}
+			return (
+				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+			);
+		});
 
 		return res.status(200).json({ thisWeekendTasks });
 	} catch (error) {
@@ -570,7 +654,7 @@ export const getNextWeekTasks = async (
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
-		const nextWeekTasks = [];
+		let nextWeekTasks = [];
 
 		for (const task of tasks) {
 			const day = await FormatDateForDisplay(task.deadline);
@@ -579,6 +663,21 @@ export const getNextWeekTasks = async (
 				nextWeekTasks.push(task);
 			}
 		}
+
+		nextWeekTasks = nextWeekTasks.sort((a, b) => {
+			if (
+				new Date(a.deadline).getTime() ===
+				new Date(b.deadline).getTime()
+			) {
+				return (
+					priorityValues[b.priority as Priority] -
+					priorityValues[a.priority as Priority]
+				);
+			}
+			return (
+				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+			);
+		});
 
 		return res.status(200).json({ nextWeekTasks });
 	} catch (error) {
@@ -601,7 +700,7 @@ export const getNextWeekendTasks = async (
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
-		const nextWeekendTasks = [];
+		let nextWeekendTasks = [];
 
 		for (const task of tasks) {
 			const day = await FormatDateForDisplay(task.deadline);
@@ -610,6 +709,21 @@ export const getNextWeekendTasks = async (
 				nextWeekendTasks.push(task);
 			}
 		}
+
+		nextWeekendTasks = nextWeekendTasks.sort((a, b) => {
+			if (
+				new Date(a.deadline).getTime() ===
+				new Date(b.deadline).getTime()
+			) {
+				return (
+					priorityValues[b.priority as Priority] -
+					priorityValues[a.priority as Priority]
+				);
+			}
+			return (
+				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+			);
+		});
 
 		return res.status(200).json({ nextWeekendTasks });
 	} catch (error) {
@@ -632,7 +746,7 @@ export const getThisMonthTasks = async (
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
-		const thisMonthTasks = [];
+		let thisMonthTasks = [];
 
 		for (const task of tasks) {
 			const day = await FormatDateForDisplay(task.deadline);
@@ -641,6 +755,21 @@ export const getThisMonthTasks = async (
 				thisMonthTasks.push(task);
 			}
 		}
+
+		thisMonthTasks = thisMonthTasks.sort((a, b) => {
+			if (
+				new Date(a.deadline).getTime() ===
+				new Date(b.deadline).getTime()
+			) {
+				return (
+					priorityValues[b.priority as Priority] -
+					priorityValues[a.priority as Priority]
+				);
+			}
+			return (
+				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+			);
+		});
 
 		return res.status(200).json({ thisMonthTasks });
 	} catch (error) {
@@ -663,7 +792,7 @@ export const getNextMonthTasks = async (
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
-		const nextMonthTasks = [];
+		let nextMonthTasks = [];
 
 		for (const task of tasks) {
 			const day = await FormatDateForDisplay(task.deadline);
@@ -672,6 +801,21 @@ export const getNextMonthTasks = async (
 				nextMonthTasks.push(task);
 			}
 		}
+
+		nextMonthTasks = nextMonthTasks.sort((a, b) => {
+			if (
+				new Date(a.deadline).getTime() ===
+				new Date(b.deadline).getTime()
+			) {
+				return (
+					priorityValues[b.priority as Priority] -
+					priorityValues[a.priority as Priority]
+				);
+			}
+			return (
+				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+			);
+		});
 
 		return res.status(200).json({ nextMonthTasks });
 	} catch (error) {
@@ -694,7 +838,7 @@ export const getThisYearTasks = async (
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
-		const thisYearTasks = [];
+		let thisYearTasks = [];
 
 		for (const task of tasks) {
 			const day = await FormatDateForDisplay(task.deadline);
@@ -703,6 +847,21 @@ export const getThisYearTasks = async (
 				thisYearTasks.push(task);
 			}
 		}
+
+		thisYearTasks = thisYearTasks.sort((a, b) => {
+			if (
+				new Date(a.deadline).getTime() ===
+				new Date(b.deadline).getTime()
+			) {
+				return (
+					priorityValues[b.priority as Priority] -
+					priorityValues[a.priority as Priority]
+				);
+			}
+			return (
+				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+			);
+		});
 
 		return res.status(200).json({ thisYearTasks });
 	} catch (error) {
@@ -725,7 +884,7 @@ export const getNextYearTasks = async (
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
-		const nextYearTasks = [];
+		let nextYearTasks = [];
 
 		for (const task of tasks) {
 			const day = await FormatDateForDisplay(task.deadline);
@@ -734,6 +893,21 @@ export const getNextYearTasks = async (
 				nextYearTasks.push(task);
 			}
 		}
+
+		nextYearTasks = nextYearTasks.sort((a, b) => {
+			if (
+				new Date(a.deadline).getTime() ===
+				new Date(b.deadline).getTime()
+			) {
+				return (
+					priorityValues[b.priority as Priority] -
+					priorityValues[a.priority as Priority]
+				);
+			}
+			return (
+				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+			);
+		});
 
 		return res.status(200).json({ nextYearTasks });
 	} catch (error) {
@@ -756,7 +930,7 @@ export const getBecomingTasks = async (
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
-		const becomingTasks = [];
+		let becomingTasks = [];
 
 		for (const task of tasks) {
 			const day = await FormatDateForDisplay(task.deadline);
@@ -765,6 +939,21 @@ export const getBecomingTasks = async (
 				becomingTasks.push(task);
 			}
 		}
+
+		becomingTasks = becomingTasks.sort((a, b) => {
+			if (
+				new Date(a.deadline).getTime() ===
+				new Date(b.deadline).getTime()
+			) {
+				return (
+					priorityValues[b.priority as Priority] -
+					priorityValues[a.priority as Priority]
+				);
+			}
+			return (
+				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+			);
+		});
 
 		return res.status(200).json({ becomingTasks });
 	} catch (error) {
@@ -780,9 +969,24 @@ export const getArchivedTasks = async (
 ) => {
 	try {
 		const userId = req.params.userId;
-		const archivedTasks: ExtendedTask[] = await TaskModel.find({
+		let archivedTasks: ExtendedTask[] = await TaskModel.find({
 			userId: userId,
 			status: 'Archived',
+		});
+
+		archivedTasks = archivedTasks.sort((a, b) => {
+			if (
+				new Date(a.deadline).getTime() ===
+				new Date(b.deadline).getTime()
+			) {
+				return (
+					priorityValues[b.priority as Priority] -
+					priorityValues[a.priority as Priority]
+				);
+			}
+			return (
+				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+			);
 		});
 
 		return res.status(200).json({ archivedTasks });
