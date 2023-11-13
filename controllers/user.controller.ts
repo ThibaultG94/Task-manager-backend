@@ -381,83 +381,6 @@ export const getUsers = async (req: express.Request, res: express.Response) => {
 	}
 };
 
-export const forgotPassword = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		// configure nodemailer SMTP transport
-		let transporter = nodemailer.createTransport({
-			host: 'smtp-relay.gmail.com',
-			port: 587,
-			secure: false, // true for 465, false for other ports
-			auth: {
-				user: 'username@example.com',
-				pass: 'yourpassword',
-			},
-		});
-		// Retrieve email address from request body
-		const { email } = req.body;
-
-		// Check if a user with this email address exists
-		const user = await UserModel.findOne({ email });
-
-		const getRandomString = (length: number) => {
-			return crypto.randomBytes(length).toString('hex');
-		};
-
-		if (!user) {
-			return res
-				.status(404)
-				.json({ message: 'No account with that email address exists' });
-		}
-
-		// Generate a reset token
-		const token = getRandomString(10);
-
-		// Define token and expiration
-		user.resetPasswordToken = token;
-		user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
-
-		await user.save();
-
-		// Send an email to the user with the token
-		let mailOptions = {
-			to: user.email,
-			from: 'passwordreset@example.com',
-			subject: 'Node.js Password Reset',
-			text: `You are receiving this because you (or someone else) have requested the reset of the password for your account.
-						Please click on the following link, or paste this into your browser to complete the process:
-						http://${req.headers.host}/reset/${token}
-						If you did not request this, please ignore this email and your password will remain unchanged.`,
-		};
-
-		transporter.sendMail(mailOptions, function (err) {
-			if (err) {
-				logger.error(err);
-				return res.status(500).json({ message: 'Error sending email' });
-			}
-			return res.status(200).json({
-				message:
-					'An e-mail has been sent to ' +
-					user.email +
-					' with further instructions.',
-			});
-		});
-
-		res.status(200).json({
-			message:
-				'An email has been sent to your account with further instructions.',
-			username: user.username,
-		});
-	} catch (err) {
-		const result = (err as Error).message;
-		logger.error(result);
-
-		res.status(500).json({ message: 'Internal server error' });
-	}
-};
-
 // Endpoint to refresh JWT token
 export const refreshUserToken = async (
 	req: express.Request,
@@ -568,5 +491,94 @@ export const getMe = async (req: express.Request, res: express.Response) => {
 		logger.error(result);
 
 		res.status(500).json({ message: 'Internal server error' });
+	}
+};
+
+export const forgotPassword = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		// Retrieves the request email address
+		const { email } = req.body;
+
+		// Search user by email
+		const user = await UserModel.findOne({ email });
+
+		if (!user) {
+			return res
+				.status(404)
+				.json({ message: 'User not found with this email address' });
+		}
+
+		// Generates a reset token
+		const token = crypto.randomBytes(20).toString('hex');
+
+		// Defines the token and its expiry date
+		user.resetPasswordToken = token;
+		user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+
+		await user.save();
+
+		// Configure email sending
+		let transporter = nodemailer.createTransport({
+			service: 'gmail',
+			auth: {
+				user: process.env.GMAIL_USER,
+				pass: process.env.GMAIL_PASS,
+			},
+		});
+
+		let mailOptions = {
+			from: process.env.GMAIL,
+			to: user.email,
+			subject: 'Réinitialisation de mot de passe Node.js Task Manager',
+			text: `Vous recevez cet email car vous (ou quelqu'un d'autre) avez demandé la réinitialisation du mot de passe pour votre compte.
+						 Veuillez cliquer sur le lien suivant, ou collez-le dans votre navigateur pour terminer le processus:
+						 http://${req.headers.host}/reset/${token}
+						 Si vous n'avez pas demandé cela, veuillez ignorer cet email et votre mot de passe restera inchangé.`,
+		};
+
+		transporter.sendMail(mailOptions, function (err) {
+			if (err) {
+				logger.error(err);
+				return res.status(500).json({ message: 'Error sending email' });
+			}
+			res.status(200).json({
+				message:
+					'An email has been sent to ' +
+					user.email +
+					' with instructions.',
+			});
+		});
+	} catch (error) {
+		logger.error((error as Error).message);
+	}
+};
+
+export const resetPassword = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const user = await UserModel.findOne({
+			resetPasswordToken: req.params.token,
+			resetPasswordExpires: { $gt: Date.now() },
+		});
+
+		if (!user) {
+			return res.status(404).send('Invalid or expired reset token.');
+		}
+
+		// Reset password
+		user.password = bcrypt.hashSync(req.body.password, 10);
+		user.resetPasswordToken = undefined;
+		user.resetPasswordExpires = undefined;
+		await user.save();
+
+		res.send('Password successfully reset.');
+	} catch (error) {
+		logger.error((error as Error).message);
+		res.status(500).send({ message: 'Internal server error' });
 	}
 };

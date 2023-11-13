@@ -6,11 +6,12 @@ import {
 	updateUser,
 	deleteUser,
 	getUser,
-	forgotPassword,
 	refreshUserToken,
 	logoutUser,
 	getMe,
 	getUsers,
+	forgotPassword,
+	resetPassword,
 } from '../controllers/user.controller';
 import {
 	validate,
@@ -53,13 +54,6 @@ router.put('/:id/update', validateUserID, auth, updateUser);
 // Route to delete a user's account by their id
 router.delete('/:id/delete', validateUserID, auth, deleteUser);
 
-// Route to reset password with email adress
-router.post(
-	'/auth/forgot-password',
-	validate(forgetSchema, 'body'),
-	forgotPassword
-);
-
 // Route to refresh token
 router.post('/token', refreshUserToken);
 
@@ -68,5 +62,11 @@ router.post('/logout', logoutUser);
 
 // Route to obtain the account information of the currently logged-in user
 router.get('/my-account', auth, getMe);
+
+// Route to request password reset
+router.post('/forgot-password', forgotPassword);
+
+// Route to reset password
+router.post('/reset-password/:token', resetPassword);
 
 export default router;
