@@ -23,7 +23,7 @@ export const app = express();
 // CORS configuration
 app.use(
 	cors({
-		origin: ['http://127.0.0.1:3000', 'http://localhost:3000'],
+		origin: ['http://127.0.0.1:3000', process.env.FRONTEND_URL],
 		credentials: true,
 		optionsSuccessStatus: 200,
 	})

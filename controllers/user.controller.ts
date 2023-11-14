@@ -535,7 +535,7 @@ export const forgotPassword = async (
 			subject: 'Réinitialisation de mot de passe Node.js Task Manager',
 			text: `Vous recevez cet email car vous (ou quelqu'un d'autre) avez demandé la réinitialisation du mot de passe pour votre compte.
 						 Veuillez cliquer sur le lien suivant, ou collez-le dans votre navigateur pour terminer le processus:
-						 http://localhost:3000/pages/reset/${token}
+						 ${process.env.FRONTEND_URL}/pages/reset/${token}
 						 Si vous n'avez pas demandé cela, veuillez ignorer cet email et votre mot de passe restera inchangé.`,
 		};
 
