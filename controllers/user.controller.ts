@@ -532,11 +532,31 @@ export const forgotPassword = async (
 		let mailOptions = {
 			from: process.env.GMAIL,
 			to: user.email,
-			subject: 'Réinitialisation de mot de passe Node.js Task Manager',
-			text: `Vous recevez cet email car vous (ou quelqu'un d'autre) avez demandé la réinitialisation du mot de passe pour votre compte.
-						 Veuillez cliquer sur le lien suivant, ou collez-le dans votre navigateur pour terminer le processus:
-						 ${process.env.FRONTEND_URL}/pages/reset/${token}
-						 Si vous n'avez pas demandé cela, veuillez ignorer cet email et votre mot de passe restera inchangé.`,
+			subject: 'Réinitialisation de mot de passe Task Manager',
+			html: `
+			<div style="font-family: Arial, sans-serif; color: #333;">
+			<p>Bonjour,</p>
+			<p>Vous recevez cet email parce qu'une demande de réinitialisation du mot de passe de votre compte Task Manager a été reçue.</p>
+			<p>Pour réinitialiser votre mot de passe, veuillez cliquer sur le bouton ci-dessous :</p>
+			<p><a href="${process.env.FRONTEND_URL}/pages/reset/${token}" style="background-color: #1a82e2; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Réinitialiser mon mot de passe</a></p>
+			<p>Ce lien est valide pour les prochaines 24 heures. Si vous n'avez pas demandé cette réinitialisation, veuillez ignorer cet email ou contacter notre support si vous avez des questions.</p>
+			<p>Cordialement,</p>
+			<p>L'équipe Task Manager</p>
+		</div>
+		
+  `,
+			text: `Bonjour,
+
+			Vous recevez cet email parce qu'une demande de réinitialisation du mot de passe de votre compte Task Manager a été reçue.
+			
+			Pour réinitialiser votre mot de passe, copiez et collez le lien suivant dans votre navigateur :
+			${process.env.FRONTEND_URL}/pages/reset/${token}
+			
+			Ce lien est valide pour les prochaines 24 heures. Si vous n'avez pas demandé cette réinitialisation, veuillez ignorer cet email ou contactez notre support si vous avez des questions.
+			
+			Cordialement,
+			L'équipe Task Manager
+			`,
 		};
 
 		transporter.sendMail(mailOptions, function (err) {
