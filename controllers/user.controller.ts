@@ -459,11 +459,15 @@ export const logoutUser = async (
 	res: express.Response
 ) => {
 	try {
-		const { refreshToken } = req.cookies;
+		const { refreshToken, token } = req.cookies;
 
 		if (refreshToken) {
 			await refreshTokenModel.deleteOne({ token: refreshToken });
 			res.clearCookie('refreshToken');
+		}
+
+		if (token) {
+			res.clearCookie('token');
 		}
 
 		res.status(200).json({ message: 'User logged out successfully' });
