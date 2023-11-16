@@ -463,9 +463,9 @@ export const logoutUser = async (
 
 		if (refreshToken) {
 			await refreshTokenModel.deleteOne({ token: refreshToken });
+			res.clearCookie('refreshToken');
 		}
 
-		res.clearCookie('refreshToken');
 		res.status(200).json({ message: 'User logged out successfully' });
 	} catch (err) {
 		res.status(500).json({ message: 'Internal server error' });
