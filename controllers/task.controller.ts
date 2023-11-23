@@ -342,7 +342,7 @@ export const getUrgentTasks = async (
 				}
 				return dateA - dateB;
 			})
-			.slice(0, 3);
+			.slice(0, 4);
 
 		return res.status(200).json({ urgentTasks: sortedTasks });
 	} catch (error) {
