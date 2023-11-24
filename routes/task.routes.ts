@@ -21,6 +21,7 @@ import {
 	getNextYearTasks,
 	getBecomingTasks,
 	getNextMonthTasks,
+	getWorkspaceTaskStatusCount,
 } from '../controllers/task.controller';
 import {
 	validateUserID,
@@ -43,6 +44,14 @@ router.get(
 	validatePageAndLimit,
 	auth,
 	getWorkspaceTasks
+);
+
+// Route to get a count of tasks by status for a specific workspace
+router.get(
+	'/workspace/:id/status-count',
+	validateUserID,
+	auth,
+	getWorkspaceTaskStatusCount
 );
 
 // Route to the three most urgent tasks with the userId

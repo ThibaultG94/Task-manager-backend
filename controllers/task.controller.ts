@@ -127,6 +127,55 @@ export const getWorkspaceTasks = async (
 	}
 };
 
+// Endpoint to get the count of tasks by status in a specific workspace
+export const getWorkspaceTaskStatusCount = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const workspaceId = req.params.id;
+
+		// Vérifier si le workspace existe et si l'utilisateur est membre
+		const workspace = await workspaceModel.findById(workspaceId);
+		if (!workspace) {
+			return res.status(404).json({ message: 'Workspace not found' });
+		}
+
+		if (
+			!workspace.members.includes(req.user._id) &&
+			workspace.userId !== req.user._id
+		) {
+			return res.status(403).json({
+				message:
+					'You do not have sufficient rights to perform this action',
+			});
+		}
+
+		// Compter les tâches par statut
+		const taskCountByStatus = await TaskModel.aggregate([
+			{ $match: { workspaceId } },
+			{ $group: { _id: '$status', count: { $sum: 1 } } },
+		]);
+
+		// Convertir le résultat en objet avec les statuts comme clés
+		const statusCounts = taskCountByStatus.reduce(
+			(acc, curr) => {
+				acc[curr._id] = curr.count;
+				return acc;
+			},
+			{ Pending: 0, 'In Progress': 0, Completed: 0, Archived: 0 }
+		);
+
+		// Retourner le décompte des tâches
+		res.status(200).json(statusCounts);
+	} catch (err) {
+		const result = (err as Error).message;
+		logger.info(result);
+
+		res.status(500).json({ message: 'Internal server error' });
+	}
+};
+
 // Endpoint to create a task
 export const setTasks = async (
 	req: express.Request,
