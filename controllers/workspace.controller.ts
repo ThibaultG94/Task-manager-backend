@@ -55,7 +55,9 @@ export const getUserWorkspaces = async (
 			});
 		}
 
-		const workspaces = await workspaceModel.find({ userId });
+		const workspaces = await workspaceModel
+			.find({ userId })
+			.sort({ updatedAt: -1 });
 
 		res.status(200).json(workspaces);
 	} catch (error) {
