@@ -11,6 +11,6 @@ export const apiLimiter = rateLimit({
 
 export const apiRegisterAndLoginLimiter = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
-	max: process.env.NODE_ENV === 'development' ? 300000 : 200000,
+	max: process.env.NODE_ENV === 'development' ? 3000000 : 2000000,
 	message: 'Too many requests from this IP, please try again later.',
 });

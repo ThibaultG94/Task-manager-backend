@@ -20,6 +20,10 @@ const workspaceSchema = new mongoose.Schema(
 			type: String,
 			default: false,
 		},
+		lastUpdateDate: {
+			type: Date,
+			default: Date.now,
+		},
 	},
 	{ timestamps: true }
 );

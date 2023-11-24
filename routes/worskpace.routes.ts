@@ -8,6 +8,7 @@ import {
 	getWorkspace,
 } from '../controllers/workspace.controller';
 import { validateUserID } from '../middlewares/validation.middlewares';
+import { updateLastUpdateDate } from '../middlewares/workspace.middlewares';
 
 const router = express.Router();
 
@@ -21,7 +22,7 @@ router.get('/:id', auth, validateUserID, getWorkspace);
 router.get('/user/:id', auth, validateUserID, getUserWorkspaces);
 
 // Route to update a workspace by its id
-router.put('/:id', auth, validateUserID, editWorkspace);
+router.put('/:id', auth, validateUserID, editWorkspace, updateLastUpdateDate);
 
 // Route to delete a workspace by its id
 router.delete('/:id', auth, validateUserID, deleteWorkspace);

@@ -128,7 +128,11 @@ export const getWorkspaceTasks = async (
 };
 
 // Endpoint to create a task
-export const setTasks = async (req: express.Request, res: express.Response) => {
+export const setTasks = async (
+	req: express.Request,
+	res: express.Response,
+	next: express.NextFunction
+) => {
 	try {
 		// Check if the request includes task title
 		if (!req.body.title) {
@@ -177,6 +181,8 @@ export const setTasks = async (req: express.Request, res: express.Response) => {
 		}
 
 		res.status(200).json({ task: task });
+
+		next();
 	} catch (error) {
 		// If something goes wrong, log the error and send a server error response
 		const result = (error as Error).message;
@@ -189,7 +195,11 @@ export const setTasks = async (req: express.Request, res: express.Response) => {
 };
 
 // Endpoint to edit a task
-export const editTask = async (req: express.Request, res: express.Response) => {
+export const editTask = async (
+	req: express.Request,
+	res: express.Response,
+	next: express.NextFunction
+) => {
 	try {
 		// Data to be updated
 		const updates = req.body;
@@ -266,6 +276,8 @@ export const editTask = async (req: express.Request, res: express.Response) => {
 		} catch (error) {
 			console.error('Cache update error for a task :', error);
 		}
+
+		next();
 	} catch (error) {
 		// If something goes wrong, log the error and a server error response
 		const result = (error as Error).message;
@@ -278,7 +290,8 @@ export const editTask = async (req: express.Request, res: express.Response) => {
 // Endpoint to delete a task
 export const deleteTask = async (
 	req: express.Request,
-	res: express.Response
+	res: express.Response,
+	next: express.NextFunction
 ) => {
 	// Attempt to find and delete the task by the provided id
 	const task = await TaskModel.findById(req.params.id);
@@ -314,6 +327,8 @@ export const deleteTask = async (
 			);
 		}
 	}
+
+	next();
 };
 
 // Endpoint to get Urgent Tasks
@@ -389,31 +404,6 @@ export const getUserTasks = async (
 		res.status(500).json({
 			message: 'An error occured while retrieving user tasks',
 		});
-	}
-};
-
-// Endpoint to update all tasks categories
-export const updateTaskCategories = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.userId;
-		const tasks = (await TaskModel.find({
-			userId: userId, // Include only tasks that belong to the specified userId
-			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
-		})) as Task[];
-
-		tasks.forEach(async (task) => {
-			const day = await FormatDateForDisplay(task.deadline);
-			const category = GetCategoryDay(day, task.status, task.deadline);
-			task.category = category;
-			await task.save();
-		});
-
-		return res.status(200).json({ message: 'Categories updated' });
-	} catch (error) {
-		console.error('Error updating categories:', error);
 	}
 };
 

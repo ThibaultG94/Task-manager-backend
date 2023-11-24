@@ -57,7 +57,7 @@ export const getUserWorkspaces = async (
 
 		const workspaces = await workspaceModel
 			.find({ userId })
-			.sort({ updatedAt: -1 });
+			.sort({ lastUpdateDate: -1 });
 
 		res.status(200).json(workspaces);
 	} catch (error) {
@@ -101,7 +101,8 @@ export const createWorkspace = async (
 // Endpoint to edit a workspace
 export const editWorkspace = async (
 	req: express.Request,
-	res: express.Response
+	res: express.Response,
+	next: express.NextFunction
 ) => {
 	try {
 		const updates = req.body;
@@ -145,6 +146,8 @@ export const editWorkspace = async (
 			message: 'Workspace updated',
 			workspace: updatedWorkspace,
 		});
+
+		next();
 	} catch (error) {
 		res.status(500).json({ message: 'Internal server error' });
 	}
