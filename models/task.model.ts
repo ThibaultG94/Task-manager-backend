@@ -50,24 +50,10 @@ const taskSchema = new mongoose.Schema(
 			type: [String],
 			required: false,
 		},
-		category: {
+		archiveDate: {
 			type: String,
-			enum: [
-				'archived-tasks',
-				'retard-tasks',
-				'today-tasks',
-				'tomorrow-tasks',
-				'this-week-tasks',
-				'this-weekend-tasks',
-				'next-week-tasks',
-				'next-weekend-tasks',
-				'this-month-tasks',
-				'next-month-tasks',
-				'this-year-tasks',
-				'next-year-tasks',
-				'becoming-tasks',
-			],
 			required: false,
+			default: null,
 		},
 	},
 	// Add creation and update timestamps to each document
@@ -76,6 +62,5 @@ const taskSchema = new mongoose.Schema(
 
 // Indexing userId for  query efficiency
 taskSchema.index({ userId: 1 });
-taskSchema.index({ category: 1 });
 
 export default mongoose.model('task', taskSchema);

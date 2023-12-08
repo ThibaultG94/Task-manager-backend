@@ -212,7 +212,7 @@ export const setTasks = async (
 			workspaceId: req.body.workspaceId,
 			deadline: req.body.deadline,
 			assignedTo: req.body.assignedTo,
-			category: req.body.category,
+			archiveDate: req.body.archiveDate,
 		});
 
 		// Invalide all cache keys for this user
@@ -307,8 +307,8 @@ export const editTask = async (
 		if (updates.assignedTo !== undefined) {
 			task.assignedTo = updates.assignedTo;
 		}
-		if (updates.category !== undefined) {
-			task.category = updates.category;
+		if (updates.archiveDate !== undefined) {
+			task.archiveDate = updates.archiveDate;
 		}
 
 		const updatedTask = await task.save();

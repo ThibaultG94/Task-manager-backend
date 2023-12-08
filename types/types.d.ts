@@ -15,7 +15,7 @@ export interface Task extends Document {
 	workspaceId: string;
 	deadline?: string;
 	assignedTo?: string[];
-	category?: string;
+	archiveDate?: string;
 }
 
 export type ExtendedTask = Task & {
