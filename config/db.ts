@@ -15,8 +15,14 @@ export const connectDB = async () => {
 				? process.env.TEST_MONGO_URI
 				: process.env.MONGO_URI;
 
+		const connectionOptions = {
+			useNewUrlParser: true,
+			useUnifiedTopology: true,
+			serverSelectionTimeoutMS: 30000, // Augmente le délai d'attente à 30 secondes
+		};
+
 		// Attempt to connect to the database.
-		await mongoose.connect(dbConnection);
+		await mongoose.connect(dbConnection, connectionOptions);
 
 		// Log the successful connection and the current state of development.
 		logger.info(`Succesfully connected to MongoDB`);

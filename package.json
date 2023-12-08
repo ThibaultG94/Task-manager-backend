@@ -35,7 +35,7 @@
 		"passport-local": "^1.0.0",
 		"redis": "^4.6.7",
 		"swagger-express-ts": "^1.1.0",
-		"ts-node": "^10.9.1",
+		"ts-node": "^10.9.2",
 		"typedoc": "^0.24.8",
 		"winston": "^3.10.0"
 	},

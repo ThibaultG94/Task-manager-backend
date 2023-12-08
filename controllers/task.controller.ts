@@ -212,7 +212,10 @@ export const setTasks = async (
 			workspaceId: req.body.workspaceId,
 			deadline: req.body.deadline,
 			assignedTo: req.body.assignedTo,
-			archiveDate: req.body.archiveDate,
+			archiveDate:
+				req.body.status === 'Archived'
+					? new Date().toISOString()
+					: null,
 		});
 
 		// Invalide all cache keys for this user
@@ -286,6 +289,13 @@ export const editTask = async (
 		if (updates.description !== undefined) {
 			task.description = updates.description;
 		}
+		if (
+			updates.status !== undefined &&
+			task.status !== 'Archived' &&
+			updates.status === 'Archived'
+		) {
+			task.archiveDate = new Date().toISOString();
+		}
 		if (updates.status !== undefined) {
 			task.status = updates.status;
 		}
@@ -306,9 +316,6 @@ export const editTask = async (
 		}
 		if (updates.assignedTo !== undefined) {
 			task.assignedTo = updates.assignedTo;
-		}
-		if (updates.archiveDate !== undefined) {
-			task.archiveDate = updates.archiveDate;
 		}
 
 		const updatedTask = await task.save();
@@ -1014,17 +1021,9 @@ export const getArchivedTasks = async (
 		});
 
 		archivedTasks = archivedTasks.sort((a, b) => {
-			if (
-				new Date(a.deadline).getTime() ===
-				new Date(b.deadline).getTime()
-			) {
-				return (
-					priorityValues[b.priority as Priority] -
-					priorityValues[a.priority as Priority]
-				);
-			}
 			return (
-				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+				new Date(b.archiveDate).getTime() -
+				new Date(a.archiveDate).getTime()
 			);
 		});
 
