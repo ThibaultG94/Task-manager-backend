@@ -15,6 +15,7 @@ export function GetCategoryDay(
 	const isThisWeek = todayDayOfWeek < taskDayOfWeek;
 	const isThisWeekOrNextWeek = taskDayOfWeek - todayDayOfWeek;
 	const isThisMonth = todayMonth === taskMonth;
+	const isNextMonth = taskMonth === todayMonth + 1;
 	const isThisYear = todayYear === taskYear;
 	const isNextYear = taskYear === todayYear + 1;
 
@@ -41,8 +42,11 @@ export function GetCategoryDay(
 	}
 	if (dayInt >= 14 && dayInt < 31)
 		return isThisMonth ? 'this-month-tasks' : 'next-month-tasks';
-	if (dayInt >= 31 && dayInt <= 365)
-		return isThisYear ? 'this-year-tasks' : 'next-year-tasks';
+	if (dayInt >= 31 && dayInt <= 365) {
+		if (todayMonth > taskMonth) return 'next-month-tasks';
+		if (isThisYear) return 'this-year-tasks';
+		if (isNextYear) return 'next-year-tasks';
+	}
 	if (dayInt > 365) return isNextYear ? 'next-year-tasks' : 'becoming-tasks';
 
 	return 'uncategorized-tasks'; // default case
