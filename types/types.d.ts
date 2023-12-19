@@ -14,7 +14,11 @@ export interface Task extends Document {
 	priority?: string;
 	workspaceId: string;
 	deadline?: string;
-	assignedTo?: string[];
+	assignedTo?: {
+		email: string;
+		userId: string;
+		username: string;
+	}[];
 	archiveDate?: string;
 }
 
@@ -28,7 +32,11 @@ export interface Workspace extends Document {
 	title: string;
 	userId: string;
 	description: string;
-	members: string[];
+	members: {
+		userId: string;
+		username: string;
+		email: string;
+	}[];
 	isDefault: string;
 }
 

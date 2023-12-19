@@ -79,7 +79,9 @@ export const getWorkspaceTasks = async (
 		}
 
 		if (
-			!workspace.members.includes(req.user._id) &&
+			!workspace.members.some(
+				(member) => member.userId === req.user._id
+			) &&
 			workspace.userId !== req.user._id
 		) {
 			return res.status(403).json({
@@ -107,7 +109,7 @@ export const getWorkspaceTasks = async (
 			// If the tasks are not cached, fetch the tasks from the database
 			tasks = (await TaskModel.find({ workspaceId })
 				.skip(skip)
-				.limit(limit)) as Task[];
+				.limit(limit)) as unknown as Task[];
 
 			// Then, cache the fetched tasks for future requests
 			try {
@@ -142,7 +144,9 @@ export const getWorkspaceTaskStatusCount = async (
 		}
 
 		if (
-			!workspace.members.includes(req.user._id) &&
+			!workspace.members.some(
+				(member) => member.userId === req.user._id
+			) &&
 			workspace.userId !== req.user._id
 		) {
 			return res.status(403).json({
@@ -191,15 +195,12 @@ export const setTasks = async (
 		const userId = req.body.userId;
 
 		// Check if the user exists
-		const userExists = (await userModel.findOne({ _id: userId.toString() }))
-			? true
-			: false;
+		const userExists = await userModel.exists({ _id: userId });
 
 		if (!userExists) {
-			return res.status(404).json({
-				message: 'The specified user does not exist',
-				userExists,
-			});
+			return res
+				.status(404)
+				.json({ message: 'The specified user does not exist' });
 		}
 
 		// Create a new task
@@ -238,11 +239,12 @@ export const setTasks = async (
 	} catch (error) {
 		// If something goes wrong, log the error and send a server error response
 		const result = (error as Error).message;
+		const request = req.body;
 		logger.info(result);
 
 		return res
 			.status(500)
-			.json({ message: 'Internal server error', result });
+			.json({ message: 'Internal server error', result, request });
 	}
 };
 

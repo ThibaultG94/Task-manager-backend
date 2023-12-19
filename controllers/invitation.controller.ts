@@ -1,6 +1,7 @@
 import express from 'express';
 import workspaceModel from '../models/workspace.model';
 import invitationModel from '../models/invitation.model';
+import userModel from '../models/user.model';
 
 // Endpoint to send a workspace invitation
 export const sendWorkspaceInvitation = async (
@@ -23,7 +24,7 @@ export const sendWorkspaceInvitation = async (
 
 		if (
 			req.user._id !== workspace.userId &&
-			!workspace.members.includes(req.user._id)
+			!workspace.members.some((member) => member.userId === req.user._id)
 		) {
 			return res.status(403).json({
 				message:
@@ -53,6 +54,7 @@ export const acceptWorkspaceInvitation = async (
 	try {
 		const invitationId = req.params.id;
 		const invitation = await invitationModel.findById(invitationId);
+		const user = await userModel.findById(req.user._id);
 
 		if (!invitation || invitation.status !== 'PENDING') {
 			return res.status(400).json({
@@ -71,7 +73,12 @@ export const acceptWorkspaceInvitation = async (
 		await invitation.save();
 
 		const workspace = await workspaceModel.findById(invitation.workspaceId);
-		workspace.members.push(req.user._id);
+		const newMember = {
+			userId: req.user._id,
+			username: user?.username,
+			email: user?.email,
+		};
+		workspace.members.push(newMember);
 		await workspace.save();
 
 		res.status(200).json({

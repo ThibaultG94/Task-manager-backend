@@ -46,10 +46,13 @@ const taskSchema = new mongoose.Schema(
 			type: String,
 			required: false,
 		},
-		assignedTo: {
-			type: [String],
-			required: false,
-		},
+		assignedTo: [
+			{
+				email: String,
+				userId: String,
+				username: String,
+			},
+		],
 		archiveDate: {
 			type: String,
 			required: false,

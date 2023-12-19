@@ -45,7 +45,13 @@ export const registerUser = async (
 			title: 'Default Workspace',
 			userId: newUser._id,
 			description: 'This is your default workspace',
-			members: [newUser._id],
+			members: [
+				{
+					userId: newUser._id,
+					username: newUser.username,
+					email: newUser.email,
+				},
+			],
 			isDefault: true,
 		});
 
@@ -350,7 +356,9 @@ export const getUsers = async (req: express.Request, res: express.Response) => {
 			});
 		}
 
-		if (!workspace.members.includes(req.user._id)) {
+		if (
+			!workspace.members.some((member) => member.userId === req.user._id)
+		) {
 			const userId = req.user._id;
 			return res.status(403).json({
 				message:

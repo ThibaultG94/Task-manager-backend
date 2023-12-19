@@ -12,8 +12,9 @@ const workspaceSchema = new mongoose.Schema(
 		},
 		members: [
 			{
-				type: String,
-				ref: 'User',
+				userId: String,
+				username: String,
+				email: String,
 			},
 		],
 		isDefault: {

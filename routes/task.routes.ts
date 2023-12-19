@@ -27,12 +27,21 @@ import {
 	validateUserID,
 	validatePageAndLimit,
 } from '../middlewares/validation.middlewares';
-import { updateWorkspaceTimestamp } from '../middlewares/task.middlewares';
+import {
+	updateWorkspaceTimestamp,
+	validateAssignedUsers,
+} from '../middlewares/task.middlewares';
 
 const router = express.Router();
 
 // Route to create a new task
-router.post('/', auth, setTasks, updateWorkspaceTimestamp);
+router.post(
+	'/',
+	auth,
+	validateAssignedUsers,
+	setTasks,
+	updateWorkspaceTimestamp
+);
 
 // Route to get a task by its id
 router.get('/:id', auth, getTask);
@@ -100,7 +109,13 @@ router.get('/:userId/becoming', auth, getBecomingTasks);
 router.get('/:userId/archived', auth, getArchivedTasks);
 
 // Route to update a task by its id
-router.put('/:id', auth, editTask, updateWorkspaceTimestamp);
+router.put(
+	'/:id',
+	auth,
+	validateAssignedUsers,
+	editTask,
+	updateWorkspaceTimestamp
+);
 
 // Route to delete a task by its id
 router.delete('/:id', auth, deleteTask, updateWorkspaceTimestamp);

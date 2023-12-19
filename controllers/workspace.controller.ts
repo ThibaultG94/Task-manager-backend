@@ -26,7 +26,7 @@ export const getWorkspace = async (
 
 		if (
 			req.user._id !== workspace.userId &&
-			!workspace.members.includes(req.user._id)
+			!workspace.members.some((member) => member.userId === req.user._id)
 		) {
 			return res.status(403).json({
 				message:
@@ -118,7 +118,7 @@ export const editWorkspace = async (
 		// Check if the user making the request is the owner of the workspace
 		if (
 			req.user._id !== workspace.userId &&
-			!workspace.members.includes(req.user._id)
+			!workspace.members.some((member) => member.userId === req.user._id)
 		) {
 			return res.status(403).json({
 				message:
@@ -172,7 +172,7 @@ export const deleteWorkspace = async (
 		// If a workspace is found, check if the user making the request is a member of the workspace
 		if (
 			req.user._id !== workspace.userId &&
-			!workspace.members.includes(req.user._id)
+			!workspace.members.some((member) => member.userId === req.user._id)
 		) {
 			return res.status(403).json({
 				message: 'You do not have the right to modify this workspace',

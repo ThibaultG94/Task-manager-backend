@@ -30,7 +30,9 @@ export const validateUserID = (
 
 	// Check if user ID is a valid Mongo ObectID
 	if (!/^[0-9a-fA-F]{24}$/.test(userId)) {
-		return res.status(400).send({ error: 'Invalid user ID' });
+		return res
+			.status(400)
+			.send({ error: 'Invalid user ID', userId: userId });
 	} else {
 		next();
 	}
