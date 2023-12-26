@@ -208,6 +208,9 @@ export const updateUser = async (
 		if (updates.role !== undefined) {
 			userToUpdate.role = updates.role;
 		}
+		if (updates.tips !== undefined) {
+			userToUpdate.tips = updates.tips;
+		}
 
 		// Save the user
 		const updatedUser = await userToUpdate.save();

@@ -24,6 +24,10 @@ const userSchema = new mongoose.Schema({
 		enum: ['user', 'admin', 'superadmin'],
 		default: 'user',
 	},
+	tips: {
+		type: Boolean,
+		default: true,
+	},
 	resetPasswordToken: {
 		type: String,
 		default: null,
