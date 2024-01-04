@@ -140,7 +140,7 @@ export const getWorkspaceTaskStatusCount = async (
 		// Vérifier si le workspace existe et si l'utilisateur est membre
 		const workspace = await workspaceModel.findById(workspaceId);
 		if (!workspace) {
-			return res.status(404).json({ message: 'Workspace not found' });
+			return;
 		}
 
 		if (
@@ -1011,60 +1011,63 @@ export const getBecomingTasks = async (
 	}
 };
 
-export const getArchivedTasks = async (req: express.Request, res: express.Response) => {
+export const getArchivedTasks = async (
+	req: express.Request,
+	res: express.Response
+) => {
 	try {
-			const page = parseInt(req.query.page as string, 10) || 1;
-			const limit = parseInt(req.query.limit as string, 10) || 10;
-			const skip = (page - 1) * limit;
-			const userId = req.params.userId;
-			const key = `archived_tasks:${userId}:${page}:${limit}`;
+		const page = parseInt(req.query.page as string, 10) || 1;
+		const limit = parseInt(req.query.limit as string, 10) || 10;
+		const skip = (page - 1) * limit;
+		const userId = req.params.userId;
+		const key = `archived_tasks:${userId}:${page}:${limit}`;
 
-			let cachedTasks: string | null = null;
-			try {
-					cachedTasks = await client.get(key);
-			} catch (err) {
-					console.error('Cache retrieval error:', err);
-			}
+		let cachedTasks: string | null = null;
+		try {
+			cachedTasks = await client.get(key);
+		} catch (err) {
+			console.error('Cache retrieval error:', err);
+		}
 
-			let archivedTasks: ExtendedTask[] | any;
-			let totalTasks = 0;
+		let archivedTasks: ExtendedTask[] | any;
+		let totalTasks = 0;
 
-			if (cachedTasks) {
-					archivedTasks = JSON.parse(cachedTasks);
-			} else {
-					// Récupérer le nombre total de tâches archivées
-					totalTasks = await TaskModel.countDocuments({
-							userId: userId,
-							status: 'Archived',
-					});
-
-					let allRelevantTasks = await TaskModel.find({
-							userId: userId,
-							status: 'Archived',
-					})
-							.lean()
-							.exec();
-
-					let sortedTasks = allRelevantTasks.sort((a, b) => {
-							return (
-									new Date(b.archiveDate).getTime() -
-									new Date(a.archiveDate).getTime()
-							);
-					});
-
-					archivedTasks = sortedTasks.slice(skip, skip + limit);
-
-					try {
-							await client.setEx(key, 10800, JSON.stringify(archivedTasks));
-					} catch (err) {
-							console.error('Task caching error:', err);
-					}
-			}
-
-			return res.status(200).json({ archivedTasks, totalTasks });
-	} catch (error) {
-			res.status(500).json({
-					message: 'An error occurred while retrieving archived tasks',
+		if (cachedTasks) {
+			archivedTasks = JSON.parse(cachedTasks);
+		} else {
+			// Récupérer le nombre total de tâches archivées
+			totalTasks = await TaskModel.countDocuments({
+				userId: userId,
+				status: 'Archived',
 			});
+
+			let allRelevantTasks = await TaskModel.find({
+				userId: userId,
+				status: 'Archived',
+			})
+				.lean()
+				.exec();
+
+			let sortedTasks = allRelevantTasks.sort((a, b) => {
+				return (
+					new Date(b.archiveDate).getTime() -
+					new Date(a.archiveDate).getTime()
+				);
+			});
+
+			archivedTasks = sortedTasks.slice(skip, skip + limit);
+
+			try {
+				await client.setEx(key, 10800, JSON.stringify(archivedTasks));
+			} catch (err) {
+				console.error('Task caching error:', err);
+			}
+		}
+
+		return res.status(200).json({ archivedTasks, totalTasks });
+	} catch (error) {
+		res.status(500).json({
+			message: 'An error occurred while retrieving archived tasks',
+		});
 	}
 };
