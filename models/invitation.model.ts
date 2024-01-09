@@ -2,9 +2,9 @@ import mongoose from 'mongoose';
 
 const invitationSchema = new mongoose.Schema(
 	{
-		inviterId: { type: String, required: true },
-		inviteeId: { type: String, required: true },
-		workspaceId: { type: String, required: true },
+		senderId: { type: String, required: true },
+		guestId: { type: String, required: true },
+		message: { type: String },
 		status: {
 			type: String,
 			enum: ['PENDING', 'ACCEPTED', 'REJECTED'],

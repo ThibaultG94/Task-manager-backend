@@ -4,14 +4,18 @@ import {
 	acceptWorkspaceInvitation,
 	listUserInvitations,
 	rejectWorkspaceInvitation,
+	sendInvitation,
 	sendWorkspaceInvitation,
 } from '../controllers/invitation.controller';
 import { validateInvitationId } from '../middlewares/validation.middlewares';
 
 const router = express.Router();
 
-// Route to send a workspace invitation
-router.post('/send-invitation', auth, sendWorkspaceInvitation);
+// Route to send an invitation
+router.post('/send-invitation', auth, sendInvitation);
+
+// Route to send an invitation
+router.post('/send-workspace-invitation', auth, sendWorkspaceInvitation);
 
 // Route to accept a workspace invitation
 router.post('/:id/accept', auth, acceptWorkspaceInvitation);
