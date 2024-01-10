@@ -2,6 +2,8 @@ import express from 'express';
 import { auth } from '../middlewares/auth.middlewares';
 import {
 	acceptWorkspaceInvitation,
+	getReceivedInvitations,
+	getSentOutInvitations,
 	listUserInvitations,
 	rejectWorkspaceInvitation,
 	sendInvitation,
@@ -13,6 +15,12 @@ const router = express.Router();
 
 // Route to send an invitation
 router.post('/send-invitation', auth, sendInvitation);
+
+// Endpoint to retrieve sent invitations
+router.get('/sentout-invitations/:id', auth, getSentOutInvitations);
+
+// Endpoint to retrieve received invitations
+router.get('/received-invitations/:id', auth, getReceivedInvitations);
 
 // Route to send an invitation
 router.post('/send-workspace-invitation', auth, sendWorkspaceInvitation);

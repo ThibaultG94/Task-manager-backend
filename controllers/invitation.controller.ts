@@ -14,6 +14,14 @@ export const sendInvitation = async (
 
 		const sender = await userModel.findById(senderId);
 		const guestUser = await userModel.findOne({ email: guestEmail });
+		const isInvitationAlreadySent = await invitationModel.findOne({
+			senderId: senderId,
+			guestId: guestUser?._id,
+		});
+		const isInvitationAlreadyReceived = await invitationModel.findOne({
+			senderId: guestUser?._id,
+			guestId: senderId,
+		});
 
 		if (!sender) {
 			return res.status(401).json({ message: 'User not authenticated' });
@@ -21,6 +29,24 @@ export const sendInvitation = async (
 
 		if (!guestUser) {
 			return res.status(400).json({ message: 'User does not exist' });
+		}
+
+		if (guestUser?._id == senderId) {
+			return res.status(400).json({
+				message: 'You cannot send an invitation to yourself',
+			});
+		}
+
+		if (isInvitationAlreadySent) {
+			return res.status(400).json({
+				message: 'Invitation already sent to this user',
+			});
+		}
+
+		if (isInvitationAlreadyReceived) {
+			return res.status(400).json({
+				message: 'Invitation already received from this user',
+			});
 		}
 
 		const invitation = new invitationModel({
@@ -32,6 +58,106 @@ export const sendInvitation = async (
 		await invitation.save();
 
 		res.status(200).json({ invitation: invitation });
+	} catch (error) {
+		res.status(500).json({ message: 'Internal server error' });
+	}
+};
+
+// Endpoint to retrieve sent invitations
+export const getSentOutInvitations = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const userId = req.params.id;
+		const user = await userModel.findById(userId);
+
+		if (!user) {
+			return res.status(400).json({ message: 'User does not exist' });
+		}
+
+		const invitationsSentOut = await invitationModel.find({
+			senderId: userId,
+		});
+
+		// Transformer les invitations en utilisant Promise.all
+		const invitationsInformations = await Promise.all(
+			invitationsSentOut.map(async (invitation) => {
+				const guest = await userModel.findById(invitation.guestId);
+				return {
+					invitationId: invitation._id,
+					guestEmail: guest?.email,
+					guestUsername: guest?.username,
+					message: invitation.message,
+					status: invitation.status,
+				};
+			})
+		);
+
+		// Filtrer les invitations
+		const invitationsPending = invitationsInformations.filter(
+			(invitation) => invitation.status === 'PENDING'
+		);
+		const invitationsAccepted = invitationsInformations.filter(
+			(invitation) => invitation.status === 'ACCEPTED'
+		);
+
+		const invitations = {
+			pending: invitationsPending,
+			accepted: invitationsAccepted,
+		};
+
+		return res.status(200).json({ invitations });
+	} catch (error) {
+		res.status(500).json({ message: 'Internal server error' });
+	}
+};
+
+// Endpoint to retrieve received invitations
+export const getReceivedInvitations = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const userId = req.params.id;
+		const user = await userModel.findById(userId);
+
+		if (!user) {
+			return res.status(400).json({ message: 'User does not exist' });
+		}
+
+		const invitationsReceived = await invitationModel.find({
+			guestId: userId,
+		});
+
+		// Transformer les invitations en utilisant Promise.all
+		const invitationsInformations = await Promise.all(
+			invitationsReceived.map(async (invitation) => {
+				const sender = await userModel.findById(invitation.senderId);
+				return {
+					invitationId: invitation._id,
+					senderEmail: sender?.email,
+					senderUsername: sender?.username,
+					message: invitation.message,
+					status: invitation.status,
+				};
+			})
+		);
+
+		// Filtrer les invitations
+		const invitationsPending = invitationsInformations.filter(
+			(invitation) => invitation.status === 'PENDING'
+		);
+		const invitationsAccepted = invitationsInformations.filter(
+			(invitation) => invitation.status === 'ACCEPTED'
+		);
+
+		const invitations = {
+			pending: invitationsPending,
+			accepted: invitationsAccepted,
+		};
+
+		return res.status(200).json({ invitations });
 	} catch (error) {
 		res.status(500).json({ message: 'Internal server error' });
 	}
