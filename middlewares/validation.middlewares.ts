@@ -66,8 +66,6 @@ export const validateInvitationId = (
 	res: Response,
 	next: NextFunction
 ) => {
-	console.log('Validating invitation ID:', req.params.invitationId);
-
 	const invitationId = req.params.invitationId;
 
 	if (!/^[0-9a-fA-F]{24}$/.test(invitationId)) {

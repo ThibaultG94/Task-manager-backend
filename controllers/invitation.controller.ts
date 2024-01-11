@@ -200,6 +200,38 @@ export const acceptInvitation = async (
 	}
 };
 
+// Endpoint to decline an invitation
+export const declineInvitation = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const invitationId = req.params.invitationId;
+		const invitation = await invitationModel.findById(invitationId);
+		const userId = req.body.userId;
+
+		if (!invitation || invitation.status !== 'PENDING') {
+			return res.status(400).json({
+				message: 'Invitation does not exist or is not pending',
+			});
+		}
+
+		if (!userId || userId !== invitation.guestId) {
+			return res.status(403).json({
+				message:
+					'You do not have sufficients rights to decline this invitation',
+			});
+		}
+
+		invitation.status = 'REJECTED';
+		await invitation.save();
+
+		res.status(200).json({ message: 'Invitation declined' });
+	} catch (error) {
+		return res.status(500).json({ message: 'Internal server error' });
+	}
+};
+
 export const cancelInvitation = async (
 	req: express.Request,
 	res: express.Response

@@ -4,6 +4,7 @@ import {
 	acceptInvitation,
 	acceptWorkspaceInvitation,
 	cancelInvitation,
+	declineInvitation,
 	getReceivedInvitations,
 	getSentOutInvitations,
 	listUserInvitations,
@@ -25,13 +26,26 @@ router.get('/sentout-invitations/:id', auth, getSentOutInvitations);
 router.get('/received-invitations/:id', auth, getReceivedInvitations);
 
 // Route to accept an invitation
-router.post('/:id/accept', auth, acceptInvitation);
+router.post(
+	'/:invitationId/accept',
+	auth,
+	validateInvitationId,
+	acceptInvitation
+);
+
+// Route to decline an invitation
+router.put(
+	'/:invitationId/decline',
+	auth,
+	validateInvitationId,
+	declineInvitation
+);
 
 // Route to cancel an invitation
 router.delete(
 	'/:invitationId/cancel',
 	auth,
-	// validateInvitationId,
+	validateInvitationId,
 	cancelInvitation
 );
 
