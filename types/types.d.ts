@@ -55,6 +55,7 @@ interface UserBase {
 	password: string;
 	role: string;
 	tips: boolean;
+	contacts: string[];
 }
 
 // Define a User object that extends UserBase and includes Mongoose Document capabilities

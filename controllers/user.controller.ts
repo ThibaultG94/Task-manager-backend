@@ -211,6 +211,9 @@ export const updateUser = async (
 		if (updates.tips !== undefined) {
 			userToUpdate.tips = updates.tips;
 		}
+		if (updates.contacts !== undefined) {
+			userToUpdate.contacts = updates.contacts;
+		}
 
 		// Save the user
 		const updatedUser = await userToUpdate.save();

@@ -66,11 +66,12 @@ export const validateInvitationId = (
 	res: Response,
 	next: NextFunction
 ) => {
-	// Get invitation ID from request params
+	console.log('Validating invitation ID:', req.params.invitationId);
+
 	const invitationId = req.params.invitationId;
 
-	// Check if invitation ID is a valid Mongo ObjectID
 	if (!/^[0-9a-fA-F]{24}$/.test(invitationId)) {
+		console.error('Invalid ID:', invitationId);
 		return res.status(400).send({ error: 'Invalid invitation ID' });
 	} else {
 		next();

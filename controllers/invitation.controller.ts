@@ -163,6 +163,72 @@ export const getReceivedInvitations = async (
 	}
 };
 
+// Endpoint to accept an invitation
+export const acceptInvitation = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const invitationId = req.params.id;
+		const invitation = await invitationModel.findById(invitationId);
+		const userOne = await userModel.findById(invitation?.guestId);
+		const userTwo = await userModel.findById(invitation?.senderId);
+
+		if (!invitation || invitation.status !== 'PENDING') {
+			return res.status(400).json({
+				message: 'Invitation does not exist or is not pending',
+			});
+		}
+
+		if (!req.user || req.user._id !== invitation.guestId) {
+			return res.status(403).json({
+				message:
+					'You do not have sufficients rights to accept this invitation',
+			});
+		}
+
+		invitation.status = 'ACCEPTED';
+		userOne?.contacts.push(userTwo?._id);
+		userTwo?.contacts.push(userOne?._id);
+		await invitation.save();
+		await userOne?.save();
+		await userTwo?.save();
+
+		res.status(200).json({ message: 'Invitation accepted' });
+	} catch (error) {
+		return res.status(500).json({ message: 'Internal server error' });
+	}
+};
+
+export const cancelInvitation = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const invitationId = req.params.invitationId;
+		const invitation = await invitationModel.findById(invitationId);
+
+		if (!invitation || invitation.status !== 'PENDING') {
+			return res.status(400).json({
+				message: 'Invitation does not exist or is not pending',
+			});
+		}
+
+		if (!req.user || req.user._id !== invitation.senderId) {
+			return res.status(403).json({
+				message:
+					'You do not have sufficients rights to cancel this invitation',
+			});
+		}
+
+		await invitation.deleteOne();
+
+		res.status(200).json({ message: 'Invitation cancelled' });
+	} catch (error) {
+		return res.status(500).json({ message: 'Internal server error' });
+	}
+};
+
 // Endpoint to send a workspace invitation
 export const sendWorkspaceInvitation = async (
 	req: express.Request,

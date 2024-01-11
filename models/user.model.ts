@@ -36,6 +36,10 @@ const userSchema = new mongoose.Schema({
 		type: Number,
 		default: null,
 	},
+	contacts: {
+		type: Array,
+		default: [],
+	},
 });
 
 // Before saving a user, hash the password
