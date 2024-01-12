@@ -338,6 +338,48 @@ export const getUser = async (req: express.Request, res: express.Response) => {
 	}
 };
 
+// Endpoint to get contacts
+export const getContacts = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const userIdFromToken = req.user._id;
+		const userId = req.params.id;
+
+		if (userIdFromToken !== userId) {
+			return res.status(403).json({
+				message:
+					'You do not have sufficient rights to perform this action',
+			});
+		}
+
+		const user: User = await UserModel.findById(userIdFromToken);
+
+		if (!user) {
+			return res.status(404).json({ message: 'User not found' });
+		}
+
+		const contactsPromises = user.contacts.map((contactId) =>
+			UserModel.findById(contactId).then((userContact) => ({
+				id: userContact?._id,
+				username: userContact?.username,
+				email: userContact?.email,
+			}))
+		);
+
+		const userContacts = await Promise.all(contactsPromises);
+
+		res.status(200).json({ userContacts });
+	} catch (err) {
+		const result = (err as Error).message;
+		logger.error(result);
+
+		res.status(500).json({ message: 'Internal server error' });
+	}
+};
+
+// Endpoint to get users from a same workspace
 export const getUsers = async (req: express.Request, res: express.Response) => {
 	try {
 		const workspace: Workspace = await workspaceModel.findById(

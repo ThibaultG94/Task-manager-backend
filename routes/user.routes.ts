@@ -12,6 +12,7 @@ import {
 	getUsers,
 	forgotPassword,
 	resetPassword,
+	getContacts,
 } from '../controllers/user.controller';
 import {
 	validate,
@@ -44,6 +45,9 @@ router.post(
 
 // Route to get a user's account information by their id
 router.get('/:id/account', validateUserID, auth, getUser);
+
+// Route to get user's contacts information
+router.get('/:id/contacts', validateUserID, auth, getContacts);
 
 // Route to get user's from a same workspace basics information by the workspace id
 router.get('/:workspaceId/members', auth, getUsers);
