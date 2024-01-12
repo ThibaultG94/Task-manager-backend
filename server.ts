@@ -36,7 +36,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(apiLimiter);
 
-app.use('/task', taskRoutes);
+app.use('/tasks', taskRoutes);
 app.use('/users', userRoutes);
 app.use('/workspaces', workspaceRoutes);
 app.use('/invitations', invitationRoutes);
