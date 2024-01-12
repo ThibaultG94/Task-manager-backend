@@ -96,7 +96,9 @@ export const getSentOutInvitations = async (
 
 		// Filtrer les invitations
 		const invitationsPending = invitationsInformations.filter(
-			(invitation) => invitation.status === 'PENDING'
+			(invitation) =>
+				invitation.status === 'PENDING' ||
+				invitation.status === 'REJECTED'
 		);
 		const invitationsAccepted = invitationsInformations.filter(
 			(invitation) => invitation.status === 'ACCEPTED'
@@ -169,10 +171,11 @@ export const acceptInvitation = async (
 	res: express.Response
 ) => {
 	try {
-		const invitationId = req.params.id;
+		const invitationId = req.params.invitationId;
 		const invitation = await invitationModel.findById(invitationId);
 		const userOne = await userModel.findById(invitation?.guestId);
 		const userTwo = await userModel.findById(invitation?.senderId);
+		const userId = req.body.userId;
 
 		if (!invitation || invitation.status !== 'PENDING') {
 			return res.status(400).json({
@@ -180,7 +183,7 @@ export const acceptInvitation = async (
 			});
 		}
 
-		if (!req.user || req.user._id !== invitation.guestId) {
+		if (!userId || userId !== invitation.guestId) {
 			return res.status(403).json({
 				message:
 					'You do not have sufficients rights to accept this invitation',
@@ -240,9 +243,9 @@ export const cancelInvitation = async (
 		const invitationId = req.params.invitationId;
 		const invitation = await invitationModel.findById(invitationId);
 
-		if (!invitation || invitation.status !== 'PENDING') {
+		if (!invitation || invitation.status === 'ACCEPTED') {
 			return res.status(400).json({
-				message: 'Invitation does not exist or is not pending',
+				message: 'Invitation does not exist or is already accepted',
 			});
 		}
 

@@ -26,7 +26,7 @@ router.get('/sentout-invitations/:id', auth, getSentOutInvitations);
 router.get('/received-invitations/:id', auth, getReceivedInvitations);
 
 // Route to accept an invitation
-router.post(
+router.put(
 	'/:invitationId/accept',
 	auth,
 	validateInvitationId,
