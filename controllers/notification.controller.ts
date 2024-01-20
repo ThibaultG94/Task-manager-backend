@@ -118,3 +118,21 @@ export const setNotification = async (
 		res.status(500).json({ message: 'Internal server error', error });
 	}
 };
+
+// Endpoint to retrieve notifications for a specific user
+export const getNotifications = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	const { userId } = req.params;
+
+	try {
+		const notifications = await notificationModel.find({
+			users: { $in: [userId] },
+		});
+
+		return res.status(200).json({ notifications: notifications });
+	} catch (error) {
+		res.status(500).json({ message: 'Internal server error', error });
+	}
+};
