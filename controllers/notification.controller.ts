@@ -10,8 +10,8 @@ export const setNotification = async (
 	req: express.Request,
 	res: express.Response
 ) => {
-	const { creatorId, invitationId, taskId, workspaceId, type, message } =
-		req.body;
+	const { creatorId, invitationId, taskId, workspaceId, type } = req.body;
+	let message = '';
 	let users = [];
 
 	try {
@@ -35,8 +35,10 @@ export const setNotification = async (
 			}
 			if (creatorId !== invitation.senderId) {
 				users.push(invitation.senderId);
+				message = `${creator.username} (${creator.email}) a accepté votre invitation`;
 			} else if (creatorId !== invitation.guestId) {
 				users.push(invitation.guestId);
+				message = `${creator.username} (${creator.email}) vous a envoyé une invitation`;
 			} else {
 				return res.status(400).json({ message: 'Invalid invitation' });
 			}
