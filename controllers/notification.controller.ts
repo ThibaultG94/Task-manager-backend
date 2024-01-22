@@ -125,13 +125,37 @@ export const getNotifications = async (
 	res: express.Response
 ) => {
 	const { userId } = req.params;
+	const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+	const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+	const oneMonthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
 	try {
-		const notifications = await notificationModel.find({
+		// New notifications: not read, seen less than a week ago, or read less than 24 hours ago
+		const newNotifications = await notificationModel.find({
 			users: { $in: [userId] },
+			$or: [
+				{ read: false },
+				{ viewedAt: { $gte: oneWeekAgo } },
+				{ read: true, viewedAt: { $gte: oneDayAgo } },
+			],
 		});
 
-		return res.status(200).json({ notifications: notifications });
+		// Older notifications: read between 24 hours and a week, or not read but seen between a week and a month
+		const earlierNotifications = await notificationModel.find({
+			users: { $in: [userId] },
+			$or: [
+				{ read: true, viewedAt: { $lt: oneWeekAgo, $gte: oneDayAgo } },
+				{
+					read: false,
+					viewedAt: { $lt: oneWeekAgo, $gte: oneMonthAgo },
+				},
+			],
+		});
+
+		return res.status(200).json({
+			newNotifications,
+			earlierNotifications,
+		});
 	} catch (error) {
 		res.status(500).json({ message: 'Internal server error', error });
 	}
