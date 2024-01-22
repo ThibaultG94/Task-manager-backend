@@ -4,6 +4,7 @@ import userModel from '../models/user.model';
 import taskModel from '../models/task.model';
 import workspaceModel from '../models/workspace.model';
 import invitationModel from '../models/invitation.model';
+import mongoose from 'mongoose';
 
 // Endpoint to set a notification
 export const setNotification = async (
@@ -131,30 +132,57 @@ export const getNotifications = async (
 
 	try {
 		// New notifications: not read, seen less than a week ago, or read less than 24 hours ago
-		const newNotifications = await notificationModel.find({
-			users: { $in: [userId] },
-			$or: [
-				{ read: false },
-				{ viewedAt: { $gte: oneWeekAgo } },
-				{ read: true, viewedAt: { $gte: oneDayAgo } },
-			],
-		});
+		const newNotifications = await notificationModel
+			.find({
+				users: { $in: [userId] },
+				$or: [
+					{ read: false },
+					{ viewedAt: { $gte: oneWeekAgo } },
+					{ read: true, viewedAt: { $gte: oneDayAgo } },
+				],
+			})
+			.lean();
 
 		// Older notifications: read between 24 hours and a week, or not read but seen between a week and a month
-		const earlierNotifications = await notificationModel.find({
-			users: { $in: [userId] },
-			$or: [
-				{ read: true, viewedAt: { $lt: oneWeekAgo, $gte: oneDayAgo } },
-				{
-					read: false,
-					viewedAt: { $lt: oneWeekAgo, $gte: oneMonthAgo },
-				},
-			],
-		});
+		const earlierNotifications = await notificationModel
+			.find({
+				users: { $in: [userId] },
+				$or: [
+					{
+						read: true,
+						viewedAt: { $lt: oneWeekAgo, $gte: oneDayAgo },
+					},
+					{
+						read: false,
+						viewedAt: { $lt: oneWeekAgo, $gte: oneMonthAgo },
+					},
+				],
+			})
+			.lean();
+
+		const creatorIds = [
+			...new Set(
+				[...newNotifications, ...earlierNotifications].map(
+					(n) => n.creatorId
+				)
+			),
+		];
+
+		const users = await userModel.find({ _id: { $in: creatorIds } });
+		const usernameMap: any = users.reduce(
+			(acc, user) => ({ ...acc, [user._id.toString()]: user.username }),
+			{}
+		);
+
+		const mapNotifications: any = (notifications: any) =>
+			notifications.map((n: any) => ({
+				...n,
+				creatorUsername: usernameMap[n.creatorId],
+			}));
 
 		return res.status(200).json({
-			newNotifications,
-			earlierNotifications,
+			newNotifications: mapNotifications(newNotifications),
+			earlierNotifications: mapNotifications(earlierNotifications),
 		});
 	} catch (error) {
 		res.status(500).json({ message: 'Internal server error', error });
