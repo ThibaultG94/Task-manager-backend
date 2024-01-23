@@ -126,9 +126,15 @@ export const getNotifications = async (
 	res: express.Response
 ) => {
 	const { userId } = req.params;
-	const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-	const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-	const oneMonthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+	const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+	const oneWeekAgo = new Date(
+		Date.now() - 7 * 24 * 60 * 60 * 1000
+	).toISOString();
+	const oneMonthAgo = new Date(
+		Date.now() - 30 * 24 * 60 * 60 * 1000
+	).toISOString();
+
+	console.log(oneDayAgo, oneWeekAgo, oneMonthAgo);
 
 	try {
 		// New notifications: not read, seen less than a week ago, or read less than 24 hours ago
