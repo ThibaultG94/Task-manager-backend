@@ -134,8 +134,6 @@ export const getNotifications = async (
 		Date.now() - 30 * 24 * 60 * 60 * 1000
 	).toISOString();
 
-	console.log(oneDayAgo, oneWeekAgo, oneMonthAgo);
-
 	try {
 		// New notifications: not read, seen less than a week ago, or read less than 24 hours ago
 		const newNotifications = await notificationModel
