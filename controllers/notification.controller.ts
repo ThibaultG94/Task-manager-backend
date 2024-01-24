@@ -221,9 +221,11 @@ export const markNotificationsAsViewed = async (
 			{ viewedAt: new Date().toISOString() }
 		);
 
-		return res.status(200).json({ message: 'Notifications updated', res });
+		return res.status(200).json({ message: 'Notifications updated' });
 	} catch (error) {
 		console.log(error);
-		res.status(500).json({ message: 'Internal server error', error });
+		return res
+			.status(500)
+			.json({ message: 'Internal server error', error });
 	}
 };
