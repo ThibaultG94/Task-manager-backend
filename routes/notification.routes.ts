@@ -2,6 +2,7 @@ import express from 'express';
 import { auth } from '../middlewares/auth.middlewares';
 import {
 	getNotifications,
+	markNotificationAsRead,
 	markNotificationsAsViewed,
 	setNotification,
 } from '../controllers/notification.controller';
@@ -18,6 +19,6 @@ router.get('/get-notifications/:userId', auth, getNotifications);
 router.put('/mark-viewed/:userId', auth, markNotificationsAsViewed);
 
 // Route to mark a notification as read
-router.put('/mark-read/:notificationId', auth);
+router.put('/mark-read/:notificationId', auth, markNotificationAsRead);
 
 export default router;

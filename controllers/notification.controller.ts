@@ -229,3 +229,47 @@ export const markNotificationsAsViewed = async (
 			.json({ message: 'Internal server error', error });
 	}
 };
+
+// Endpoint to mark a notification as read
+export const markNotificationAsRead = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const { notificationId } = req.params;
+		const { userId } = req.body;
+
+		if (!notificationId) {
+			return res
+				.status(400)
+				.json({ message: 'Notification ID is required' });
+		}
+
+		if (!userId) {
+			return res.status(400).json({ message: 'User ID is required' });
+		}
+
+		const notification = await notificationModel.findById(notificationId);
+
+		if (!notification) {
+			return res.status(404).json({ message: 'Notification not found' });
+		}
+
+		if (!notification.users.includes(userId)) {
+			return res.status(403).json({
+				message: 'User is not allowed to access this notification',
+			});
+		}
+
+		await notificationModel.findByIdAndUpdate(notificationId, {
+			read: true,
+		});
+
+		return res.status(200).json({ message: 'Notification updated' });
+	} catch (error) {
+		console.log(error);
+		return res
+			.status(500)
+			.json({ message: 'Internal server error', error });
+	}
+};
