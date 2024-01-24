@@ -4,7 +4,6 @@ import userModel from '../models/user.model';
 import taskModel from '../models/task.model';
 import workspaceModel from '../models/workspace.model';
 import invitationModel from '../models/invitation.model';
-import mongoose from 'mongoose';
 
 // Endpoint to set a notification
 export const setNotification = async (
@@ -154,11 +153,11 @@ export const getNotifications = async (
 				$or: [
 					{
 						read: true,
-						viewedAt: { $lt: oneWeekAgo, $gte: oneDayAgo },
+						viewedAt: { $gte: oneWeekAgo, $lt: oneDayAgo },
 					},
 					{
 						read: false,
-						viewedAt: { $lt: oneWeekAgo, $gte: oneMonthAgo },
+						viewedAt: { $gte: oneMonthAgo, $lt: oneWeekAgo },
 					},
 				],
 			})
@@ -189,6 +188,42 @@ export const getNotifications = async (
 			earlierNotifications: mapNotifications(earlierNotifications),
 		});
 	} catch (error) {
+		res.status(500).json({ message: 'Internal server error', error });
+	}
+};
+
+// Endpoint to mark notifications as viewed
+export const markNotificationsAsViewed = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const { userId } = req.params;
+		const { notificationsIds } = req.body;
+
+		const user = userModel.findById(userId);
+
+		if (!user) {
+			return res.status(404).json({ message: 'User not found' });
+		}
+
+		if (!notificationsIds) {
+			return res
+				.status(400)
+				.json({ message: 'Notifications IDs are required' });
+		}
+
+		await notificationModel.updateMany(
+			{
+				_id: { $in: notificationsIds },
+				users: { $in: [userId] },
+			},
+			{ viewedAt: new Date().toISOString() }
+		);
+
+		return res.status(200).json({ message: 'Notifications updated', res });
+	} catch (error) {
+		console.log(error);
 		res.status(500).json({ message: 'Internal server error', error });
 	}
 };
