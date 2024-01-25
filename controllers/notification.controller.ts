@@ -35,10 +35,10 @@ export const setNotification = async (
 			}
 			if (creatorId !== invitation.senderId) {
 				users.push(invitation.senderId);
-				message = `${creator.username} (${creator.email}) a accepté votre invitation`;
+				message = `${creator.username} a accepté votre invitation`;
 			} else if (creatorId !== invitation.guestId) {
 				users.push(invitation.guestId);
-				message = `${creator.username} (${creator.email}) vous a envoyé une invitation`;
+				message = `${creator.username} vous a envoyé une invitation`;
 			} else {
 				return res.status(400).json({ message: 'Invalid invitation' });
 			}
