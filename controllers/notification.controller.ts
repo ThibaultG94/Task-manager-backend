@@ -174,6 +174,8 @@ export const getAllNotifications = async (
 					creatorUsername: usernameMap[n.creatorId],
 				}));
 
+			notifications = mapNotifications(notifications);
+
 			try {
 				await client.setEx(
 					key,
