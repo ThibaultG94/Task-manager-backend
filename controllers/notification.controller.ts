@@ -126,6 +126,9 @@ export const getNotifications = async (
 ) => {
 	const { userId } = req.params;
 	const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+	const TwoDaysAgo = new Date(
+		Date.now() - 2 * 24 * 60 * 60 * 1000
+	).toISOString();
 	const oneWeekAgo = new Date(
 		Date.now() - 7 * 24 * 60 * 60 * 1000
 	).toISOString();
@@ -140,8 +143,7 @@ export const getNotifications = async (
 				users: { $in: [userId] },
 				$or: [
 					{ read: false },
-					{ viewedAt: { $gte: oneWeekAgo } },
-					{ read: true, viewedAt: { $gte: oneDayAgo } },
+					{ read: true, viewedAt: { $gt: oneDayAgo } },
 				],
 			})
 			.lean();
@@ -153,7 +155,7 @@ export const getNotifications = async (
 				$or: [
 					{
 						read: true,
-						viewedAt: { $gte: oneWeekAgo, $lt: oneDayAgo },
+						viewedAt: { $gte: oneWeekAgo, $lte: oneDayAgo },
 					},
 					{
 						read: false,
