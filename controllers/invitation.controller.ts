@@ -197,7 +197,7 @@ export const acceptInvitation = async (
 		await userOne?.save();
 		await userTwo?.save();
 
-		res.status(200).json({ message: 'Invitation accepted' });
+		res.status(200).json({ message: 'Invitation accepted', invitation });
 	} catch (error) {
 		return res.status(500).json({ message: 'Internal server error' });
 	}
