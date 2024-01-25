@@ -1,4 +1,5 @@
 import express from 'express';
+import client from '../utils/redisClient';
 import notificationModel from '../models/notification.model';
 import userModel from '../models/user.model';
 import taskModel from '../models/task.model';
@@ -118,6 +119,77 @@ export const setNotification = async (
 		res.status(500).json({ message: 'Internal server error', error });
 	}
 };
+// Endpoint to retrieve all notifications for a specific user with pagination
+export const getAllNotifications = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const page = parseInt(req.query.page as string, 10) || 1;
+		const limit = parseInt(req.query.limit as string, 10) || 10;
+		const skip = (page - 1) * limit;
+		const userId = req.params.userId;
+		const key = `notifications:${userId}:${page}:${limit}`;
+
+		let cachedNotifications: string | null = null;
+		try {
+			cachedNotifications = await client.get(key);
+		} catch (err) {
+			console.error('Cache retrieval error:', err);
+		}
+
+		let notifications: any;
+		let totalNotifications = 0;
+
+		if (cachedNotifications) {
+			notifications = JSON.parse(cachedNotifications);
+		} else {
+			// Récupérer le nombre total de notifications
+			totalNotifications = await notificationModel.countDocuments({
+				users: { $in: [userId] },
+			});
+
+			// Récupérer les notifications avec une limite et un saut
+			notifications = await notificationModel
+				.find({ users: { $in: [userId] } })
+				.skip(skip)
+				.limit(limit)
+				.lean();
+
+			const creatorIds = [
+				...new Set(notifications.map((n: any) => n.creatorId)),
+			];
+			const users = await userModel.find({ _id: { $in: creatorIds } });
+			const usernameMap: any = users.reduce(
+				(acc, user) => ({
+					...acc,
+					[user._id.toString()]: user.username,
+				}),
+				{}
+			);
+
+			const mapNotifications: any = (notifications: any) =>
+				notifications.map((n: any) => ({
+					...n,
+					creatorUsername: usernameMap[n.creatorId],
+				}));
+
+			try {
+				await client.setEx(
+					key,
+					10800,
+					JSON.stringify(mapNotifications)
+				);
+			} catch (err) {
+				console.error('Notifications caching error:', err);
+			}
+		}
+
+		return res.status(200).json({ notifications, totalNotifications });
+	} catch (error) {
+		res.status(500).json({ message: 'Internal server error', error });
+	}
+};
 
 // Endpoint to retrieve notifications for a specific user
 export const getNotifications = async (
@@ -126,9 +198,6 @@ export const getNotifications = async (
 ) => {
 	const { userId } = req.params;
 	const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-	const TwoDaysAgo = new Date(
-		Date.now() - 2 * 24 * 60 * 60 * 1000
-	).toISOString();
 	const oneWeekAgo = new Date(
 		Date.now() - 7 * 24 * 60 * 60 * 1000
 	).toISOString();
