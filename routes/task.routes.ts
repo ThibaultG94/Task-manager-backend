@@ -28,6 +28,7 @@ import {
 	validatePageAndLimit,
 } from '../middlewares/validation.middlewares';
 import {
+	checkWorkspacePermission,
 	updateWorkspaceTimestamp,
 	validateAssignedUsers,
 } from '../middlewares/task.middlewares';
@@ -113,11 +114,18 @@ router.put(
 	'/:id',
 	auth,
 	validateAssignedUsers,
+	checkWorkspacePermission,
 	editTask,
 	updateWorkspaceTimestamp
 );
 
 // Route to delete a task by its id
-router.delete('/:id', auth, deleteTask, updateWorkspaceTimestamp);
+router.delete(
+	'/:id',
+	auth,
+	checkWorkspacePermission,
+	deleteTask,
+	updateWorkspaceTimestamp
+);
 
 export default router;

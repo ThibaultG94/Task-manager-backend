@@ -15,6 +15,11 @@ const workspaceSchema = new mongoose.Schema(
 				userId: String,
 				username: String,
 				email: String,
+				role: {
+					type: String,
+					enum: ['admin', 'superadmin', 'member'],
+					default: 'member',
+				},
 			},
 		],
 		isDefault: {

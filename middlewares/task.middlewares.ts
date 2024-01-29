@@ -2,6 +2,7 @@ import taskModel from '../models/task.model';
 import userModel from '../models/user.model';
 import workspaceModel from '../models/workspace.model';
 import express from 'express';
+import { Task } from '../types/types';
 
 // Middleware to update the workspace's updatedAt when a task is modified
 export const updateWorkspaceTimestamp = async (
@@ -70,5 +71,38 @@ export const validateAssignedUsers = async (
 		next();
 	} catch (error) {
 		return res.status(500).json({ message: 'Internal server error' });
+	}
+};
+
+export const checkWorkspacePermission = async (
+	req: express.Request,
+	res: express.Response,
+	next: express.NextFunction
+) => {
+	try {
+		// Find the task by ID
+		const task = (await taskModel.findById(req.params.id)) as Task;
+		const workspaceId = task.workspaceId;
+		const workspace = await workspaceModel.findById(workspaceId);
+
+		if (!workspace) {
+			return res.status(404).json({ message: 'Workspace not found' });
+		}
+
+		const isOwner = req.user._id === workspace.userId;
+		const isSuperAdmin = workspace.members.some(
+			(member) =>
+				member.userId === req.user._id && member.role === 'superadmin'
+		);
+
+		if (!isOwner && !isSuperAdmin) {
+			return res.status(403).json({
+				message: 'Insufficient permissions to access this workspace',
+			});
+		}
+
+		next();
+	} catch (error) {
+		res.status(500).json({ message: 'Internal server error' });
 	}
 };

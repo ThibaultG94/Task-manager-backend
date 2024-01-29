@@ -340,6 +340,7 @@ export const acceptWorkspaceInvitation = async (
 			userId: req.user._id,
 			username: user?.username,
 			email: user?.email,
+			role: 'member' as 'member',
 		};
 		workspace.members.push(newMember);
 		await workspace.save();

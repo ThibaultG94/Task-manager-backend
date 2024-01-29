@@ -120,10 +120,17 @@ export const editWorkspace = async (
 			req.user._id !== workspace.userId &&
 			!workspace.members.some((member) => member.userId === req.user._id)
 		) {
-			return res.status(403).json({
-				message:
-					'You do not have sufficients rights to perform this action',
-			});
+			const isSuperAdmin = workspace.members.some(
+				(member) =>
+					member.userId === req.user._id &&
+					member.role === 'superadmin'
+			);
+			if (!isSuperAdmin) {
+				return res.status(403).json({
+					message:
+						'You do not have sufficients rights to perform this action',
+				});
+			}
 		}
 
 		// Updates the fields of the workspace
@@ -174,9 +181,18 @@ export const deleteWorkspace = async (
 			req.user._id !== workspace.userId &&
 			!workspace.members.some((member) => member.userId === req.user._id)
 		) {
-			return res.status(403).json({
-				message: 'You do not have the right to modify this workspace',
-			});
+			const isSuperAdmin = workspace.members.some(
+				(member) =>
+					member.userId === req.user._id &&
+					member.role === 'superadmin'
+			);
+
+			if (!isSuperAdmin) {
+				return res.status(403).json({
+					message:
+						'You do not have the right to modify this workspace',
+				});
+			}
 		}
 
 		// If the workspace is found and the user has sufficients rights, handle the tasks
@@ -218,7 +234,7 @@ export const deleteWorkspace = async (
 			} else {
 				// If the user is a member but not the creator, just remove the user from the workspace
 				workspace.members = workspace.members.filter(
-					(memberId) => memberId !== req.user._id
+					(member) => member.userId !== req.user._id
 				);
 				await workspace.save();
 				res.status(200).json(
