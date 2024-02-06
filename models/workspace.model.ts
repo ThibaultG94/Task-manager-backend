@@ -13,8 +13,6 @@ const workspaceSchema = new mongoose.Schema(
 		members: [
 			{
 				userId: String,
-				username: String,
-				email: String,
 				role: {
 					type: String,
 					enum: ['admin', 'superadmin', 'member'],

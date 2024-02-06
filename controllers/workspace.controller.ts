@@ -1,8 +1,13 @@
 import workspaceModel from '../models/workspace.model';
 import express from 'express';
 import userModel from '../models/user.model';
-import { Workspace } from '../types/types';
 import taskModel from '../models/task.model';
+import mongoose from 'mongoose';
+
+interface UserInfo {
+	username: string;
+	email: string;
+}
 
 // Endpoint to get a workspace by id
 export const getWorkspace = async (
@@ -10,9 +15,9 @@ export const getWorkspace = async (
 	res: express.Response
 ) => {
 	try {
-		const workspace: Workspace = await workspaceModel.findById(
-			req.params.id
-		);
+		const workspace: any = await workspaceModel
+			.findById(req.params.id)
+			.lean(); // Utilise .lean() pour un objet JavaScript simple
 
 		if (!req.user) {
 			return res.status(401).json({ message: 'User not authenticated' });
@@ -26,13 +31,31 @@ export const getWorkspace = async (
 
 		if (
 			req.user._id !== workspace.userId &&
-			!workspace.members.some((member) => member.userId === req.user._id)
+			!workspace.members.some(
+				(member: any) => member.userId === req.user._id
+			)
 		) {
 			return res.status(403).json({
 				message:
 					'You do not have sufficient rights to perform this action',
 			});
 		}
+
+		// Nouvelle étape: enrichir les membres avec des infos supplémentaires
+		const memberIds = workspace.members.map((member: any) => member.userId);
+		const users = await userModel.find({ _id: { $in: memberIds } });
+		const memberInfo = users.map((user) => ({
+			userId: user._id,
+			username: user.username, // Remplace 'username' par le bon champ de ton modèle userModel
+			email: user.email, // Idem ici, assure-toi que le champ s'appelle 'email' dans ton userModel
+			role:
+				workspace.members.find(
+					(member: any) =>
+						member.userId.toString() === user._id.toString()
+				)?.role || 'member',
+		}));
+
+		workspace.members = memberInfo; // Remplace les membres par les nouvelles infos enrichies
 
 		res.status(200).json(workspace);
 	} catch (err) {
@@ -48,16 +71,59 @@ export const getUserWorkspaces = async (
 	try {
 		const userId = req.params.id;
 
-		if (req.user._id !== userId) {
+		if (req.user._id.toString() !== userId) {
 			return res.status(403).json({
 				message:
 					'You do not have sufficient rights to perform this action',
 			});
 		}
 
-		const workspaces = await workspaceModel
+		let workspaces = await workspaceModel
 			.find({ userId })
-			.sort({ lastUpdateDate: -1 });
+			.sort({ lastUpdateDate: -1 })
+			.lean(); // Utilise .lean() pour obtenir des objets JavaScript simples
+
+		// Récupère tous les membres uniques à travers tous les workspaces
+		const memberIds = [
+			...new Set(
+				workspaces.flatMap((workspace) =>
+					workspace.members.map((member) => member.userId.toString())
+				)
+			),
+		];
+		const users = await userModel
+			.find({
+				_id: {
+					$in: memberIds.map((id) => new mongoose.Types.ObjectId(id)),
+				},
+			})
+			.lean();
+
+		// La correction importante est ici, où on spécifie le type d'objet pour l'accumulateur
+		const usersMap = users.reduce<{ [key: string]: UserInfo }>(
+			(acc, user) => {
+				acc[user._id.toString()] = {
+					username: user.username,
+					email: user.email,
+				};
+				return acc;
+			},
+			{}
+		);
+
+		// Enrichit chaque workspace avec les infos supplémentaires des membres
+		workspaces = workspaces.map((workspace) => {
+			const enrichedMembers = workspace.members.map((member) => {
+				const userInfo = usersMap[member.userId.toString()];
+				return {
+					userId: member.userId,
+					role: member.role,
+					username: userInfo?.username,
+					email: userInfo?.email,
+				};
+			});
+			return { ...workspace, members: enrichedMembers };
+		});
 
 		res.status(200).json(workspaces);
 	} catch (error) {
