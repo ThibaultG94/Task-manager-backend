@@ -17,7 +17,7 @@ export const getWorkspace = async (
 	try {
 		const workspace: any = await workspaceModel
 			.findById(req.params.id)
-			.lean(); // Utilise .lean() pour un objet JavaScript simple
+			.lean();
 
 		if (!req.user) {
 			return res.status(401).json({ message: 'User not authenticated' });
@@ -41,13 +41,12 @@ export const getWorkspace = async (
 			});
 		}
 
-		// Nouvelle étape: enrichir les membres avec des infos supplémentaires
 		const memberIds = workspace.members.map((member: any) => member.userId);
 		const users = await userModel.find({ _id: { $in: memberIds } });
 		const memberInfo = users.map((user) => ({
 			userId: user._id,
-			username: user.username, // Remplace 'username' par le bon champ de ton modèle userModel
-			email: user.email, // Idem ici, assure-toi que le champ s'appelle 'email' dans ton userModel
+			username: user.username,
+			email: user.email,
 			role:
 				workspace.members.find(
 					(member: any) =>
@@ -55,7 +54,7 @@ export const getWorkspace = async (
 				)?.role || 'member',
 		}));
 
-		workspace.members = memberInfo; // Remplace les membres par les nouvelles infos enrichies
+		workspace.members = memberInfo;
 
 		res.status(200).json(workspace);
 	} catch (err) {
@@ -81,9 +80,8 @@ export const getUserWorkspaces = async (
 		let workspaces = await workspaceModel
 			.find({ userId })
 			.sort({ lastUpdateDate: -1 })
-			.lean(); // Utilise .lean() pour obtenir des objets JavaScript simples
+			.lean();
 
-		// Récupère tous les membres uniques à travers tous les workspaces
 		const memberIds = [
 			...new Set(
 				workspaces.flatMap((workspace) =>
@@ -99,7 +97,6 @@ export const getUserWorkspaces = async (
 			})
 			.lean();
 
-		// La correction importante est ici, où on spécifie le type d'objet pour l'accumulateur
 		const usersMap = users.reduce<{ [key: string]: UserInfo }>(
 			(acc, user) => {
 				acc[user._id.toString()] = {
@@ -111,7 +108,6 @@ export const getUserWorkspaces = async (
 			{}
 		);
 
-		// Enrichit chaque workspace avec les infos supplémentaires des membres
 		workspaces = workspaces.map((workspace) => {
 			const enrichedMembers = workspace.members.map((member) => {
 				const userInfo = usersMap[member.userId.toString()];
