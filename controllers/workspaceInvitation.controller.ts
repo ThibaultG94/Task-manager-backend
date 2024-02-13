@@ -110,7 +110,7 @@ export const getSentOutWorkspaceInvitations = async (
 	}
 };
 
-// Endpoint to retrieve received invitations
+// Endpoint to retrieve received workspace invitations
 export const getReceivedWorkspaceInvitations = async (
 	req: express.Request,
 	res: express.Response
@@ -127,7 +127,6 @@ export const getReceivedWorkspaceInvitations = async (
 			guestId: userId,
 		});
 
-		// Transformer les invitations en utilisant Promise.all
 		const invitationsInformations = await Promise.all(
 			invitationsReceived.map(async (invitation) => {
 				const sender = await userModel.findById(invitation.senderId);
@@ -150,7 +149,6 @@ export const getReceivedWorkspaceInvitations = async (
 			})
 		);
 
-		// Filtrer les invitations
 		const invitationsPending = invitationsInformations.filter(
 			(invitation) => invitation.status === 'PENDING'
 		);
@@ -166,5 +164,121 @@ export const getReceivedWorkspaceInvitations = async (
 		return res.status(200).json({ invitations });
 	} catch (error) {
 		res.status(500).json({ message: 'Internal server error' });
+	}
+};
+
+// Endpoint to accept an invitation
+export const acceptWorkspaceInvitation = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const invitationId = req.params.invitationId;
+		const invitation = await workspaceInvitationModel.findById(
+			invitationId
+		);
+		const workspace = await workspaceModel.findById(
+			invitation?.workspaceId
+		);
+		const userId = req.body.userId;
+
+		if (!invitation || invitation.status !== 'PENDING') {
+			return res.status(400).json({
+				message: 'Invitation does not exist or is not pending',
+			});
+		}
+
+		if (!userId || userId !== invitation.guestId) {
+			return res.status(403).json({
+				message:
+					'You do not have sufficients rights to accept this invitation',
+			});
+		}
+
+		if (!workspace) {
+			return res
+				.status(400)
+				.json({ message: 'Workspace does not exist' });
+		}
+
+		invitation.status = 'ACCEPTED';
+		workspace.members.push({
+			userId: invitation?.guestId,
+			role: invitation?.role,
+		});
+		await invitation.save();
+		await workspace.save();
+
+		res.status(200).json({
+			message: 'Workspace invitation accepted',
+			invitation,
+		});
+	} catch (error) {
+		return res.status(500).json({ message: 'Internal server error' });
+	}
+};
+
+// Endpoint to decline an invitation
+export const declineWorkspaceInvitation = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const invitationId = req.params.invitationId;
+		const invitation = await workspaceInvitationModel.findById(
+			invitationId
+		);
+		const userId = req.body.userId;
+
+		if (!invitation || invitation.status !== 'PENDING') {
+			return res.status(400).json({
+				message: 'Invitation does not exist or is not pending',
+			});
+		}
+
+		if (!userId || userId !== invitation.guestId) {
+			return res.status(403).json({
+				message:
+					'You do not have sufficients rights to decline this invitation',
+			});
+		}
+
+		invitation.status = 'REJECTED';
+		await invitation.save();
+
+		res.status(200).json({ message: 'Invitation declined' });
+	} catch (error) {
+		return res.status(500).json({ message: 'Internal server error' });
+	}
+};
+
+export const cancelWorkspaceInvitation = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const invitationId = req.params.invitationId;
+		const invitation = await workspaceInvitationModel.findById(
+			invitationId
+		);
+
+		if (!invitation || invitation.status === 'ACCEPTED') {
+			return res.status(400).json({
+				message: 'Invitation does not exist or is already accepted',
+			});
+		}
+
+		if (!req.user || req.user._id !== invitation.senderId) {
+			return res.status(403).json({
+				message:
+					'You do not have sufficients rights to cancel this invitation',
+			});
+		}
+
+		await invitation.deleteOne();
+
+		res.status(200).json({ message: 'Invitation cancelled' });
+	} catch (error) {
+		return res.status(500).json({ message: 'Internal server error' });
 	}
 };
