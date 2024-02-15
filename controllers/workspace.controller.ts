@@ -78,7 +78,9 @@ export const getUserWorkspaces = async (
 		}
 
 		let workspaces = await workspaceModel
-			.find({ userId })
+			.find({
+				$or: [{ userId }, { 'members.userId': userId }],
+			})
 			.sort({ lastUpdateDate: -1 })
 			.lean();
 
