@@ -161,7 +161,7 @@ export const getReceivedWorkspaceInvitations = async (
 			accepted: invitationsAccepted,
 		};
 
-		return res.status(200).json({ invitations });
+		return res.status(200).json({ workspaceInvitations: invitations });
 	} catch (error) {
 		res.status(500).json({ message: 'Internal server error' });
 	}
