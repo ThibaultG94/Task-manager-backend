@@ -43,7 +43,13 @@ export const sendInvitationWorkspace = async (
 			status: 'PENDING',
 		});
 
+		workspace.invitationStatus.push({
+			userId: guestId,
+			status: 'pending',
+		});
+
 		await workspaceInvitation.save();
+		await workspace.save();
 
 		res.status(200).json({ workspaceInvitation: workspaceInvitation });
 	} catch (error) {
@@ -206,6 +212,12 @@ export const acceptWorkspaceInvitation = async (
 			userId: invitation?.guestId,
 			role: invitation?.role,
 		});
+
+		workspace.invitationStatus = workspace.invitationStatus.filter(
+			(workspaceInvitation) =>
+				workspaceInvitation.userId !== invitation?.guestId
+		);
+
 		await invitation.save();
 		await workspace.save();
 
@@ -228,6 +240,9 @@ export const declineWorkspaceInvitation = async (
 		const invitation = await workspaceInvitationModel.findById(
 			invitationId
 		);
+		const workspace = await workspaceModel.findById(
+			invitation?.workspaceId
+		);
 		const userId = req.body.userId;
 
 		if (!invitation || invitation.status !== 'PENDING') {
@@ -240,6 +255,32 @@ export const declineWorkspaceInvitation = async (
 			return res.status(403).json({
 				message:
 					'You do not have sufficients rights to decline this invitation',
+			});
+		}
+
+		if (!workspace) {
+			return res
+				.status(400)
+				.json({ message: 'Workspace does not exist' });
+		}
+
+		let invitationUpdated = false;
+		workspace.invitationStatus.forEach((inv) => {
+			if (
+				inv.userId === invitation?.guestId &&
+				inv.status !== 'declined'
+			) {
+				inv.status = 'declined';
+				invitationUpdated = true;
+			}
+		});
+
+		if (invitationUpdated) {
+			await workspace.save();
+			res.status(200).json({ message: 'Invitation declined' });
+		} else {
+			res.status(404).json({
+				message: 'Invitation not found or already declined',
 			});
 		}
 
@@ -268,17 +309,37 @@ export const cancelWorkspaceInvitation = async (
 			});
 		}
 
-		if (!req.user || req.user._id !== invitation.senderId) {
+		if (
+			!req.user ||
+			req.user._id.toString() !== invitation.senderId.toString()
+		) {
 			return res.status(403).json({
 				message:
-					'You do not have sufficients rights to cancel this invitation',
+					'You do not have sufficient rights to cancel this invitation',
 			});
+		}
+
+		const workspace = await workspaceModel.findById(invitation.workspaceId);
+		if (!workspace) {
+			return res.status(404).json({ message: 'Workspace not found' });
+		}
+
+		const index = workspace.invitationStatus.findIndex(
+			(inv) => inv.userId === invitation.guestId
+		);
+		if (index !== -1) {
+			workspace.invitationStatus.splice(index, 1);
+			await workspace.save();
 		}
 
 		await invitation.deleteOne();
 
-		res.status(200).json({ message: 'Invitation cancelled' });
+		res.status(200).json({
+			message: 'Invitation cancelled and member removed from workspace',
+		});
 	} catch (error) {
-		return res.status(500).json({ message: 'Internal server error' });
+		return res
+			.status(500)
+			.json({ message: 'Internal server error', error });
 	}
 };

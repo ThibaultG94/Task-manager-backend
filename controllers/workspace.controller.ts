@@ -210,6 +210,9 @@ export const editWorkspace = async (
 		if (updates.members !== undefined) {
 			workspace.members = updates.members;
 		}
+		if (updates.invitationStatus !== undefined) {
+			workspace.invitationStatus = updates.invitationStatus;
+		}
 
 		const updatedWorkspace = await workspace.save();
 

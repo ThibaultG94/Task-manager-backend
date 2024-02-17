@@ -20,6 +20,16 @@ const workspaceSchema = new mongoose.Schema(
 				},
 			},
 		],
+		invitationStatus: [
+			{
+				userId: String,
+				status: {
+					type: String,
+					enum: ['pending', 'declined'],
+					default: 'pending',
+				},
+			},
+		],
 		isDefault: {
 			type: String,
 			default: false,
