@@ -29,6 +29,38 @@ export const sendInvitationWorkspace = async (
 			});
 		}
 
+		// Search if there is already an invitation for this user in this workspace
+		const invitationExists = await workspaceInvitationModel.findOne({
+			senderId,
+			guestId,
+			workspaceId,
+		});
+
+		if (invitationExists && invitationExists.status === 'CANCELLED') {
+			invitationExists.status = 'REJECTED';
+			let invitationUpdated = false;
+			workspace.invitationStatus.forEach((inv) => {
+				if (
+					inv.userId === invitationExists.guestId &&
+					inv.status !== 'declined'
+				) {
+					inv.status = 'declined';
+					invitationUpdated = true;
+				}
+			});
+
+			if (invitationUpdated) {
+				await invitationExists.save();
+				await workspace.save();
+				res.status(200).json({ message: 'Invitation declined' });
+			} else {
+				res.status(404).json({
+					message: 'Invitation not found or already declined',
+				});
+			}
+			return res.status(200).json({ message: 'Invitation send' });
+		}
+
 		if (!workspace) {
 			return res
 				.status(400)
@@ -51,7 +83,10 @@ export const sendInvitationWorkspace = async (
 		await workspaceInvitation.save();
 		await workspace.save();
 
-		res.status(200).json({ workspaceInvitation: workspaceInvitation });
+		res.status(200).json({
+			workspaceInvitation: workspaceInvitation,
+			workspace: workspace,
+		});
 	} catch (error) {
 		res.status(500).json({ message: 'Internal server error' });
 	}
@@ -161,10 +196,14 @@ export const getReceivedWorkspaceInvitations = async (
 		const invitationsAccepted = invitationsInformations.filter(
 			(invitation) => invitation.status === 'ACCEPTED'
 		);
+		const invitationRejected = invitationsInformations.filter(
+			(invitation) => invitation.status === 'REJECTED'
+		);
 
 		const invitations = {
 			pending: invitationsPending,
 			accepted: invitationsAccepted,
+			rejected: invitationRejected,
 		};
 
 		return res.status(200).json({ workspaceInvitations: invitations });
@@ -322,6 +361,31 @@ export const cancelWorkspaceInvitation = async (
 		const workspace = await workspaceModel.findById(invitation.workspaceId);
 		if (!workspace) {
 			return res.status(404).json({ message: 'Workspace not found' });
+		}
+
+		if (invitation.status === 'REJECTED') {
+			invitation.status = 'CANCELLED';
+			let invitationUpdated = false;
+			workspace.invitationStatus.forEach((inv) => {
+				if (
+					inv.userId === invitation?.guestId &&
+					inv.status !== 'cancelled'
+				) {
+					inv.status = 'cancelled';
+					invitationUpdated = true;
+				}
+			});
+			if (invitationUpdated) {
+				await invitation.save();
+				await workspace.save();
+				return res
+					.status(200)
+					.json({ message: 'Invitation cancelled' });
+			} else {
+				return res.status(404).json({
+					message: 'Invitation not found or already cancelled',
+				});
+			}
 		}
 
 		const index = workspace.invitationStatus.findIndex(

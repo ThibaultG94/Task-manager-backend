@@ -12,7 +12,7 @@ const workspaceInvitationSchema = new mongoose.Schema(
 		workspaceId: { type: String, required: true },
 		status: {
 			type: String,
-			enum: ['PENDING', 'ACCEPTED', 'REJECTED'],
+			enum: ['PENDING', 'ACCEPTED', 'REJECTED', 'CANCELLED'],
 			default: 'PENDING',
 		},
 	},

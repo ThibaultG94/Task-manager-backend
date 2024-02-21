@@ -25,7 +25,7 @@ const workspaceSchema = new mongoose.Schema(
 				userId: String,
 				status: {
 					type: String,
-					enum: ['pending', 'declined'],
+					enum: ['pending', 'declined', 'cancelled'],
 					default: 'pending',
 				},
 			},
