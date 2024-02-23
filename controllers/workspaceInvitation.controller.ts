@@ -227,7 +227,7 @@ export const acceptWorkspaceInvitation = async (
 		);
 		const userId = req.body.userId;
 
-		if (!invitation || invitation.status !== 'PENDING') {
+		if (!invitation || invitation.status === 'CANCELLED') {
 			return res.status(400).json({
 				message: 'Invitation does not exist or is not pending',
 			});
