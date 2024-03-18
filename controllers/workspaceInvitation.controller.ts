@@ -29,6 +29,19 @@ export const sendInvitationWorkspace = async (
 			});
 		}
 
+		if (!workspace) {
+			return res
+				.status(400)
+				.json({ message: 'Workspace does not exist' });
+		}
+
+		if (workspace.isDefault) {
+			return res.status(400).json({
+				message:
+					'You cannot send an invitation to the default workspace',
+			});
+		}
+
 		// Search if there is already an invitation for this user in this workspace
 		const invitationExists = await workspaceInvitationModel.findOne({
 			senderId,
