@@ -35,7 +35,7 @@ export const sendInvitationWorkspace = async (
 				.json({ message: 'Workspace does not exist' });
 		}
 
-		if (workspace.isDefault) {
+		if (workspace.isDefault === "true") {
 			return res.status(400).json({
 				message:
 					'You cannot send an invitation to the default workspace',
