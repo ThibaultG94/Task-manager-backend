@@ -174,10 +174,15 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
         }
 
         if (req.user._id !== workspace.userId && !workspace.members.some(member => member.userId === req.user._id)) {
-            return res.status(403).json({
-                message: 'You do not have sufficient rights to perform this action',
-            });
+            const isSuperAdmin = workspace.members.some(member => member.userId === req.user._id && member.role === 'superadmin');
+            if (!isSuperAdmin) {
+                return res.status(403).json({
+                    message: 'You do not have sufficient rights to perform this action',
+                });
+            }
         }
+
+        let bulkOperations = [];
 
         // Updates the fields of the workspace
         if (updates.title !== undefined) workspace.title = updates.title;
@@ -186,32 +191,59 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
 
         // Process new member invitations
         if (updates.members !== undefined) {
-            for (const member of updates.members) {
-                const isExistingMember = workspace.members.some(existingMember => existingMember.userId === member.userId);
-                // Proceed only if not an existing member
-                if (!isExistingMember) {
-                    const guestUser = await userModel.findById(member.userId);
-                    if (guestUser && member.userId !== req.user._id && workspace.isDefault !== "true") {
-                        // Create or update the invitation
-                        const invitationExists = await workspaceInvitationModel.findOneAndUpdate(
-                            { senderId: req.user._id, guestId: member.userId, workspaceId: req.params.id },
-                            { status: 'PENDING' },
-                            { upsert: true, new: true, setDefaultsOnInsert: true }
-                        );
+            const newMembers = updates.members.filter((member:any) => !workspace.members.some(existingMember => existingMember.userId === member.userId));
+            
+            for (const member of newMembers) {
+                const guestUser = await userModel.findById(member.userId);
+                if (!guestUser || member.userId === req.user._id || workspace.isDefault === "true") continue;
 
-                        // Add or update workspace.invitationStatus
-                        const invIndex = workspace.invitationStatus.findIndex(inv => inv.userId === member.userId);
-                        if (invIndex !== -1) {
-                            workspace.invitationStatus[invIndex].status = 'pending'; // Update existing entry
-                        } else {
-                            workspace.invitationStatus.push({ userId: member.userId, status: 'pending' }); // Add new entry
+                let invitationExists = await workspaceInvitationModel.findOne({ senderId: req.user._id, guestId: member.userId, workspaceId: req.params.id });
+
+                if (invitationExists && invitationExists.status === 'CANCELLED') {
+                    bulkOperations.push({
+                        updateOne: {
+                            filter: { _id: invitationExists._id },
+                            update: { status: 'REJECTED' }
                         }
-                    }
+                    });
+                } else if (!invitationExists) {
+                    const workspaceInvitation = new workspaceInvitationModel({
+                        senderId: req.user._id,
+                        guestId: member.userId,
+                        role: member.role,
+                        workspaceId: req.params.id,
+                        status: 'PENDING',
+                    });
+                    await workspaceInvitation.save();
                 }
+
+                workspace.invitationStatus.push({ userId: member.userId, status: 'pending' });
             }
         }
 
-        // No need to remove from workspace.invitationStatus here, as we're only adding or updating status
+        // Determine removed members
+        const removedMembersIds = workspace.members.filter(existingMember => !updates.members.some((updateMember:any) => updateMember.userId === existingMember.userId)).map(member => member.userId);
+        
+        if (removedMembersIds.length > 0) {
+            // Cancel invitations in workspace.invitationStatus
+            workspace.invitationStatus = workspace.invitationStatus.filter(invitation => !removedMembersIds.includes(invitation.userId));
+            // Prepare to delete invitations from workspaceInvitationModel
+            removedMembersIds.forEach(userId => {
+                bulkOperations.push({
+                    deleteOne: {
+                        filter: { workspaceId: req.params.id, guestId: userId }
+                    }
+                });
+            });
+        }
+
+        // Execute all bulk operations if any
+        if (bulkOperations.length > 0) {
+            await workspaceInvitationModel.bulkWrite(bulkOperations);
+        }
+
+        // Update workspace members based on remaining ones
+        workspace.members = updates.members.filter((member:any) => workspace.members.some(existingMember => existingMember.userId === member.userId));
 
         // Save the workspace with updated info
         const updatedWorkspace = await workspace.save();
@@ -227,94 +259,53 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
 };
 
 
-
-
 // Endpoint to delete a workspace
-export const deleteWorkspace = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		// Attempt to find the workspace by the provided id
-		const workspace = await workspaceModel.findById(req.params.id);
+export const deleteWorkspace = async (req: express.Request, res: express.Response) => {
+    try {
+        const workspaceId = req.params.id;
+        const workspace = await workspaceModel.findById(workspaceId);
 
-		// If no workspace is found, return a 400 status
-		if (!workspace) {
-			return res
-				.status(400)
-				.json({ message: 'This workspace does not exist' });
-		}
+        if (!workspace) {
+            return res.status(400).json({ message: 'This workspace does not exist' });
+        }
 
-		// If a workspace is found, check if the user making the request is a member of the workspace
-		if (
-			req.user._id !== workspace.userId &&
-			!workspace.members.some((member) => member.userId === req.user._id)
-		) {
-			const isSuperAdmin = workspace.members.some(
-				(member) =>
-					member.userId === req.user._id &&
-					member.role === 'superadmin'
-			);
+        if (req.user._id !== workspace.userId && !workspace.members.some(member => member.userId === req.user._id)) {
+            const isSuperAdmin = workspace.members.some(member => member.userId === req.user._id && member.role === 'superadmin');
+            if (!isSuperAdmin) {
+                return res.status(403).json({ message: 'You do not have the right to modify this workspace' });
+            }
+        }
 
-			if (!isSuperAdmin) {
-				return res.status(403).json({
-					message:
-						'You do not have the right to modify this workspace',
-				});
-			}
-		}
+        // Here, we handle the cleanup of all associated workspace invitations before proceeding with workspace deletion
+        await workspaceInvitationModel.deleteMany({ workspaceId: workspaceId });
 
-		// If the workspace is found and the user has sufficients rights, handle the tasks
-		if (workspace) {
-			// First, find the default workspace of the user
-			let defaultWorkspace = await workspaceModel.findOne({
-				userId: req.user._id,
-				isDefault: true,
-			});
+        // Proceed with your existing logic for handling tasks and deleting the workspace
+        let defaultWorkspace = await workspaceModel.findOne({ userId: req.user._id, isDefault: true });
 
-			if (!defaultWorkspace) {
-				return res
-					.status(500)
-					.json({ message: 'No default workspace found' });
-			}
+        if (!defaultWorkspace) {
+            return res.status(500).json({ message: 'No default workspace found' });
+        }
 
-			// If the workspace being deleted is the default workspace, create a new default workspace
-			if (workspace._id.toString() === defaultWorkspace._id.toString()) {
-				defaultWorkspace = new workspaceModel({
-					title: 'Default Workspace',
-					userId: req.user._id,
-					isDefault: true,
-				});
-			}
+        if (workspace._id.toString() === defaultWorkspace._id.toString()) {
+            defaultWorkspace = new workspaceModel({
+                title: 'Default Workspace',
+                userId: req.user._id,
+                isDefault: true,
+            });
+        }
 
-			// Update the workspaceId of all tasks created by the user in the workspace being deleted
-			await taskModel.updateMany(
-				{
-					workspaceId: req.params.id,
-					userId: req.user._id,
-				},
-				{ workspaceId: defaultWorkspace._id }
-			);
+        await taskModel.updateMany({ workspaceId: workspaceId, userId: req.user._id }, { workspaceId: defaultWorkspace._id });
 
-			// If the user is the one who created the workspace, delete the workspace
-			if (req.user._id === workspace.userId) {
-				await workspace.deleteOne();
-				res.status(200).json('Workspace deleted ' + req.params.id);
-			} else {
-				// If the user is a member but not the creator, just remove the user from the workspace
-				workspace.members = workspace.members.filter(
-					(member) => member.userId !== req.user._id
-				);
-				await workspace.save();
-				res.status(200).json(
-					'User removed from workspace ' + req.params.id
-				);
-			}
-
-			await workspace.deleteOne();
-			res.json('Workspace deleted ' + req.params.id);
-		}
-	} catch (error) {
-		res.status(500).json({ message: 'Internal server error' });
-	}
+        if (req.user._id === workspace.userId) {
+            await workspace.deleteOne();
+            return res.status(200).json('Workspace deleted ' + workspaceId);
+        } else {
+            workspace.members = workspace.members.filter(member => member.userId !== req.user._id);
+            await workspace.save();
+            return res.status(200).json('User removed from workspace ' + workspaceId);
+        }
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
 };
