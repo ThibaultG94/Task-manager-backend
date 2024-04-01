@@ -174,15 +174,10 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
         }
 
         if (req.user._id !== workspace.userId && !workspace.members.some(member => member.userId === req.user._id)) {
-            const isSuperAdmin = workspace.members.some(member => member.userId === req.user._id && member.role === 'superadmin');
-            if (!isSuperAdmin) {
-                return res.status(403).json({
-                    message: 'You do not have sufficient rights to perform this action',
-                });
-            }
+            return res.status(403).json({
+                message: 'You do not have sufficient rights to perform this action',
+            });
         }
-
-        let bulkOperations = [];
 
         // Updates the fields of the workspace
         if (updates.title !== undefined) workspace.title = updates.title;
@@ -191,54 +186,32 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
 
         // Process new member invitations
         if (updates.members !== undefined) {
-            const newMembers = updates.members.filter((member:any) => !workspace.members.some(existingMember => existingMember.userId === member.userId));
-            
-            for (const member of newMembers) {
-                const guestUser = await userModel.findById(member.userId);
-                if (!guestUser || member.userId === req.user._id || workspace.isDefault === "true") continue;
+            for (const member of updates.members) {
+                const isExistingMember = workspace.members.some(existingMember => existingMember.userId === member.userId);
+                // Proceed only if not an existing member
+                if (!isExistingMember) {
+                    const guestUser = await userModel.findById(member.userId);
+                    if (guestUser && member.userId !== req.user._id && workspace.isDefault !== "true") {
+                        // Create or update the invitation
+                        const invitationExists = await workspaceInvitationModel.findOneAndUpdate(
+                            { senderId: req.user._id, guestId: member.userId, workspaceId: req.params.id },
+                            { status: 'PENDING' },
+                            { upsert: true, new: true, setDefaultsOnInsert: true }
+                        );
 
-                let invitationExists = await workspaceInvitationModel.findOne({ senderId: req.user._id, guestId: member.userId, workspaceId: req.params.id });
-
-                if (invitationExists && invitationExists.status === 'CANCELLED') {
-                    bulkOperations.push({
-                        updateOne: {
-                            filter: { _id: invitationExists._id },
-                            update: { status: 'REJECTED' }
+                        // Add or update workspace.invitationStatus
+                        const invIndex = workspace.invitationStatus.findIndex(inv => inv.userId === member.userId);
+                        if (invIndex !== -1) {
+                            workspace.invitationStatus[invIndex].status = 'pending'; // Update existing entry
+                        } else {
+                            workspace.invitationStatus.push({ userId: member.userId, status: 'pending' }); // Add new entry
                         }
-                    });
-                } else if (!invitationExists) {
-                    const workspaceInvitation = new workspaceInvitationModel({
-                        senderId: req.user._id,
-                        guestId: member.userId,
-                        role: member.role,
-                        workspaceId: req.params.id,
-                        status: 'PENDING',
-                    });
-                    await workspaceInvitation.save();
+                    }
                 }
-
-                workspace.invitationStatus.push({ userId: member.userId, status: 'pending' });
             }
         }
 
-        // Process removal of existing members
-        const remainingMembers = workspace.members.filter(existingMember => updates.members.some((updateMember:any) => updateMember.userId === existingMember.userId));
-        workspace.members = remainingMembers; // Retain members who are still in the updates.members list
-
-        const removedMembers = workspace.members.filter(existingMember => !updates.members.some((updateMember:any) => updateMember.userId === existingMember.userId));
-        removedMembers.forEach(member => {
-            bulkOperations.push({
-                updateOne: {
-                    filter: { workspaceId: req.params.id, guestId: member.userId },
-                    update: { status: 'CANCELLED' }
-                }
-            });
-        });
-
-        // Execute all bulk operations if any
-        if (bulkOperations.length > 0) {
-            await workspaceInvitationModel.bulkWrite(bulkOperations);
-        }
+        // No need to remove from workspace.invitationStatus here, as we're only adding or updating status
 
         // Save the workspace with updated info
         const updatedWorkspace = await workspace.save();
@@ -252,6 +225,8 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
         return res.status(500).json({ message: 'Internal server error', error });
     }
 };
+
+
 
 
 // Endpoint to delete a workspace
