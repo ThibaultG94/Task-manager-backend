@@ -3,6 +3,7 @@ import express from 'express';
 import userModel from '../models/user.model';
 import taskModel from '../models/task.model';
 import mongoose from 'mongoose';
+import workspaceInvitationModel from '../models/workspaceInvitation.model';
 
 interface UserInfo {
 	username: string;
@@ -163,69 +164,95 @@ export const createWorkspace = async (
 };
 
 // Endpoint to edit a workspace
-export const editWorkspace = async (
-	req: express.Request,
-	res: express.Response,
-	next: express.NextFunction
-) => {
-	try {
-		const updates = req.body;
-		const workspace = await workspaceModel.findById(req.params.id);
+export const editWorkspace = async (req: express.Request, res: express.Response) => {
+    try {
+        const updates = req.body;
+        const workspace = await workspaceModel.findById(req.params.id);
 
-		// Check if the workspace exists
-		if (!workspace) {
-			return res
-				.status(400)
-				.json({ message: 'This workspace does not exist' });
-		}
+        if (!workspace) {
+            return res.status(400).json({ message: 'This workspace does not exist' });
+        }
 
-		// Check if the user making the request is the owner of the workspace
-		if (
-			req.user._id !== workspace.userId &&
-			!workspace.members.some((member) => member.userId === req.user._id)
-		) {
-			const isSuperAdmin = workspace.members.some(
-				(member) =>
-					member.userId === req.user._id &&
-					member.role === 'superadmin'
-			);
-			if (!isSuperAdmin) {
-				return res.status(403).json({
-					message:
-						'You do not have sufficients rights to perform this action',
-				});
-			}
-		}
+        if (req.user._id !== workspace.userId && !workspace.members.some(member => member.userId === req.user._id)) {
+            const isSuperAdmin = workspace.members.some(member => member.userId === req.user._id && member.role === 'superadmin');
+            if (!isSuperAdmin) {
+                return res.status(403).json({
+                    message: 'You do not have sufficient rights to perform this action',
+                });
+            }
+        }
 
-		// Updates the fields of the workspace
-		if (updates.title !== undefined) {
-			workspace.title = updates.title;
-		}
-		if (updates.userId !== undefined) {
-			workspace.userId = updates.userId;
-		}
-		if (updates.description !== undefined) {
-			workspace.description = updates.description;
-		}
-		if (updates.members !== undefined) {
-			workspace.members = updates.members;
-		}
-		if (updates.invitationStatus !== undefined) {
-			workspace.invitationStatus = updates.invitationStatus;
-		}
+        let bulkOperations = [];
 
-		const updatedWorkspace = await workspace.save();
+        // Updates the fields of the workspace
+        if (updates.title !== undefined) workspace.title = updates.title;
+        if (updates.userId !== undefined) workspace.userId = updates.userId;
+        if (updates.description !== undefined) workspace.description = updates.description;
 
-		res.status(200).json({
-			message: 'Workspace updated',
-			workspace: updatedWorkspace,
-		});
+        // Process new member invitations
+        if (updates.members !== undefined) {
+            const newMembers = updates.members.filter((member:any) => !workspace.members.some(existingMember => existingMember.userId === member.userId));
+            
+            for (const member of newMembers) {
+                const guestUser = await userModel.findById(member.userId);
+                if (!guestUser || member.userId === req.user._id || workspace.isDefault === "true") continue;
 
-		next();
-	} catch (error) {
-		res.status(500).json({ message: 'Internal server error' });
-	}
+                let invitationExists = await workspaceInvitationModel.findOne({ senderId: req.user._id, guestId: member.userId, workspaceId: req.params.id });
+
+                if (invitationExists && invitationExists.status === 'CANCELLED') {
+                    bulkOperations.push({
+                        updateOne: {
+                            filter: { _id: invitationExists._id },
+                            update: { status: 'REJECTED' }
+                        }
+                    });
+                } else if (!invitationExists) {
+                    const workspaceInvitation = new workspaceInvitationModel({
+                        senderId: req.user._id,
+                        guestId: member.userId,
+                        role: member.role,
+                        workspaceId: req.params.id,
+                        status: 'PENDING',
+                    });
+                    await workspaceInvitation.save();
+                }
+
+                workspace.invitationStatus.push({ userId: member.userId, status: 'pending' });
+            }
+        }
+
+        // Process removal of existing members
+        const remainingMembers = workspace.members.filter(existingMember => updates.members.some((updateMember:any) => updateMember.userId === existingMember.userId));
+        workspace.members = remainingMembers; // Retain members who are still in the updates.members list
+
+        const removedMembers = workspace.members.filter(existingMember => !updates.members.some((updateMember:any) => updateMember.userId === existingMember.userId));
+        removedMembers.forEach(member => {
+            bulkOperations.push({
+                updateOne: {
+                    filter: { workspaceId: req.params.id, guestId: member.userId },
+                    update: { status: 'CANCELLED' }
+                }
+            });
+        });
+
+        // Execute all bulk operations if any
+        if (bulkOperations.length > 0) {
+            await workspaceInvitationModel.bulkWrite(bulkOperations);
+        }
+
+        // Save the workspace with updated info
+        const updatedWorkspace = await workspace.save();
+
+        return res.status(200).json({
+            message: 'Workspace updated successfully',
+            workspace: updatedWorkspace,
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Internal server error', error });
+    }
 };
+
 
 // Endpoint to delete a workspace
 export const deleteWorkspace = async (
