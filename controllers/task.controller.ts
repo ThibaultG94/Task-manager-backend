@@ -463,11 +463,15 @@ export const getUrgentTasks = async (
 	try {
 		const userId = req.params.userId;
 		const urgentTasks: ExtendedTask[] = await TaskModel.find({
-			userId: userId,
+			$or: [
+			  { userId: userId },
+			  { assignedTo: { $elemMatch: { userId: userId } } } 
+			],
 			deadline: { $exists: true },
 			priority: { $exists: true },
 			status: { $ne: 'Archived' },
-		});
+		  });
+		  
 
 		const sortedTasks = urgentTasks
 			.sort((a, b) => {
@@ -499,7 +503,10 @@ export const getUserTasks = async (
 	try {
 		const userId = req.params.userId;
 		const userTasks: ExtendedTask[] = await TaskModel.find({
-			userId: userId,
+			$or: [
+				{ userId: userId },
+				{ assignedTo: { $elemMatch: { userId: userId } } } 
+			  ],
 		});
 
 		const sortedTasks = userTasks.sort((a, b) => {
@@ -539,7 +546,10 @@ export const getOverdueTasks = async (
 		const userId = req.params.userId;
 
 		const tasks = (await TaskModel.find({
-			userId: userId, // Include only tasks that belong to the specified userId
+			$or: [
+				{ userId: userId },
+				{ assignedTo: { $elemMatch: { userId: userId } } } 
+			  ],
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
@@ -583,7 +593,10 @@ export const getTodayTasks = async (
 		const userId = req.params.userId;
 
 		const tasks = (await TaskModel.find({
-			userId: userId, // Include only tasks that belong to the specified userId
+			$or: [
+				{ userId: userId },
+				{ assignedTo: { $elemMatch: { userId: userId } } } 
+			  ],
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
@@ -627,7 +640,10 @@ export const getTomorrowTasks = async (
 		const userId = req.params.userId;
 
 		const tasks = (await TaskModel.find({
-			userId: userId, // Include only tasks that belong to the specified userId
+			$or: [
+				{ userId: userId },
+				{ assignedTo: { $elemMatch: { userId: userId } } } 
+			  ],
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
@@ -672,7 +688,10 @@ export const getThisWeekTasks = async (
 		const thisWeekCategories = ['this-week-tasks'];
 
 		const tasks = (await TaskModel.find({
-			userId: userId, // Include only tasks that belong to the specified userId
+			$or: [
+				{ userId: userId },
+				{ assignedTo: { $elemMatch: { userId: userId } } } 
+			  ],
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
@@ -718,7 +737,10 @@ export const getThisWeekendTasks = async (
 		const thisWeekendCategories = ['this-weekend-tasks'];
 
 		const tasks = (await TaskModel.find({
-			userId: userId, // Include only tasks that belong to the specified userId
+			$or: [
+				{ userId: userId },
+				{ assignedTo: { $elemMatch: { userId: userId } } } 
+			  ],
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
@@ -764,7 +786,10 @@ export const getNextWeekTasks = async (
 		const nextWeekCategories = ['next-week-tasks'];
 
 		const tasks = (await TaskModel.find({
-			userId: userId, // Include only tasks that belong to the specified userId
+			$or: [
+				{ userId: userId },
+				{ assignedTo: { $elemMatch: { userId: userId } } } 
+			  ],
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
@@ -810,7 +835,10 @@ export const getNextWeekendTasks = async (
 		const nextWeekendCategories = ['next-weekend-tasks'];
 
 		const tasks = (await TaskModel.find({
-			userId: userId, // Include only tasks that belong to the specified userId
+			$or: [
+				{ userId: userId },
+				{ assignedTo: { $elemMatch: { userId: userId } } } 
+			  ],
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
@@ -856,7 +884,10 @@ export const getThisMonthTasks = async (
 		const thisMonthCategories = ['this-month-tasks'];
 
 		const tasks = (await TaskModel.find({
-			userId: userId, // Include only tasks that belong to the specified userId
+			$or: [
+				{ userId: userId },
+				{ assignedTo: { $elemMatch: { userId: userId } } } 
+			  ],
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
@@ -902,7 +933,10 @@ export const getNextMonthTasks = async (
 		const nextMonthCategories = ['next-month-tasks'];
 
 		const tasks = (await TaskModel.find({
-			userId: userId, // Include only tasks that belong to the specified userId
+			$or: [
+				{ userId: userId },
+				{ assignedTo: { $elemMatch: { userId: userId } } } 
+			  ],
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
@@ -948,7 +982,10 @@ export const getThisYearTasks = async (
 		const thisYearCategories = ['this-year-tasks'];
 
 		const tasks = (await TaskModel.find({
-			userId: userId, // Include only tasks that belong to the specified userId
+			$or: [
+				{ userId: userId },
+				{ assignedTo: { $elemMatch: { userId: userId } } } 
+			  ],
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
@@ -994,7 +1031,10 @@ export const getNextYearTasks = async (
 		const nextYearCategories = ['next-year-tasks'];
 
 		const tasks = (await TaskModel.find({
-			userId: userId, // Include only tasks that belong to the specified userId
+			$or: [
+				{ userId: userId },
+				{ assignedTo: { $elemMatch: { userId: userId } } } 
+			  ],
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
@@ -1040,7 +1080,10 @@ export const getBecomingTasks = async (
 		const becomingCategories = ['becoming-tasks'];
 
 		const tasks = (await TaskModel.find({
-			userId: userId, // Include only tasks that belong to the specified userId
+			$or: [
+				{ userId: userId },
+				{ assignedTo: { $elemMatch: { userId: userId } } } 
+			  ],
 			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
 		})) as Task[];
 
@@ -1103,12 +1146,18 @@ export const getArchivedTasks = async (
 		} else {
 			// Récupérer le nombre total de tâches archivées
 			totalTasks = await TaskModel.countDocuments({
-				userId: userId,
+				$or: [
+			  { userId: userId },
+			  { assignedTo: { $elemMatch: { userId: userId } } } 
+			],
 				status: 'Archived',
 			});
 
 			let allRelevantTasks = await TaskModel.find({
-				userId: userId,
+				$or: [
+			  { userId: userId },
+			  { assignedTo: { $elemMatch: { userId: userId } } } 
+			],
 				status: 'Archived',
 			})
 				.lean()
