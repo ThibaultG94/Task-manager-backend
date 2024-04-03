@@ -40,15 +40,15 @@ export const getTask = async (req: express.Request, res: express.Response) => {
 		// Check if the user making the request is the owner of the task
 		// by comparing the user's ID from the request (req.user._id)
 		// with the ID of the user who owns the task (task.userId)
-		if (task !== null && req.user._id !== task.userId) {
+
+		if (req.user._id.toString() !== task.userId.toString() && !task.assignedTo.some((user) => user.userId.toString() === req.user._id.toString())) {
 			return res.status(403).json({
-				message:
-					'You do not have sufficient rights to perform this action',
+				message: 'You do not have sufficient rights to perform this action',
 			});
-		}
+		}	
 
 		// If everything is okay, return the task
-		res.status(200).json(task);
+		res.status(200).json({ task });
 	} catch (error) {
 		// In case of error, return a 500 status with the error message
 		const result = (error as Error).message;
