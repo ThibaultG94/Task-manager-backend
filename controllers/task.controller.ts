@@ -9,6 +9,7 @@ import { priorityToNumber } from '../utils/priorityToNumber';
 import { ExtendedTask } from '../types/types';
 import { GetCategoryDay } from '../utils/GetCategoryDay';
 import { FormatDateForDisplay } from '../utils/FormatDateForDisplay';
+import notificationModel from '../models/notification.model';
 
 type Priority = 'Urgent' | 'High' | 'Medium' | 'Low';
 
@@ -246,6 +247,43 @@ export const setTasks = async (
 					? new Date().toISOString()
 					: null,
 		});
+
+		if (task) {
+			const taskId = task._id;
+			if (!taskId) {
+				return res.status(400).json({
+					message:
+					"Task ID is required or notification's type is wrong",
+				});
+			}
+
+			const creator = await userModel.findById(userId);
+			if (!creator) {
+				return res.status(404).json({ message: 'User not found' });
+			}
+
+			const message = `${creator.username} vous à assigner la tâche ${task.title}`;
+			const users = task.assignedTo.map((user) => {
+					if (userId !== user.userId) return user.userId;
+				}
+			);
+			if (users.length === 0) {
+				return res.status(404).json({ message: 'No users ' });
+			} else {
+				const notification = new notificationModel({
+					creatorId: userId,
+					taskId,
+					type: 'taskCreation',
+					message,
+					users,
+				});
+	
+				await notification.save();
+			}
+
+		} else {
+			return res.status(404).json({ message: 'Task not found' });
+		}
 
 		// Invalide all cache keys for this user
 		const keys = await client.keys(`task:${userId}:*`);

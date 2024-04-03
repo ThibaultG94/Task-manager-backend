@@ -72,6 +72,7 @@ export const setNotification = async (
 					if (creatorId !== user.userId) return user.userId;
 				})
 			);
+			message = `${creator.username} a mis à jour la tâche ${task.title}`;
 
 			const notification = new notificationModel({
 				creatorId,
@@ -119,6 +120,7 @@ export const setNotification = async (
 		res.status(500).json({ message: 'Internal server error', error });
 	}
 };
+
 // Endpoint to retrieve all notifications for a specific user with pagination
 export const getAllNotifications = async (
 	req: express.Request,
