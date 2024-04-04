@@ -89,6 +89,7 @@ export const setNotification = async (
 
 			return res.status(200).json({ notification: notification });
 		} else if (type === 'workspaceUpdate') {
+			let users: any = [];
 			if (!workspaceId) {
 				return res.status(400).json({
 					message:
@@ -101,11 +102,14 @@ export const setNotification = async (
 				return res.status(404).json({ message: 'Workspace not found' });
 			}
 
-			users.push(
-				workspace.members.map((member) => {
-					if (creatorId !== member.userId) return member.userId;
-				})
-			);
+			workspace.members.forEach((member) => {
+				if (creatorId !== member.userId) users.push(member.userId);
+			});
+
+			if (users.length === 0) {
+				return res.status(200).json({ message: 'No users to notify' });
+			}
+			message = `${creator.username} a mis à jour le workspace ${workspace.title}`;
 
 			const notification = new notificationModel({
 				creatorId,

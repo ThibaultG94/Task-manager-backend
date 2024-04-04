@@ -182,7 +182,7 @@ export const getWorkspaceTaskStatusCount = async (
 };
 
 // Endpoint to create a task
-export const setTasks = async (
+export const setTask = async (
 	req: express.Request,
 	res: express.Response,
 	next: express.NextFunction
