@@ -67,11 +67,9 @@ export const setNotification = async (
 			if (!task) {
 				return res.status(404).json({ message: 'Task not found' });
 			}
-			users.push(
-				task.assignedTo.map((user) => {
+			const users = task.assignedTo.map((user) => {
 					if (creatorId !== user.userId) return user.userId;
-				})
-			);
+				});
 			message = `${creator.username} a mis à jour la tâche ${task.title}`;
 
 			const notification = new notificationModel({
@@ -156,6 +154,7 @@ export const getAllNotifications = async (
 				.find({ users: { $in: [userId] } })
 				.skip(skip)
 				.limit(limit)
+				.sort({ createdAt: -1 })
 				.lean();
 
 			const creatorIds = [
@@ -182,7 +181,7 @@ export const getAllNotifications = async (
 				await client.setEx(
 					key,
 					10800,
-					JSON.stringify(mapNotifications)
+					JSON.stringify(notifications)
 				);
 			} catch (err) {
 				console.error('Notifications caching error:', err);
@@ -219,6 +218,7 @@ export const getNotifications = async (
 					{ read: true, viewedAt: { $gt: oneDayAgo } },
 				],
 			})
+			.sort({ createdAt: -1 })
 			.lean();
 
 		// Older notifications: read between 24 hours and a week, or not read but seen between a week and a month
@@ -236,6 +236,7 @@ export const getNotifications = async (
 					},
 				],
 			})
+			.sort({ createdAt: -1 })
 			.lean();
 
 		const creatorIds = [
