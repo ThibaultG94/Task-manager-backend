@@ -56,6 +56,7 @@ export const setNotification = async (
 
 			return res.status(200).json({ notification: notification });
 		} else if (type === 'taskUpdate') {
+			let users: any = [];
 			if (!taskId) {
 				return res.status(400).json({
 					message:
@@ -67,9 +68,13 @@ export const setNotification = async (
 			if (!task) {
 				return res.status(404).json({ message: 'Task not found' });
 			}
-			const users = task.assignedTo.map((user) => {
-					if (creatorId !== user.userId) return user.userId;
-				});
+			task.assignedTo.forEach((user) => {
+				if (creatorId !== user.userId) users.push(user.userId);
+			});
+
+			if (users.length === 0) {
+				return res.status(200).json({ message: 'No users to notify' });
+			}
 			message = `${creator.username} a mis à jour la tâche ${task.title}`;
 
 			const notification = new notificationModel({
