@@ -419,6 +419,8 @@ export const deleteTask = async (
 ) => {
 	// Attempt to find and delete the task by the provided id
 	const task = await TaskModel.findById(req.params.id);
+	const user = await userModel.findById(req.user._id);
+	const workspace = await workspaceModel.findById(task?.workspaceId);
 
 	// If no task is found, return a 400 status
 	if (!task) {
@@ -434,6 +436,18 @@ export const deleteTask = async (
 
 	// If the task is found and the user has sufficients rights, delete the task
 	if (task) {
+		// find notifications related to the task and delete them
+		await notificationModel.deleteMany({ taskId: task._id });
+
+		const notification = new notificationModel({
+			creatorId: req.user._id,
+			type: 'taskDelation',
+			message: `${user.username} a supprimé la tâche ${task.title} du workspace ${workspace?.title}`,
+			users: task.assignedTo.map((member) => member.userId),
+		});
+
+		await notification.save();
+
 		await task.deleteOne();
 		res.status(200).json({ message: 'Task deleted ' + req.params.id });
 
