@@ -114,7 +114,6 @@ router.put(
 	'/:id',
 	auth,
 	validateAssignedUsers,
-	checkWorkspacePermission,
 	editTask,
 	updateWorkspaceTimestamp
 );

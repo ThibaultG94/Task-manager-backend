@@ -330,6 +330,24 @@ export const editTask = async (
 		// Find the task by ID
 		const task = (await TaskModel.findById(req.params.id)) as Task;
 
+		// Find the workspace by ID
+		const workspace = await workspaceModel.findById(task.workspaceId);
+
+		// Find the user by ID
+		const user = await userModel.findById(req.user._id);
+
+		const isSuperAdmin = workspace.members.some(
+			(member) =>
+				member.userId === req.user._id &&
+				member.role === 'superadmin'
+		);
+		const isAdmin = workspace.members.some(
+			(member) =>
+				member.userId === req.user._id &&
+				member.role === 'admin'
+		);
+		const isTaskOwner = task.userId === req.user._id;
+
 		// Check if the task exists
 		if (!task) {
 			logger.info(res);
@@ -339,8 +357,14 @@ export const editTask = async (
 				.json({ message: 'This task does not exist' });
 		}
 
-		// Check if the user making the request is the owner of the task
-		if (task && req.user._id !== task.userId) {
+		if (!workspace) {
+			return res
+				.status(400)
+				.json({ message: 'This workspace does not exist' });
+		}
+
+		// Check if the user making the request is a member of the workspace
+		if (task && !workspace.members.some((member) => member.userId === req.user._id) && req.user._id !== workspace.userId){
 			return res.status(403).json({
 				message:
 					'You do not have sufficients rights to perform this action',
@@ -349,44 +373,135 @@ export const editTask = async (
 
 		// Update the fields of the task
 		if (updates.title !== undefined) {
-			task.title = updates.title;
+			if (!isSuperAdmin && !isAdmin && !isTaskOwner && updates.title !== task.title) {
+				return res.status(403).json({
+					message:
+						'You do not have sufficients rights to modify this title',
+				});
+			} else {
+				task.title = updates.title;
+			}
 		}
+
 		if (updates.userId !== undefined) {
-			task.userId = updates.userId;
+			if (!isSuperAdmin && !isAdmin && !isTaskOwner && updates.userId !== task.userId) {
+				return res.status(403).json({
+					message:
+						'You do not have sufficients rights to modify the owner of this task',
+				});
+			} else {
+				task.userId = updates.userId;
+			}
 		}
+
 		if (updates.date !== undefined) {
-			task.date = updates.date;
+			if (!isSuperAdmin && !isAdmin && !isTaskOwner && updates.date !== task.date) {
+				return res.status(403).json({
+					message:
+						'You do not have sufficients rights to modify the date of this task',
+				});
+			} else {
+				task.date = updates.date;
+			}
 		}
+	
 		if (updates.description !== undefined) {
-			task.description = updates.description;
+			if (!isSuperAdmin && !isAdmin && !isTaskOwner && updates.description !== task.description) {
+				return res.status(403).json({
+					message:
+						'You do not have sufficients rights to modify this description',
+				});
+			} else {
+				task.description = updates.description;
+			}
 		}
+			
 		if (
 			updates.status !== undefined &&
 			task.status !== 'Archived' &&
 			updates.status === 'Archived'
 		) {
-			task.archiveDate = new Date().toISOString();
+			if (!isSuperAdmin && !isAdmin && !isTaskOwner && updates.archiveDate !== task.archiveDate) {
+				console.log('archiveDate', updates.archiveDate);
+				return res.status(403).json({
+					message:
+						'You do not have sufficients rights to archive this task',
+				});
+			} else {
+				task.archiveDate = new Date().toISOString();
+			}
 		}
+
 		if (updates.status !== undefined) {
-			task.status = updates.status;
+			if (updates.status === 'Archived') {
+				if (!isSuperAdmin && !isAdmin && !isTaskOwner && updates.status !== task.status) {
+					console.log('archiveDate', updates.archiveDate);
+					return res.status(403).json({
+						message:
+							'You do not have sufficients rights to modify the status of this task',
+					});
+				} else {
+					task.status = updates.status;
+				}
+			} else {
+				task.status = updates.status;
+			}
 		}
+
 		if (updates.estimatedTime !== undefined) {
 			task.estimatedTime = updates.estimatedTime;
 		}
+
 		if (updates.comments !== undefined) {
 			task.comments = updates.comments;
 		}
+
 		if (updates.priority !== undefined) {
-			task.priority = updates.priority;
+			if (!isSuperAdmin && !isAdmin && !isTaskOwner && updates.priority !== task.priority) {
+				return res.status(403).json({
+					message:
+						'You do not have sufficients rights to modify the priority of this task',
+				});
+			} else {
+				task.priority = updates.priority;
+			}
 		}
+
 		if (updates.workspaceId !== undefined) {
-			task.workspaceId = updates.workspaceId;
+			if (updates.workspaceId !== task.workspaceId) {
+				if (!isSuperAdmin && !isAdmin && !isTaskOwner) {
+					return res.status(403).json({
+						message:
+							'You do not have sufficients rights to modify the workspace of this task',
+					});
+				} else {
+					task.workspaceId = updates.workspaceId;
+				}
+			} else {
+				task.workspaceId = updates.workspaceId;
+			}
 		}
+
 		if (updates.deadline !== undefined) {
-			task.deadline = updates.deadline;
+			if (!isSuperAdmin && !isAdmin && !isTaskOwner && updates.deadline !== task.deadline) {
+				return res.status(403).json({
+					message:
+						'You do not have sufficients rights to modify the deadline of this task',
+				});
+			} else {
+				task.deadline = updates.deadline;
+			}
 		}
+
 		if (updates.assignedTo !== undefined) {
-			task.assignedTo = updates.assignedTo;
+			if (!isSuperAdmin && !isAdmin && !isTaskOwner && updates.assignedTo[0].userId !== task.assignedTo[0].userId) {
+				return res.status(403).json({
+					message:
+						'You do not have sufficients rights to modify the assigned users of this task',
+				});
+			} else {
+				task.assignedTo = updates.assignedTo;
+			}
 		}
 
 		const updatedTask = await task.save();
