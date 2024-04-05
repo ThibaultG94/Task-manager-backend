@@ -263,10 +263,13 @@ export const setTask = async (
 			}
 
 			const message = `${creator.username} vous à assigner la tâche ${task.title}`;
-			const users = task.assignedTo.map((user) => {
-					if (userId !== user.userId) return user.userId;
+			
+			let users: any = [];
+			task.assignedTo.forEach((user) => {	
+				if (userId !== user.userId) {
+					users.push(user.userId);
 				}
-			);
+			});
 			if (users.length === 0) {
 				return res.status(404).json({ message: 'No users ' });
 			} else {
