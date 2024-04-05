@@ -2,6 +2,7 @@ import express from 'express';
 import userModel from '../models/user.model';
 import workspaceModel from '../models/workspace.model';
 import workspaceInvitationModel from '../models/workspaceInvitation.model';
+import notificationModel from '../models/notification.model';
 
 // Endpoint to send an invitation
 export const sendInvitationWorkspace = async (
@@ -93,6 +94,16 @@ export const sendInvitationWorkspace = async (
 			status: 'pending',
 		});
 
+		const notification = new notificationModel({
+			creatorId: senderId,
+			invitationId: workspaceInvitation._id,
+			type: 'workspaceInvitation',
+			message: `${sender.username} vous a envoyé une invitation a rejoindre le workspace ${workspace.title} en tant que ${role}`,
+			users: [guestId],
+			workspaceId: workspaceId,
+		});
+
+		await notification.save();
 		await workspaceInvitation.save();
 		await workspace.save();
 

@@ -4,6 +4,7 @@ import userModel from '../models/user.model';
 import taskModel from '../models/task.model';
 import mongoose from 'mongoose';
 import workspaceInvitationModel from '../models/workspaceInvitation.model';
+import notificationModel from '../models/notification.model';
 
 interface UserInfo {
 	username: string;
@@ -264,6 +265,7 @@ export const deleteWorkspace = async (req: express.Request, res: express.Respons
     try {
         const workspaceId = req.params.id;
         const workspace = await workspaceModel.findById(workspaceId);
+		const user = await userModel.findById(req.user._id);
 
         if (!workspace) {
             return res.status(400).json({ message: 'This workspace does not exist' });
@@ -276,8 +278,21 @@ export const deleteWorkspace = async (req: express.Request, res: express.Respons
             }
         }
 
+		await notificationModel.deleteMany({ workspaceId: workspace._id });
+
+		const notification = new notificationModel({
+			creatorId: req.user._id,
+			type: 'workspaceDelation',
+			message: `${user.username} a supprimé le workspace ${workspace.title}`,
+			users: workspace.members.map((member) => member.userId),
+		});
+	
+		await notification.save();
+
+
         // Here, we handle the cleanup of all associated workspace invitations before proceeding with workspace deletion
         await workspaceInvitationModel.deleteMany({ workspaceId: workspaceId });
+
 
         // Proceed with your existing logic for handling tasks and deleting the workspace
         let defaultWorkspace = await workspaceModel.findOne({ userId: req.user._id, isDefault: true });
