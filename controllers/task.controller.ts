@@ -263,7 +263,7 @@ export const setTask = async (
 			}
 
 			const message = `${creator.username} vous à assigner la tâche ${task.title}`;
-			
+
 			let users: any = [];
 			task.assignedTo.forEach((user) => {	
 				if (userId !== user.userId) {
@@ -271,7 +271,7 @@ export const setTask = async (
 				}
 			});
 			if (users.length === 0) {
-				return res.status(404).json({ message: 'No users ' });
+				return res.status(200).json({ message: 'No users ' });
 			} else {
 				const notification = new notificationModel({
 					creatorId: userId,
@@ -442,17 +442,23 @@ export const deleteTask = async (
 		// find notifications related to the task and delete them
 		await notificationModel.deleteMany({ taskId: task._id });
 
-		const notification = new notificationModel({
-			creatorId: req.user._id,
-			type: 'taskDelation',
-			message: `${user.username} a supprimé la tâche ${task.title} du workspace ${workspace?.title}`,
-			users: task.assignedTo.map((member) => member.userId),
+		let users: any = [];
+		task.assignedTo.forEach((user) => {
+			if (req.user._id !== user.userId) {
+				users.push(user.userId);
+			}
 		});
 
-		await notification.save();
-
-		await task.deleteOne();
-		res.status(200).json({ message: 'Task deleted ' + req.params.id });
+		if (users.length > 0)  {
+			const notification = new notificationModel({
+				creatorId: req.user._id,
+				type: 'taskDelation',
+				message: `${user.username} a supprimé la tâche ${task.title} du workspace ${workspace?.title}`,
+				users: users,
+			});
+	
+			await notification.save();
+		}
 
 		// Invalidates all cache keys for this user after a task update
 		const keys = await client.keys(`task:${req.user._id}:*`);
@@ -467,9 +473,11 @@ export const deleteTask = async (
 				error
 			);
 		}
-	}
 
-	next();
+		await task.deleteOne();
+		res.status(200).json({ message: 'Task deleted ' + req.params.id });
+
+	}
 };
 
 // Endpoint to get Urgent Tasks
