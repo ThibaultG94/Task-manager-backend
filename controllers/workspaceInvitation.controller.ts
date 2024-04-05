@@ -251,6 +251,7 @@ export const acceptWorkspaceInvitation = async (
 		);
 		const userId = req.body.userId;
 
+
 		if (!invitation || invitation.status === 'CANCELLED') {
 			return res.status(400).json({
 				message: 'Invitation does not exist or is not pending',
@@ -280,6 +281,21 @@ export const acceptWorkspaceInvitation = async (
 			(workspaceInvitation) =>
 				workspaceInvitation.userId !== invitation?.guestId
 		);
+
+		if (invitation) {
+			const guestUser = await userModel.findById(invitation.guestId);
+
+			const notification = new notificationModel({
+				creatorId: invitation.guestId,
+				invitationId: invitation._id,
+				type: 'workspaceInvitation',
+				message: `${guestUser.username} a rejoint le workspace ${workspace.title} en tant que ${invitation.role}`,
+				users: [invitation.senderId],
+				workspaceId: invitation.workspaceId,
+		});
+		
+		await notification.save();
+	}
 
 		await invitation.save();
 		await workspace.save();
