@@ -284,7 +284,7 @@ export const deleteWorkspace = async (req: express.Request, res: express.Respons
 			creatorId: req.user._id,
 			type: 'workspaceDelation',
 			message: `${user.username} a supprimé le workspace ${workspace.title}`,
-			users: workspace.members.map((member) => member.userId),
+			users: workspace.members.filter((member) => member.userId !== req.user._id).map((member) => member.userId),
 		});
 	
 		await notification.save();
