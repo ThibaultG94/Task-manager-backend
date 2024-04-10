@@ -182,7 +182,7 @@ export const getWorkspaceTaskStatusCount = async (
 };
 
 // Endpoint to create a task
-export const setTask = async (
+export const createTask = async (
 	req: express.Request,
 	res: express.Response,
 	next: express.NextFunction
@@ -214,22 +214,22 @@ export const setTask = async (
 				.json({ message: 'This workspace does not exist' });
 		}
 
-		// Check if the user making the request is the owner of the workspace
-		if (
-			req.user._id !== workspace.userId &&
-			!workspace.members.some((member) => member.userId === req.user._id)
-		) {
-			const isSuperAdmin = workspace.members.some(
-				(member) =>
-					member.userId === req.user._id &&
-					member.role === 'superadmin'
-			);
-			if (!isSuperAdmin) {
-				return res.status(403).json({
-					message:
-						'You do not have sufficients rights to perform this action',
-				});
-			}
+		const isSuperAdmin = workspace.members.some(
+			(member) =>
+				member.userId === req.user._id &&
+				member.role === 'superadmin'
+		);
+		const isAdmin = workspace.members.some(
+			(member) =>
+				member.userId === req.user._id &&
+				member.role === 'admin'
+		);
+
+		if (!isSuperAdmin && !isAdmin) {
+			return res.status(403).json({
+				message:
+					'You do not have sufficient rights to perform this action',
+			});
 		}
 
 		// Create a new task

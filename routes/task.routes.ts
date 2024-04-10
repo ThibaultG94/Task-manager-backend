@@ -1,7 +1,7 @@
 import express from 'express';
 import { auth } from '../middlewares/auth.middlewares';
 import {
-	setTask,
+	createTask,
 	getTask,
 	getWorkspaceTasks,
 	editTask,
@@ -40,7 +40,7 @@ router.post(
 	'/',
 	auth,
 	validateAssignedUsers,
-	setTask,
+	createTask,
 	updateWorkspaceTimestamp
 );
 
