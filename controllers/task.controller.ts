@@ -536,6 +536,18 @@ export const deleteTask = async (
 	const user = await userModel.findById(req.user._id);
 	const workspace = await workspaceModel.findById(task?.workspaceId);
 
+	const isSuperAdmin = workspace.members.some(
+		(member) =>
+			member.userId === req.user._id &&
+			member.role === 'superadmin'
+	);
+	const isAdmin = workspace.members.some(
+		(member) =>
+			member.userId === req.user._id &&
+			member.role === 'admin'
+	);
+	const isTaskOwner = task.userId == req.user._id;
+
 	// If no task is found, return a 400 status
 	if (!task) {
 		return res.status(400).json({ message: 'This task does not exist' });
@@ -550,6 +562,13 @@ export const deleteTask = async (
 
 	// If the task is found and the user has sufficients rights, delete the task
 	if (task) {
+		if (!isSuperAdmin && !isAdmin && !isTaskOwner) {
+			return res.status(403).json({
+				message:
+					'You do not have sufficients rights to perform this action',
+			});
+		}
+
 		// find notifications related to the task and delete them
 		await notificationModel.deleteMany({ taskId: task._id });
 
