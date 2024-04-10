@@ -333,9 +333,6 @@ export const editTask = async (
 		// Find the workspace by ID
 		const workspace = await workspaceModel.findById(task.workspaceId);
 
-		// Find the user by ID
-		const user = await userModel.findById(req.user._id);
-
 		const isSuperAdmin = workspace.members.some(
 			(member) =>
 				member.userId === req.user._id &&
@@ -435,7 +432,6 @@ export const editTask = async (
 		if (updates.status !== undefined) {
 			if (updates.status === 'Archived') {
 				if (!isSuperAdmin && !isAdmin && !isTaskOwner && updates.status !== task.status) {
-					console.log('archiveDate', updates.archiveDate);
 					return res.status(403).json({
 						message:
 							'You do not have sufficients rights to modify the status of this task',
