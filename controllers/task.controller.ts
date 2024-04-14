@@ -710,46 +710,64 @@ export const getUrgentTasks = async (req: express.Request, res: express.Response
 };
 
 // Endpoint to get All User Tasks
-export const getUserTasks = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.userId;
-		const userTasks: ExtendedTask[] = await TaskModel.find({
-			$or: [
-				{ userId: userId },
-				{ assignedTo: { $elemMatch: { userId: userId } } } 
-			  ],
-		});
+export const getUserTasks = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.params.userId;
+        // Retrieve workspaces where the user is a member
+        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-		const sortedTasks = userTasks.sort((a, b) => {
-			// Compare by deadline
-			const dateA = new Date(a.deadline).getTime();
-			const dateB = new Date(b.deadline).getTime();
-			if (dateA !== dateB) {
-				return dateA - dateB;
-			}
+        let allUserTasks = [];
 
-			// If deadlines are the same, compare by priority
-			const numericPriorityA = priorityToNumber(a.priority);
-			const numericPriorityB = priorityToNumber(b.priority);
-			if (numericPriorityA !== numericPriorityB) {
-				return numericPriorityB - numericPriorityA;
-			}
+        // Browse each workspace and apply the appropriate filters
+        for (const workspace of workspaces) {
+            // Check user role in workspace
+            const userInWorkspace = workspace.members.find(member => member.userId === userId);
+            const role = userInWorkspace ? userInWorkspace.role : null;
 
-			// If priorities are the same, compare by creation date
-			const creationDateA = new Date(a.createdAt).getTime();
-			const creationDateB = new Date(b.createdAt).getTime();
-			return creationDateA - creationDateB;
-		});
+            let tasks;
+            if (role === 'admin' || role === 'superadmin') {
+                // If user is admin or superadmin, retrieve all tasks
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id
+                }).lean();
+            } else {
+                // Otherwise, filter tasks where the user is the creator or assigned
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    $or: [
+                        { userId: userId },
+                        { 'assignedTo.userId': userId }
+                    ]
+                }).lean();
+            }
 
-		return res.status(200).json({ userTasks: sortedTasks });
-	} catch (error) {
-		res.status(500).json({
-			message: 'An error occured while retrieving user tasks',
-		});
-	}
+            allUserTasks.push(...tasks);
+        }
+
+        // Sort all tasks by deadline, then priority, then creation date
+        const sortedTasks = allUserTasks.sort((a, b) => {
+            const dateA = new Date(a.deadline).getTime();
+            const dateB = new Date(b.deadline).getTime();
+            if (dateA !== dateB) {
+                return dateA - dateB;
+            }
+            const numericPriorityA = priorityToNumber(a.priority);
+            const numericPriorityB = priorityToNumber(b.priority);
+            if (numericPriorityA !== numericPriorityB) {
+                return numericPriorityB - numericPriorityA;
+            }
+            const creationDateA = new Date(a.createdAt).getTime();
+            const creationDateB = new Date(b.createdAt).getTime();
+            return creationDateA - creationDateB;
+        });
+
+        return res.status(200).json({ userTasks: sortedTasks });
+    } catch (error) {
+        console.error('An error occurred while retrieving user tasks:', error);
+        res.status(500).json({
+            message: 'An error occurred while retrieving user tasks.'
+        });
+    }
 };
 
 export const getOverdueTasks = async (
