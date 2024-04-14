@@ -1,15 +1,16 @@
-import TaskModel from '../models/task.model';
 import express from 'express';
 import client from '../utils/redisClient';
+import { FilterQuery } from 'mongoose';
+import TaskModel from '../models/task.model';
 import userModel from '../models/user.model';
-import { Task } from '../types/types';
 import workspaceModel from '../models/workspace.model';
+import notificationModel from '../models/notification.model';
 import logger from '../config/logger';
-import { priorityToNumber } from '../utils/priorityToNumber';
+import { Task } from '../types/types';
 import { ExtendedTask } from '../types/types';
+import { priorityToNumber } from '../utils/priorityToNumber';
 import { GetCategoryDay } from '../utils/GetCategoryDay';
 import { FormatDateForDisplay } from '../utils/FormatDateForDisplay';
-import notificationModel from '../models/notification.model';
 
 type Priority = 'Urgent' | 'High' | 'Medium' | 'Low';
 
@@ -37,15 +38,34 @@ export const getTask = async (req: express.Request, res: express.Response) => {
 				.json({ message: 'This task does not exist' });
 		}
 
-		// Check if the user making the request is the owner of the task
-		// by comparing the user's ID from the request (req.user._id)
-		// with the ID of the user who owns the task (task.userId)
+		// Find the workspace by ID
+		const workspace = await workspaceModel.findById(task.workspaceId);
 
-		if (req.user._id.toString() !== task.userId.toString() && !task.assignedTo.some((user) => user.userId.toString() === req.user._id.toString())) {
+		if (!workspace) {
+			return res
+				.status(400)
+				.json({ message: 'This workspace does not exist' });
+		}
+
+		const isSuperAdmin = workspace.members.some(
+			(member) =>
+				member.userId === req.user._id &&
+				member.role === 'superadmin'
+		);
+		const isAdmin = workspace.members.some(
+			(member) =>
+				member.userId === req.user._id &&
+				member.role === 'admin'
+		);
+		const isTaskOwner = task.userId === req.user._id;
+		const isAssigned = task.assignedTo.some((user) => user.userId === req.user._id);
+
+		if (!isSuperAdmin && !isAdmin && !isTaskOwner && !isAssigned) {
 			return res.status(403).json({
-				message: 'You do not have sufficient rights to perform this action',
+				message:
+					'You do not have sufficients rights to perform this action',
 			});
-		}	
+		}
 
 		// If everything is okay, return the task
 		res.status(200).json({ task });
@@ -107,10 +127,30 @@ export const getWorkspaceTasks = async (
 			// If the tasks are cached, use them
 			tasks = JSON.parse(cachedTasks);
 		} else {
-			// If the tasks are not cached, fetch the tasks from the database
-			tasks = (await TaskModel.find({ workspaceId })
-				.skip(skip)
-				.limit(limit)) as unknown as Task[];
+			const userRole = workspace.members.find(member => member.userId === req.user._id)?.role;
+
+			// Define query conditions as a FilterQuery for Task
+			let queryConditions: FilterQuery<Task> = { workspaceId: workspaceId };
+
+			if (userRole === 'superadmin' || userRole === 'admin') {
+			// If the user is superadmin or admin, he can see all tasks in the workspace
+			queryConditions = { ...queryConditions };
+			} else {
+			// Otherwise, he can only see his tasks or those to which he is assigned.
+			queryConditions = { 
+				...queryConditions,
+				$or: [
+				{ userId: req.user._id },  // User-created tasks
+				{ assignedTo: { $elemMatch: { userId: req.user._id } } }  // Tasks to which the user is assigned
+				]
+			};
+			}
+
+			// Query with correct type management
+			tasks = await TaskModel.find(queryConditions)
+			.skip(skip)
+			.limit(limit)
+			.lean();
 
 			// Then, cache the fetched tasks for future requests
 			try {
@@ -611,43 +651,62 @@ export const deleteTask = async (
 };
 
 // Endpoint to get Urgent Tasks
-export const getUrgentTasks = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.userId;
-		const urgentTasks: ExtendedTask[] = await TaskModel.find({
-			$or: [
-			  { userId: userId },
-			  { assignedTo: { $elemMatch: { userId: userId } } } 
-			],
-			deadline: { $exists: true },
-			priority: { $exists: true },
-			status: { $ne: 'Archived' },
-		  });
-		  
+export const getUrgentTasks = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.params.userId;
+        // Retrieve workspaces where user is a member
+        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-		const sortedTasks = urgentTasks
-			.sort((a, b) => {
-				const dateA = new Date(a.deadline).getTime();
-				const dateB = new Date(b.deadline).getTime();
-				const numericPriorityA = priorityToNumber(a.priority);
-				const numericPriorityB = priorityToNumber(b.priority);
+        let allUrgentTasks = [];
 
-				if (dateA === dateB) {
-					return numericPriorityB - numericPriorityA;
-				}
-				return dateA - dateB;
-			})
-			.slice(0, 4);
+        // Browse each workspace and apply the appropriate filters
+        for (const workspace of workspaces) {
+            // Check user role in workspace
+            const userInWorkspace = workspace.members.find(member => member.userId === userId);
+            const role = userInWorkspace ? userInWorkspace.role : null;
 
-		return res.status(200).json({ urgentTasks: sortedTasks });
-	} catch (error) {
-		res.status(500).json({
-			message: 'An error has occurred while retrieving urgent tasks.',
-		});
-	}
+            let tasks;
+            if (role === 'admin' || role === 'superadmin') {
+                // If user is admin or superadmin, retrieve all urgent tasks
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    deadline: { $exists: true },
+                    priority: { $exists: true },
+                    status: { $ne: 'Archived' }
+                }).lean();
+            } else {
+                // Otherwise, filter tasks where the user is the creator or assigned
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    $or: [
+                        { userId: userId },
+                        { assignedTo: { $elemMatch: { userId: userId } } }
+                    ],
+                    deadline: { $exists: true },
+                    priority: { $exists: true },
+                    status: { $ne: 'Archived' }
+                }).lean();
+            }
+
+            allUrgentTasks.push(...tasks);
+        }
+
+        // Sort and limit results
+        const sortedTasks = allUrgentTasks.sort((a, b) => {
+            const dateA = new Date(a.deadline).getTime();
+            const dateB = new Date(b.deadline).getTime();
+            const numericPriorityA = priorityToNumber(a.priority);
+            const numericPriorityB = priorityToNumber(b.priority);
+            return dateA === dateB ? numericPriorityB - numericPriorityA : dateA - dateB;
+        }).slice(0, 4);
+
+        return res.status(200).json({ urgentTasks: sortedTasks });
+    } catch (error) {
+        console.error('An error occurred while retrieving urgent tasks:', error);
+        res.status(500).json({
+            message: 'An error has occurred while retrieving urgent tasks.'
+        });
+    }
 };
 
 // Endpoint to get All User Tasks
