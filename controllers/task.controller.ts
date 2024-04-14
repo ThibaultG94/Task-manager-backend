@@ -770,51 +770,68 @@ export const getUserTasks = async (req: express.Request, res: express.Response) 
     }
 };
 
-export const getOverdueTasks = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.userId;
+export const getOverdueTasks = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.params.userId;
+        // Retrieve workspaces where the user is a member
+        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-		const tasks = (await TaskModel.find({
-			$or: [
-				{ userId: userId },
-				{ assignedTo: { $elemMatch: { userId: userId } } } 
-			  ],
-			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
-		})) as Task[];
+        let allTasks = [];
+        let allOverdueTasks = [];
 
-		let overdueTasks = [];
+        // Browse each workspace and apply the appropriate filters
+        for (const workspace of workspaces) {
+            // Check user role in workspace
+            const userInWorkspace = workspace.members.find(member => member.userId === userId);
+            const role = userInWorkspace ? userInWorkspace.role : null;
 
-		for (const task of tasks) {
-			const day = await FormatDateForDisplay(task.deadline);
-			if (day === 'En retard') {
-				overdueTasks.push(task);
-			}
-		}
+            let tasks;
+            if (role === 'admin' || role === 'superadmin') {
+                // If user is admin or superadmin, retrieve all tasks (since overdue status will be checked later)
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    status: { $ne: 'Archived' }
+                }).lean();
+            } else {
+                // Otherwise, filter tasks where the user is the creator or assigned
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    $or: [
+                        { userId: userId },
+                        { 'assignedTo.userId': userId }
+                    ],
+                    status: { $ne: 'Archived' }
+                }).lean();
+            }
 
-		overdueTasks = overdueTasks.sort((a, b) => {
-			if (
-				new Date(a.deadline).getTime() ===
-				new Date(b.deadline).getTime()
-			) {
-				return (
-					priorityValues[b.priority as Priority] -
-					priorityValues[a.priority as Priority]
-				);
-			}
-			return (
-				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-			);
-		});
+            allTasks.push(...tasks);
+        }
 
-		return res.status(200).json({ overdueTasks });
-	} catch (error) {
-		res.status(500).json({
-			message: 'An error occurred while retrieving overdue tasks',
-		});
-	}
+        // Check each task with your custom date formatting logic
+        for (const task of allTasks) {
+            const day = await FormatDateForDisplay(task.deadline);
+            if (day === 'En retard') {
+                allOverdueTasks.push(task);
+            }
+        }
+
+        // Sort overdue tasks by deadline, then priority
+        const sortedOverdueTasks = allOverdueTasks.sort((a, b) => {
+            const deadlineA = new Date(a.deadline).getTime();
+            const deadlineB = new Date(b.deadline).getTime();
+            if (deadlineA !== deadlineB) {
+                return deadlineA - deadlineB;
+            }
+            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
+        });
+
+        return res.status(200).json({ overdueTasks: sortedOverdueTasks });
+    } catch (error) {
+        console.error('An error occurred while retrieving overdue tasks:', error);
+        res.status(500).json({
+            message: 'An error occurred while retrieving overdue tasks.'
+        });
+    }
 };
 
 export const getTodayTasks = async (
