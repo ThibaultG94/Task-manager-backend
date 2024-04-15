@@ -834,604 +834,797 @@ export const getOverdueTasks = async (req: express.Request, res: express.Respons
     }
 };
 
-export const getTodayTasks = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.userId;
+export const getTodayTasks = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.params.userId;
+        // Retrieve workspaces where the user is a member
+        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-		const tasks = (await TaskModel.find({
-			$or: [
-				{ userId: userId },
-				{ assignedTo: { $elemMatch: { userId: userId } } } 
-			  ],
-			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
-		})) as Task[];
+        let allTasks = [];
+        let todayTasks = [];
 
-		let todayTasks = [];
+        // Browse each workspace and apply the appropriate filters
+        for (const workspace of workspaces) {
+            // Check user role in workspace
+            const userInWorkspace = workspace.members.find(member => member.userId === userId);
+            const role = userInWorkspace ? userInWorkspace.role : null;
 
-		for (const task of tasks) {
-			const day = await FormatDateForDisplay(task.deadline);
-			if (day === "Aujourd'hui") {
-				todayTasks.push(task);
-			}
-		}
+            let tasks;
+            if (role === 'admin' || role === 'superadmin') {
+                // If user is admin or superadmin, retrieve all tasks (since today status will be checked later)
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    status: { $ne: 'Archived' }
+                }).lean();
+            } else {
+                // Otherwise, filter tasks where the user is the creator or assigned
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    $or: [
+                        { userId: userId },
+                        { 'assignedTo.userId': userId }
+                    ],
+                    status: { $ne: 'Archived' }
+                }).lean();
+            }
 
-		todayTasks = todayTasks.sort((a, b) => {
-			if (
-				new Date(a.deadline).getTime() ===
-				new Date(b.deadline).getTime()
-			) {
-				return (
-					priorityValues[b.priority as Priority] -
-					priorityValues[a.priority as Priority]
-				);
-			}
-			return (
-				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-			);
-		});
+            allTasks.push(...tasks);
+        }
 
-		return res.status(200).json({ todayTasks });
-	} catch (error) {
-		res.status(500).json({
-			message: 'An error occurred while retrieving today tasks',
-		});
-	}
+        // Check each task with your custom date formatting logic
+        for (const task of allTasks) {
+            const day = await FormatDateForDisplay(task.deadline);
+            if (day === "Aujourd'hui") {
+                todayTasks.push(task);
+            }
+        }
+
+        // Sort today tasks by deadline, then priority
+        const sortedTodayTasks = todayTasks.sort((a, b) => {
+            const deadlineA = new Date(a.deadline).getTime();
+            const deadlineB = new Date(b.deadline).getTime();
+            if (deadlineA !== deadlineB) {
+                return deadlineA - deadlineB;
+            }
+            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
+        });
+
+        return res.status(200).json({ todayTasks: sortedTodayTasks });
+    } catch (error) {
+        console.error('An error occurred while retrieving today tasks:', error);
+        res.status(500).json({
+            message: 'An error occurred while retrieving today tasks.'
+        });
+    }
 };
 
-export const getTomorrowTasks = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.userId;
+export const getTomorrowTasks = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.params.userId;
+        // Retrieve workspaces where the user is a member
+        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-		const tasks = (await TaskModel.find({
-			$or: [
-				{ userId: userId },
-				{ assignedTo: { $elemMatch: { userId: userId } } } 
-			  ],
-			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
-		})) as Task[];
+        let allTasks = [];
+        let tomorrowTasks = [];
 
-		let tomorrowTasks = [];
+        // Browse each workspace and apply the appropriate filters
+        for (const workspace of workspaces) {
+            // Check user role in workspace
+            const userInWorkspace = workspace.members.find(member => member.userId === userId);
+            const role = userInWorkspace ? userInWorkspace.role : null;
 
-		for (const task of tasks) {
-			const day = await FormatDateForDisplay(task.deadline);
-			if (day === 'Demain') {
-				tomorrowTasks.push(task);
-			}
-		}
+            let tasks;
+            if (role === 'admin' || role === 'superadmin') {
+                // If user is admin or superadmin, retrieve all tasks (since tomorrow status will be checked later)
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    status: { $ne: 'Archived' }
+                }).lean();
+            } else {
+                // Otherwise, filter tasks where the user is the creator or assigned
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    $or: [
+                        { userId: userId },
+                        { 'assignedTo.userId': userId }
+                    ],
+                    status: { $ne: 'Archived' }
+                }).lean();
+            }
 
-		tomorrowTasks = tomorrowTasks.sort((a, b) => {
-			if (
-				new Date(a.deadline).getTime() ===
-				new Date(b.deadline).getTime()
-			) {
-				return (
-					priorityValues[b.priority as Priority] -
-					priorityValues[a.priority as Priority]
-				);
-			}
-			return (
-				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-			);
-		});
+            allTasks.push(...tasks);
+        }
 
-		return res.status(200).json({ tomorrowTasks });
-	} catch (error) {
-		res.status(500).json({
-			message: 'An error occurred while retrieving tomorrow tasks',
-		});
-	}
+        // Check each task with your custom date formatting logic for 'Demain'
+        for (const task of allTasks) {
+            const day = await FormatDateForDisplay(task.deadline);
+            if (day === 'Demain') {
+                tomorrowTasks.push(task);
+            }
+        }
+
+        // Sort tomorrow tasks by deadline, then priority
+        const sortedTomorrowTasks = tomorrowTasks.sort((a, b) => {
+            const deadlineA = new Date(a.deadline).getTime();
+            const deadlineB = new Date(b.deadline).getTime();
+            if (deadlineA !== deadlineB) {
+                return deadlineA - deadlineB;
+            }
+            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
+        });
+
+        return res.status(200).json({ tomorrowTasks: sortedTomorrowTasks });
+    } catch (error) {
+        console.error('An error occurred while retrieving tomorrow tasks:', error);
+        res.status(500).json({
+            message: 'An error occurred while retrieving tomorrow tasks.'
+        });
+    }
 };
 
-export const getThisWeekTasks = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.userId;
-		const thisWeekCategories = ['this-week-tasks'];
+export const getThisWeekTasks = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.params.userId;
+        // Retrieve workspaces where the user is a member
+        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-		const tasks = (await TaskModel.find({
-			$or: [
-				{ userId: userId },
-				{ assignedTo: { $elemMatch: { userId: userId } } } 
-			  ],
-			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
-		})) as Task[];
+        let allTasks = [];
+        let thisWeekTasks = [];
 
-		let thisWeekTasks = [];
+        // Browse each workspace and apply the appropriate filters
+        for (const workspace of workspaces) {
+            // Check user role in workspace
+            const userInWorkspace = workspace.members.find(member => member.userId === userId);
+            const role = userInWorkspace ? userInWorkspace.role : null;
 
-		for (const task of tasks) {
-			const day = await FormatDateForDisplay(task.deadline);
-			const category = GetCategoryDay(day, task.status, task.deadline);
-			if (thisWeekCategories.includes(category)) {
-				thisWeekTasks.push(task);
-			}
-		}
+            let tasks;
+            if (role === 'admin' || role === 'superadmin') {
+                // If user is admin or superadmin, retrieve all tasks (since week status will be checked later)
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    status: { $ne: 'Archived' }
+                }).lean();
+            } else {
+                // Otherwise, filter tasks where the user is the creator or assigned
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    $or: [
+                        { userId: userId },
+                        { 'assignedTo.userId': userId }
+                    ],
+                    status: { $ne: 'Archived' }
+                }).lean();
+            }
 
-		thisWeekTasks = thisWeekTasks.sort((a, b) => {
-			if (
-				new Date(a.deadline).getTime() ===
-				new Date(b.deadline).getTime()
-			) {
-				return (
-					priorityValues[b.priority as Priority] -
-					priorityValues[a.priority as Priority]
-				);
-			}
-			return (
-				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-			);
-		});
+            allTasks.push(...tasks);
+        }
 
-		return res.status(200).json({ thisWeekTasks });
-	} catch (error) {
-		res.status(500).json({
-			message: 'An error occurred while retrieving this week tasks',
-		});
-	}
+        // Check each task with your custom date formatting logic for this week
+        for (const task of allTasks) {
+            const day = await FormatDateForDisplay(task.deadline);
+            const category = GetCategoryDay(day, task.status, task.deadline);
+            if (category === 'this-week-tasks') {
+                thisWeekTasks.push(task);
+            }
+        }
+
+        // Sort this week tasks by deadline, then priority
+        const sortedThisWeekTasks = thisWeekTasks.sort((a, b) => {
+            const deadlineA = new Date(a.deadline).getTime();
+            const deadlineB = new Date(b.deadline).getTime();
+            if (deadlineA !== deadlineB) {
+                return deadlineA - deadlineB;
+            }
+            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
+        });
+
+        return res.status(200).json({ thisWeekTasks: sortedThisWeekTasks });
+    } catch (error) {
+        console.error('An error occurred while retrieving this week tasks:', error);
+        res.status(500).json({
+            message: 'An error occurred while retrieving this week tasks.'
+        });
+    }
 };
 
-export const getThisWeekendTasks = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.userId;
-		const thisWeekendCategories = ['this-weekend-tasks'];
+export const getThisWeekendTasks = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.params.userId;
+        // Retrieve workspaces where the user is a member
+        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-		const tasks = (await TaskModel.find({
-			$or: [
-				{ userId: userId },
-				{ assignedTo: { $elemMatch: { userId: userId } } } 
-			  ],
-			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
-		})) as Task[];
+        let allTasks = [];
+        let thisWeekendTasks = [];
 
-		let thisWeekendTasks = [];
+        // Browse each workspace and apply the appropriate filters
+        for (const workspace of workspaces) {
+            // Check user role in workspace
+            const userInWorkspace = workspace.members.find(member => member.userId === userId);
+            const role = userInWorkspace ? userInWorkspace.role : null;
 
-		for (const task of tasks) {
-			const day = await FormatDateForDisplay(task.deadline);
-			const category = GetCategoryDay(day, task.status, task.deadline);
-			if (thisWeekendCategories.includes(category)) {
-				thisWeekendTasks.push(task);
-			}
-		}
+            let tasks;
+            if (role === 'admin' || role === 'superadmin') {
+                // If user is admin or superadmin, retrieve all tasks (since weekend status will be checked later)
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    status: { $ne: 'Archived' }
+                }).lean();
+            } else {
+                // Otherwise, filter tasks where the user is the creator or assigned
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    $or: [
+                        { userId: userId },
+                        { 'assignedTo.userId': userId }
+                    ],
+                    status: { $ne: 'Archived' }
+                }).lean();
+            }
 
-		thisWeekendTasks = thisWeekendTasks.sort((a, b) => {
-			if (
-				new Date(a.deadline).getTime() ===
-				new Date(b.deadline).getTime()
-			) {
-				return (
-					priorityValues[b.priority as Priority] -
-					priorityValues[a.priority as Priority]
-				);
-			}
-			return (
-				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-			);
-		});
+            allTasks.push(...tasks);
+        }
 
-		return res.status(200).json({ thisWeekendTasks });
-	} catch (error) {
-		res.status(500).json({
-			message: 'An error occurred while retrieving this weekend tasks',
-		});
-	}
+        // Check each task with your custom date formatting logic for this weekend
+        for (const task of allTasks) {
+            const day = await FormatDateForDisplay(task.deadline);
+            const category = GetCategoryDay(day, task.status, task.deadline);
+            if (category === 'this-weekend-tasks') {
+                thisWeekendTasks.push(task);
+            }
+        }
+
+        // Sort this weekend tasks by deadline, then priority
+        const sortedThisWeekendTasks = thisWeekendTasks.sort((a, b) => {
+            const deadlineA = new Date(a.deadline).getTime();
+            const deadlineB = new Date(b.deadline).getTime();
+            if (deadlineA !== deadlineB) {
+                return deadlineA - deadlineB;
+            }
+            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
+        });
+
+        return res.status(200).json({ thisWeekendTasks: sortedThisWeekendTasks });
+    } catch (error) {
+        console.error('An error occurred while retrieving this weekend tasks:', error);
+        res.status(500).json({
+            message: 'An error occurred while retrieving this weekend tasks.'
+        });
+    }
 };
 
-export const getNextWeekTasks = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.userId;
-		const nextWeekCategories = ['next-week-tasks'];
+export const getNextWeekTasks = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.params.userId;
+        // Retrieve workspaces where the user is a member
+        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-		const tasks = (await TaskModel.find({
-			$or: [
-				{ userId: userId },
-				{ assignedTo: { $elemMatch: { userId: userId } } } 
-			  ],
-			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
-		})) as Task[];
+        let allTasks = [];
+        let nextWeekTasks = [];
 
-		let nextWeekTasks = [];
+        // Browse each workspace and apply the appropriate filters
+        for (const workspace of workspaces) {
+            // Check user role in workspace
+            const userInWorkspace = workspace.members.find(member => member.userId === userId);
+            const role = userInWorkspace ? userInWorkspace.role : null;
 
-		for (const task of tasks) {
-			const day = await FormatDateForDisplay(task.deadline);
-			const category = GetCategoryDay(day, task.status, task.deadline);
-			if (nextWeekCategories.includes(category)) {
-				nextWeekTasks.push(task);
-			}
-		}
+            let tasks;
+            if (role === 'admin' || role === 'superadmin') {
+                // If user is admin or superadmin, retrieve all tasks (since next week status will be checked later)
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    status: { $ne: 'Archived' }
+                }).lean();
+            } else {
+                // Otherwise, filter tasks where the user is the creator or assigned
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    $or: [
+                        { userId: userId },
+                        { 'assignedTo.userId': userId }
+                    ],
+                    status: { $ne: 'Archived' }
+                }).lean();
+            }
 
-		nextWeekTasks = nextWeekTasks.sort((a, b) => {
-			if (
-				new Date(a.deadline).getTime() ===
-				new Date(b.deadline).getTime()
-			) {
-				return (
-					priorityValues[b.priority as Priority] -
-					priorityValues[a.priority as Priority]
-				);
-			}
-			return (
-				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-			);
-		});
+            allTasks.push(...tasks);
+        }
 
-		return res.status(200).json({ nextWeekTasks });
-	} catch (error) {
-		res.status(500).json({
-			message: 'An error occurred while retrieving next week tasks',
-		});
-	}
+        // Check each task with your custom date formatting logic for next week
+        for (const task of allTasks) {
+            const day = await FormatDateForDisplay(task.deadline);
+            const category = GetCategoryDay(day, task.status, task.deadline);
+            if (category === 'next-week-tasks') {
+                nextWeekTasks.push(task);
+            }
+        }
+
+        // Sort next week tasks by deadline, then priority
+        const sortedNextWeekTasks = nextWeekTasks.sort((a, b) => {
+            const deadlineA = new Date(a.deadline).getTime();
+            const deadlineB = new Date(b.deadline).getTime();
+            if (deadlineA !== deadlineB) {
+                return deadlineA - deadlineB;
+            }
+            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
+        });
+
+        return res.status(200).json({ nextWeekTasks: sortedNextWeekTasks });
+    } catch (error) {
+        console.error('An error occurred while retrieving next week tasks:', error);
+        res.status(500).json({
+            message: 'An error occurred while retrieving next week tasks.'
+        });
+    }
 };
 
-export const getNextWeekendTasks = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.userId;
-		const nextWeekendCategories = ['next-weekend-tasks'];
+export const getNextWeekendTasks = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.params.userId;
+        // Retrieve workspaces where the user is a member
+        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-		const tasks = (await TaskModel.find({
-			$or: [
-				{ userId: userId },
-				{ assignedTo: { $elemMatch: { userId: userId } } } 
-			  ],
-			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
-		})) as Task[];
+        let allTasks = [];
+        let nextWeekendTasks = [];
 
-		let nextWeekendTasks = [];
+        // Browse each workspace and apply the appropriate filters
+        for (const workspace of workspaces) {
+            // Check user role in workspace
+            const userInWorkspace = workspace.members.find(member => member.userId === userId);
+            const role = userInWorkspace ? userInWorkspace.role : null;
 
-		for (const task of tasks) {
-			const day = await FormatDateForDisplay(task.deadline);
-			const category = GetCategoryDay(day, task.status, task.deadline);
-			if (nextWeekendCategories.includes(category)) {
-				nextWeekendTasks.push(task);
-			}
-		}
+            let tasks;
+            if (role === 'admin' || role === 'superadmin') {
+                // If user is admin or superadmin, retrieve all tasks (since next weekend status will be checked later)
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    status: { $ne: 'Archived' }
+                }).lean();
+            } else {
+                // Otherwise, filter tasks where the user is the creator or assigned
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    $or: [
+                        { userId: userId },
+                        { 'assignedTo.userId': userId }
+                    ],
+                    status: { $ne: 'Archived' }
+                }).lean();
+            }
 
-		nextWeekendTasks = nextWeekendTasks.sort((a, b) => {
-			if (
-				new Date(a.deadline).getTime() ===
-				new Date(b.deadline).getTime()
-			) {
-				return (
-					priorityValues[b.priority as Priority] -
-					priorityValues[a.priority as Priority]
-				);
-			}
-			return (
-				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-			);
-		});
+            allTasks.push(...tasks);
+        }
 
-		return res.status(200).json({ nextWeekendTasks });
-	} catch (error) {
-		res.status(500).json({
-			message: 'An error occurred while retrieving next weekend tasks',
-		});
-	}
+        // Check each task with your custom date formatting logic for next weekend
+        for (const task of allTasks) {
+            const day = await FormatDateForDisplay(task.deadline);
+            const category = GetCategoryDay(day, task.status, task.deadline);
+            if (category === 'next-weekend-tasks') {
+                nextWeekendTasks.push(task);
+            }
+        }
+
+        // Sort next weekend tasks by deadline, then priority
+        const sortedNextWeekendTasks = nextWeekendTasks.sort((a, b) => {
+            const deadlineA = new Date(a.deadline).getTime();
+            const deadlineB = new Date(b.deadline).getTime();
+            if (deadlineA !== deadlineB) {
+                return deadlineA - deadlineB;
+            }
+            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
+        });
+
+        return res.status(200).json({ nextWeekendTasks: sortedNextWeekendTasks });
+    } catch (error) {
+        console.error('An error occurred while retrieving next weekend tasks:', error);
+        res.status(500).json({
+            message: 'An error occurred while retrieving next weekend tasks.'
+        });
+    }
 };
 
-export const getThisMonthTasks = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.userId;
-		const thisMonthCategories = ['this-month-tasks'];
+export const getThisMonthTasks = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.params.userId;
+        // Retrieve workspaces where the user is a member
+        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-		const tasks = (await TaskModel.find({
-			$or: [
-				{ userId: userId },
-				{ assignedTo: { $elemMatch: { userId: userId } } } 
-			  ],
-			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
-		})) as Task[];
+        let allTasks = [];
+        let thisMonthTasks = [];
 
-		let thisMonthTasks = [];
+        // Browse each workspace and apply the appropriate filters
+        for (const workspace of workspaces) {
+            // Check user role in workspace
+            const userInWorkspace = workspace.members.find(member => member.userId === userId);
+            const role = userInWorkspace ? userInWorkspace.role : null;
 
-		for (const task of tasks) {
-			const day = await FormatDateForDisplay(task.deadline);
-			const category = GetCategoryDay(day, task.status, task.deadline);
-			if (thisMonthCategories.includes(category)) {
-				thisMonthTasks.push(task);
-			}
-		}
+            let tasks;
+            if (role === 'admin' || role === 'superadmin') {
+                // If user is admin or superadmin, retrieve all tasks (since month status will be checked later)
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    status: { $ne: 'Archived' }
+                }).lean();
+            } else {
+                // Otherwise, filter tasks where the user is the creator or assigned
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    $or: [
+                        { userId: userId },
+                        { 'assignedTo.userId': userId }
+                    ],
+                    status: { $ne: 'Archived' }
+                }).lean();
+            }
 
-		thisMonthTasks = thisMonthTasks.sort((a, b) => {
-			if (
-				new Date(a.deadline).getTime() ===
-				new Date(b.deadline).getTime()
-			) {
-				return (
-					priorityValues[b.priority as Priority] -
-					priorityValues[a.priority as Priority]
-				);
-			}
-			return (
-				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-			);
-		});
+            allTasks.push(...tasks);
+        }
 
-		return res.status(200).json({ thisMonthTasks });
-	} catch (error) {
-		res.status(500).json({
-			message: 'An error occurred while retrieving this month tasks',
-		});
-	}
+        // Check each task with your custom date formatting logic for this month
+        for (const task of allTasks) {
+            const day = await FormatDateForDisplay(task.deadline);
+            const category = GetCategoryDay(day, task.status, task.deadline);
+            if (category === 'this-month-tasks') {
+                thisMonthTasks.push(task);
+            }
+        }
+
+        // Sort this month tasks by deadline, then priority
+        const sortedThisMonthTasks = thisMonthTasks.sort((a, b) => {
+            const deadlineA = new Date(a.deadline).getTime();
+            const deadlineB = new Date(b.deadline).getTime();
+            if (deadlineA !== deadlineB) {
+                return deadlineA - deadlineB;
+            }
+            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
+        });
+
+        return res.status(200).json({ thisMonthTasks: sortedThisMonthTasks });
+    } catch (error) {
+        console.error('An error occurred while retrieving this month tasks:', error);
+        res.status(500).json({
+            message: 'An error occurred while retrieving this month tasks.'
+        });
+    }
 };
 
-export const getNextMonthTasks = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.userId;
-		const nextMonthCategories = ['next-month-tasks'];
+export const getNextMonthTasks = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.params.userId;
+        // Retrieve workspaces where the user is a member
+        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-		const tasks = (await TaskModel.find({
-			$or: [
-				{ userId: userId },
-				{ assignedTo: { $elemMatch: { userId: userId } } } 
-			  ],
-			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
-		})) as Task[];
+        let allTasks = [];
+        let nextMonthTasks = [];
 
-		let nextMonthTasks = [];
+        // Browse each workspace and apply the appropriate filters
+        for (const workspace of workspaces) {
+            // Check user role in workspace
+            const userInWorkspace = workspace.members.find(member => member.userId === userId);
+            const role = userInWorkspace ? userInWorkspace.role : null;
 
-		for (const task of tasks) {
-			const day = await FormatDateForDisplay(task.deadline);
-			const category = GetCategoryDay(day, task.status, task.deadline);
-			if (nextMonthCategories.includes(category)) {
-				nextMonthTasks.push(task);
-			}
-		}
+            let tasks;
+            if (role === 'admin' || role === 'superadmin') {
+                // If user is admin or superadmin, retrieve all tasks (since next month status will be checked later)
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    status: { $ne: 'Archived' }
+                }).lean();
+            } else {
+                // Otherwise, filter tasks where the user is the creator or assigned
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    $or: [
+                        { userId: userId },
+                        { 'assignedTo.userId': userId }
+                    ],
+                    status: { $ne: 'Archived' }
+                }).lean();
+            }
 
-		nextMonthTasks = nextMonthTasks.sort((a, b) => {
-			if (
-				new Date(a.deadline).getTime() ===
-				new Date(b.deadline).getTime()
-			) {
-				return (
-					priorityValues[b.priority as Priority] -
-					priorityValues[a.priority as Priority]
-				);
-			}
-			return (
-				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-			);
-		});
+            allTasks.push(...tasks);
+        }
 
-		return res.status(200).json({ nextMonthTasks });
-	} catch (error) {
-		res.status(500).json({
-			message: 'An error occurred while retrieving next month tasks',
-		});
-	}
+        // Check each task with your custom date formatting logic for next month
+        for (const task of allTasks) {
+            const day = await FormatDateForDisplay(task.deadline);
+            const category = GetCategoryDay(day, task.status, task.deadline);
+            if (category === 'next-month-tasks') {
+                nextMonthTasks.push(task);
+            }
+        }
+
+        // Sort next month tasks by deadline, then priority
+        const sortedNextMonthTasks = nextMonthTasks.sort((a, b) => {
+            const deadlineA = new Date(a.deadline).getTime();
+            const deadlineB = new Date(b.deadline).getTime();
+            if (deadlineA !== deadlineB) {
+                return deadlineA - deadlineB;
+            }
+            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
+        });
+
+        return res.status(200).json({ nextMonthTasks: sortedNextMonthTasks });
+    } catch (error) {
+        console.error('An error occurred while retrieving next month tasks:', error);
+        res.status(500).json({
+            message: 'An error occurred while retrieving next month tasks.'
+        });
+    }
 };
 
-export const getThisYearTasks = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.userId;
-		const thisYearCategories = ['this-year-tasks'];
+export const getThisYearTasks = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.params.userId;
+        // Retrieve workspaces where the user is a member
+        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-		const tasks = (await TaskModel.find({
-			$or: [
-				{ userId: userId },
-				{ assignedTo: { $elemMatch: { userId: userId } } } 
-			  ],
-			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
-		})) as Task[];
+        let allTasks = [];
+        let thisYearTasks = [];
 
-		let thisYearTasks = [];
+        // Browse each workspace and apply the appropriate filters
+        for (const workspace of workspaces) {
+            // Check user role in workspace
+            const userInWorkspace = workspace.members.find(member => member.userId === userId);
+            const role = userInWorkspace ? userInWorkspace.role : null;
 
-		for (const task of tasks) {
-			const day = await FormatDateForDisplay(task.deadline);
-			const category = GetCategoryDay(day, task.status, task.deadline);
-			if (thisYearCategories.includes(category)) {
-				thisYearTasks.push(task);
-			}
-		}
+            let tasks;
+            if (role === 'admin' || role === 'superadmin') {
+                // If user is admin or superadmin, retrieve all tasks (since year status will be checked later)
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    status: { $ne: 'Archived' }
+                }).lean();
+            } else {
+                // Otherwise, filter tasks where the user is the creator or assigned
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    $or: [
+                        { userId: userId },
+                        { 'assignedTo.userId': userId }
+                    ],
+                    status: { $ne: 'Archived' }
+                }).lean();
+            }
 
-		thisYearTasks = thisYearTasks.sort((a, b) => {
-			if (
-				new Date(a.deadline).getTime() ===
-				new Date(b.deadline).getTime()
-			) {
-				return (
-					priorityValues[b.priority as Priority] -
-					priorityValues[a.priority as Priority]
-				);
-			}
-			return (
-				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-			);
-		});
+            allTasks.push(...tasks);
+        }
 
-		return res.status(200).json({ thisYearTasks });
-	} catch (error) {
-		res.status(500).json({
-			message: 'An error occurred while retrieving this year tasks',
-		});
-	}
+        // Check each task with your custom date formatting logic for this year
+        for (const task of allTasks) {
+            const day = await FormatDateForDisplay(task.deadline);
+            const category = GetCategoryDay(day, task.status, task.deadline);
+            if (category === 'this-year-tasks') {
+                thisYearTasks.push(task);
+            }
+        }
+
+        // Sort this year tasks by deadline, then priority
+        const sortedThisYearTasks = thisYearTasks.sort((a, b) => {
+            const deadlineA = new Date(a.deadline).getTime();
+            const deadlineB = new Date(b.deadline).getTime();
+            if (deadlineA !== deadlineB) {
+                return deadlineA - deadlineB;
+            }
+            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
+        });
+
+        return res.status(200).json({ thisYearTasks: sortedThisYearTasks });
+    } catch (error) {
+        console.error('An error occurred while retrieving this year tasks:', error);
+        res.status(500).json({
+            message: 'An error occurred while retrieving this year tasks.'
+        });
+    }
 };
 
-export const getNextYearTasks = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.userId;
-		const nextYearCategories = ['next-year-tasks'];
+export const getNextYearTasks = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.params.userId;
+        // Retrieve workspaces where the user is a member
+        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-		const tasks = (await TaskModel.find({
-			$or: [
-				{ userId: userId },
-				{ assignedTo: { $elemMatch: { userId: userId } } } 
-			  ],
-			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
-		})) as Task[];
+        let allTasks = [];
+        let nextYearTasks = [];
 
-		let nextYearTasks = [];
+        // Browse each workspace and apply the appropriate filters
+        for (const workspace of workspaces) {
+            // Check user role in workspace
+            const userInWorkspace = workspace.members.find(member => member.userId === userId);
+            const role = userInWorkspace ? userInWorkspace.role : null;
 
-		for (const task of tasks) {
-			const day = await FormatDateForDisplay(task.deadline);
-			const category = GetCategoryDay(day, task.status, task.deadline);
-			if (nextYearCategories.includes(category)) {
-				nextYearTasks.push(task);
-			}
-		}
+            let tasks;
+            if (role === 'admin' || role === 'superadmin') {
+                // If user is admin or superadmin, retrieve all tasks (since next year status will be checked later)
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    status: { $ne: 'Archived' }
+                }).lean();
+            } else {
+                // Otherwise, filter tasks where the user is the creator or assigned
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    $or: [
+                        { userId: userId },
+                        { 'assignedTo.userId': userId }
+                    ],
+                    status: { $ne: 'Archived' }
+                }).lean();
+            }
 
-		nextYearTasks = nextYearTasks.sort((a, b) => {
-			if (
-				new Date(a.deadline).getTime() ===
-				new Date(b.deadline).getTime()
-			) {
-				return (
-					priorityValues[b.priority as Priority] -
-					priorityValues[a.priority as Priority]
-				);
-			}
-			return (
-				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-			);
-		});
+            allTasks.push(...tasks);
+        }
 
-		return res.status(200).json({ nextYearTasks });
-	} catch (error) {
-		res.status(500).json({
-			message: 'An error occurred while retrieving next year tasks',
-		});
-	}
+        // Check each task with your custom date formatting logic for next year
+        for (const task of allTasks) {
+            const day = await FormatDateForDisplay(task.deadline);
+            const category = GetCategoryDay(day, task.status, task.deadline);
+            if (category === 'next-year-tasks') {
+                nextYearTasks.push(task);
+            }
+        }
+
+        // Sort next year tasks by deadline, then priority
+        const sortedNextYearTasks = nextYearTasks.sort((a, b) => {
+            const deadlineA = new Date(a.deadline).getTime();
+            const deadlineB = new Date(b.deadline).getTime();
+            if (deadlineA !== deadlineB) {
+                return deadlineA - deadlineB;
+            }
+            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
+        });
+
+        return res.status(200).json({ nextYearTasks: sortedNextYearTasks });
+    } catch (error) {
+        console.error('An error occurred while retrieving next year tasks:', error);
+        res.status(500).json({
+            message: 'An error occurred while retrieving next year tasks.'
+        });
+    }
 };
 
-export const getBecomingTasks = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.userId;
-		const becomingCategories = ['becoming-tasks'];
 
-		const tasks = (await TaskModel.find({
-			$or: [
-				{ userId: userId },
-				{ assignedTo: { $elemMatch: { userId: userId } } } 
-			  ],
-			status: { $ne: 'Archived' }, // Exclude tasks with 'Archived' status
-		})) as Task[];
+export const getBecomingTasks = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.params.userId;
+        // Retrieve workspaces where the user is a member
+        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-		let becomingTasks = [];
+        let allTasks = [];
+        let becomingTasks = [];
 
-		for (const task of tasks) {
-			const day = await FormatDateForDisplay(task.deadline);
-			const category = GetCategoryDay(day, task.status, task.deadline);
-			if (becomingCategories.includes(category)) {
-				becomingTasks.push(task);
-			}
-		}
+        // Browse each workspace and apply the appropriate filters
+        for (const workspace of workspaces) {
+            // Check user role in workspace
+            const userInWorkspace = workspace.members.find(member => member.userId === userId);
+            const role = userInWorkspace ? userInWorkspace.role : null;
 
-		becomingTasks = becomingTasks.sort((a, b) => {
-			if (
-				new Date(a.deadline).getTime() ===
-				new Date(b.deadline).getTime()
-			) {
-				return (
-					priorityValues[b.priority as Priority] -
-					priorityValues[a.priority as Priority]
-				);
-			}
-			return (
-				new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-			);
-		});
+            let tasks;
+            if (role === 'admin' || role === 'superadmin') {
+                // If user is admin or superadmin, retrieve all tasks (since becoming status will be checked later)
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    status: { $ne: 'Archived' }
+                }).lean();
+            } else {
+                // Otherwise, filter tasks where the user is the creator or assigned
+                tasks = await TaskModel.find({
+                    workspaceId: workspace._id,
+                    $or: [
+                        { userId: userId },
+                        { 'assignedTo.userId': userId }
+                    ],
+                    status: { $ne: 'Archived' }
+                }).lean();
+            }
 
-		return res.status(200).json({ becomingTasks });
-	} catch (error) {
-		res.status(500).json({
-			message: 'An error occurred while retrieving becoming tasks',
-		});
-	}
+            allTasks.push(...tasks);
+        }
+
+        // Check each task with your custom date formatting logic for becoming relevant
+        for (const task of allTasks) {
+            const day = await FormatDateForDisplay(task.deadline);
+            const category = GetCategoryDay(day, task.status, task.deadline);
+            if (category === 'becoming-tasks') {
+                becomingTasks.push(task);
+            }
+        }
+
+        // Sort becoming tasks by deadline, then priority
+        const sortedBecomingTasks = becomingTasks.sort((a, b) => {
+            const deadlineA = new Date(a.deadline).getTime();
+            const deadlineB = new Date(b.deadline).getTime();
+            if (deadlineA !== deadlineB) {
+                return deadlineA - deadlineB;
+            }
+            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
+        });
+
+        return res.status(200).json({ becomingTasks: sortedBecomingTasks });
+    } catch (error) {
+        console.error('An error occurred while retrieving becoming tasks:', error);
+        res.status(500).json({
+            message: 'An error occurred while retrieving becoming tasks.'
+        });
+    }
 };
 
-export const getArchivedTasks = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const page = parseInt(req.query.page as string, 10) || 1;
-		const limit = parseInt(req.query.limit as string, 10) || 10;
-		const skip = (page - 1) * limit;
-		const userId = req.params.userId;
-		const key = `archived_tasks:${userId}:${page}:${limit}`;
+export const getArchivedTasks = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.params.userId;
+        const page = parseInt(req.query.page as string, 10) || 1;
+        const limit = parseInt(req.query.limit as string, 10) || 10;
+        const skip = (page - 1) * limit;
+        const key = `archived_tasks:${userId}:${page}:${limit}`;
 
-		let cachedTasks: string | null = null;
-		try {
-			cachedTasks = await client.get(key);
-		} catch (err) {
-			console.error('Cache retrieval error:', err);
-		}
+        let cachedTasks: string | null = null;
+        try {
+            cachedTasks = await client.get(key);
+        } catch (err) {
+            console.error('Cache retrieval error:', err);
+        }
 
-		let archivedTasks: ExtendedTask[] | any;
-		let totalTasks = 0;
+        let archivedTasks: ExtendedTask[] | any;
+        let totalTasks = 0;
 
-		if (cachedTasks) {
-			archivedTasks = JSON.parse(cachedTasks);
-		} else {
-			// Récupérer le nombre total de tâches archivées
-			totalTasks = await TaskModel.countDocuments({
-				$or: [
-			  { userId: userId },
-			  { assignedTo: { $elemMatch: { userId: userId } } } 
-			],
-				status: 'Archived',
-			});
+        if (cachedTasks) {
+            archivedTasks = JSON.parse(cachedTasks);
+        } else {
+            // Retrieve workspaces where the user is a member
+            const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-			let allRelevantTasks = await TaskModel.find({
-				$or: [
-			  { userId: userId },
-			  { assignedTo: { $elemMatch: { userId: userId } } } 
-			],
-				status: 'Archived',
-			})
-				.lean()
-				.exec();
+            let allRelevantTasks = [];
 
-			let sortedTasks = allRelevantTasks.sort((a, b) => {
-				return (
-					new Date(b.archiveDate).getTime() -
-					new Date(a.archiveDate).getTime()
-				);
-			});
+            // Browse each workspace and apply the appropriate filters
+            for (const workspace of workspaces) {
+                // Check user role in workspace
+                const userInWorkspace = workspace.members.find(member => member.userId === userId);
+                const role = userInWorkspace ? userInWorkspace.role : null;
 
-			archivedTasks = sortedTasks.slice(skip, skip + limit);
+                let tasks;
+                if (role === 'admin' || role === 'superadmin') {
+                    // If user is admin or superadmin, retrieve all archived tasks
+                    tasks = await TaskModel.find({
+                        workspaceId: workspace._id,
+                        status: 'Archived'
+                    }).lean();
+                } else {
+                    // Otherwise, filter tasks where the user is the creator or assigned
+                    tasks = await TaskModel.find({
+                        workspaceId: workspace._id,
+                        $or: [
+                            { userId: userId },
+                            { 'assignedTo.userId': userId }
+                        ],
+                        status: 'Archived'
+                    }).lean();
+                }
 
-			try {
-				await client.setEx(key, 10800, JSON.stringify(archivedTasks));
-			} catch (err) {
-				console.error('Task caching error:', err);
-			}
-		}
+                allRelevantTasks.push(...tasks);
+            }
 
-		return res.status(200).json({ archivedTasks, totalTasks });
-	} catch (error) {
-		res.status(500).json({
-			message: 'An error occurred while retrieving archived tasks',
-		});
-	}
+            totalTasks = allRelevantTasks.length;
+
+            // Sort archived tasks by archiveDate then limit and paginate
+            let sortedTasks = allRelevantTasks.sort((a, b) => {
+                return (
+                    new Date(b.archiveDate).getTime() -
+                    new Date(a.archiveDate).getTime()
+                );
+            });
+
+            archivedTasks = sortedTasks.slice(skip, skip + limit);
+
+            try {
+                await client.setEx(key, 10800, JSON.stringify(archivedTasks));
+            } catch (err) {
+                console.error('Task caching error:', err);
+            }
+        }
+
+        return res.status(200).json({ archivedTasks, totalTasks });
+    } catch (error) {
+        res.status(500).json({
+            message: 'An error occurred while retrieving archived tasks',
+        });
+    }
 };
