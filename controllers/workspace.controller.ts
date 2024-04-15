@@ -174,14 +174,13 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
             return res.status(400).json({ message: 'This workspace does not exist' });
         }
 
-        if (req.user._id !== workspace.userId && !workspace.members.some(member => member.userId === req.user._id)) {
-            const isSuperAdmin = workspace.members.some(member => member.userId === req.user._id && member.role === 'superadmin');
-            if (!isSuperAdmin) {
-                return res.status(403).json({
-                    message: 'You do not have sufficient rights to perform this action',
-                });
-            }
-        }
+		const isSuperAdmin = workspace.members.some(member => member.userId == req.user._id && member.role === 'superadmin');
+
+		if (!isSuperAdmin) {
+			return res.status(403).json({
+				message:
+					'You do not have sufficient rights to perform this action, you must be a superadmin'});
+		}
 
         let bulkOperations = [];
 
