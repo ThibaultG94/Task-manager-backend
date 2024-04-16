@@ -184,6 +184,19 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
 
         let bulkOperations = [];
 
+		if (workspace.title !== updates.title || workspace.description !== updates.description) {
+			// Create a notification for workspace update
+			const notification = new notificationModel({
+				creatorId: req.user._id,
+				type: 'workspaceUpdate',
+				message: `Le workspace ${workspace.title} a été mis à jour`,
+				users: workspace.members.filter((member) => member.userId !== req.user._id).map((member) => member.userId),
+				workspaceId: workspace._id,
+			});
+
+			await notification.save();
+		}
+
         // Updates the fields of the workspace
         if (updates.title !== undefined) workspace.title = updates.title;
         if (updates.userId !== undefined) workspace.userId = updates.userId;
@@ -195,6 +208,7 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
             
             for (const member of newMembers) {
                 const guestUser = await userModel.findById(member.userId);
+				const senderUser = await userModel.findById(req.user._id);
                 if (!guestUser || member.userId === req.user._id || workspace.isDefault === "true") continue;
 
                 let invitationExists = await workspaceInvitationModel.findOne({ senderId: req.user._id, guestId: member.userId, workspaceId: req.params.id });
@@ -214,7 +228,20 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
                         workspaceId: req.params.id,
                         status: 'PENDING',
                     });
-                    await workspaceInvitation.save();
+					
+					if (workspaceInvitation) {
+						// Create a notification for workspace invitation
+						const notification = new notificationModel({
+							creatorId: req.user._id,
+							type: 'workspaceInvitation',
+							message: `${senderUser.username} vous a invité à rejoindre le workspace ${workspace.title}`,
+							users: [member.userId],
+							workspaceId: workspace._id,
+						});
+					
+						await notification.save();
+						await workspaceInvitation.save();
+					}
                 }
 
                 workspace.invitationStatus.push({ userId: member.userId, status: 'pending' });

@@ -110,6 +110,7 @@ export const sendInvitationWorkspace = async (
 		res.status(200).json({
 			workspaceInvitation: workspaceInvitation,
 			workspace: workspace,
+			notification: notification,
 		});
 	} catch (error) {
 		res.status(500).json({ message: 'Internal server error' });
