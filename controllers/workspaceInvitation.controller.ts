@@ -293,9 +293,22 @@ export const acceptWorkspaceInvitation = async (
 				message: `${guestUser.username} a rejoint le workspace ${workspace.title} en tant que ${invitation.role}`,
 				users: [invitation.senderId],
 				workspaceId: invitation.workspaceId,
-		});
+			});
+
+			// Create one notification for the other members of the workspace in users
+			const notificationMembers = new notificationModel({
+				creatorId: invitation.guestId,
+				invitationId: invitation._id,
+				type: 'workspaceUpdate',
+				message: `${guestUser.username} a rejoint le workspace ${workspace.title} en tant que ${invitation.role}`,
+				users: workspace.members.filter(
+					(member) => member.userId !== invitation.guestId && member.userId !== invitation.senderId
+				).map((member) => member.userId),
+				workspaceId: invitation.workspaceId,
+			});	
 		
 		await notification.save();
+		await notificationMembers.save();
 	}
 
 		await invitation.save();
