@@ -262,6 +262,48 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
                     }
                 });
             });
+
+			// Remove the user(s) from the workspace's notifications
+			const worskpaceNotifications = await notificationModel.find({ workspaceId: workspace._id });
+			worskpaceNotifications.forEach(async (notification) => {
+				notification.users = notification.users.filter((userId:any) => !removedMembersIds.includes(userId));
+				await notification.save();
+			});
+
+			const notificationRemovedMembers = new notificationModel({
+				creatorId: req.user._id,
+				type: 'workspaceDelation',
+				message: `Vous avez été retiré du workspace ${workspace.title}`,
+				users: removedMembersIds,
+				workspaceId: workspace._id,
+			});
+
+			await notificationRemovedMembers.save();
+
+			const removedMembersNames = await userModel.find({ _id: { $in: removedMembersIds } }).select('username');
+			const userNames = removedMembersNames.map(user => user.username);
+
+			let message;
+			if (userNames.length === 1) {
+				message = `Le membre ${userNames[0]} a été retiré du workspace ${workspace.title}`;
+			} else {
+				const formattedUserNames = userNames.slice(0, -1).join(', ') + ' et ' + userNames.slice(-1);
+				message = `Les membres ${formattedUserNames} ont été retirés du workspace ${workspace.title}`;
+			}
+
+			const notificationRecipients = workspace.members
+				.map(member => member.userId)
+				.filter(userId => !removedMembersIds.includes(userId) && userId !== req.user._id);
+
+			const notificationWorkspaceMembers = new notificationModel({
+				creatorId: req.user._id,
+				type: 'workspaceUpdate',
+				message: message,
+				users: notificationRecipients, 
+				workspaceId: workspace._id,
+			});
+
+			await notificationWorkspaceMembers.save();
         }
 
         // Execute all bulk operations if any
