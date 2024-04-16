@@ -319,6 +319,7 @@ export const createTask = async (
 					type: 'taskCreation',
 					message,
 					users,
+                    workspaceId: workspaceId,
 				});
 	
 				await notification.save();

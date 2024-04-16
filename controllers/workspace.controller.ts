@@ -268,7 +268,11 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
 
 			for (const notification of worskpaceNotifications) {
 				notification.users = notification.users.filter((userId: any) => !removedMembersIds.includes(userId));
-				await notification.save();
+				if (notification.users.length === 0) {
+					await notification.deleteOne();
+				} else {
+					await notification.save();
+				}
 			}
 
 			for (const userId of removedMembersIds) {
