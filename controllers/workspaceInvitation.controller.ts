@@ -132,7 +132,7 @@ export const getSentOutWorkspaceInvitations = async (
 
 		const invitationsSentOut = await workspaceInvitationModel.find({
 			senderId: userId,
-		});
+		}).sort({ createdAt: -1 });
 
 		const invitationsInformations = await Promise.all(
 			invitationsSentOut.map(async (invitation) => {
@@ -191,7 +191,7 @@ export const getReceivedWorkspaceInvitations = async (
 
 		const invitationsReceived = await workspaceInvitationModel.find({
 			guestId: userId,
-		});
+		}).sort({ createdAt: -1 });
 
 		const invitationsInformations = await Promise.all(
 			invitationsReceived.map(async (invitation) => {

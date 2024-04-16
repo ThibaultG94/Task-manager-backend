@@ -76,7 +76,7 @@ export const getSentOutInvitations = async (
 
 		const invitationsSentOut = await invitationModel.find({
 			senderId: userId,
-		});
+		}).sort({ createdAt: -1 });
 
 		// Transformer les invitations en utilisant Promise.all
 		const invitationsInformations = await Promise.all(
@@ -128,7 +128,7 @@ export const getReceivedInvitations = async (
 
 		const invitationsReceived = await invitationModel.find({
 			guestId: userId,
-		});
+		}).sort({ createdAt: -1 });
 
 		// Transformer les invitations en utilisant Promise.all
 		const invitationsInformations = await Promise.all(
