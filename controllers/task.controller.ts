@@ -622,7 +622,7 @@ export const deleteTask = async (
 		if (users.length > 0)  {
 			const notification = new notificationModel({
 				creatorId: req.user._id,
-				type: 'taskDelation',
+				type: 'taskDeletion',
 				message: `${user.username} a supprimé la tâche ${task.title} du workspace ${workspace?.title}`,
 				users: users,
 			});

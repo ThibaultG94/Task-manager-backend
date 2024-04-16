@@ -265,20 +265,24 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
 
 			// Remove the user(s) from the workspace's notifications
 			const worskpaceNotifications = await notificationModel.find({ workspaceId: workspace._id });
-			worskpaceNotifications.forEach(async (notification) => {
-				notification.users = notification.users.filter((userId:any) => !removedMembersIds.includes(userId));
+
+			for (const notification of worskpaceNotifications) {
+				notification.users = notification.users.filter((userId: any) => !removedMembersIds.includes(userId));
 				await notification.save();
-			});
+			}
 
-			const notificationRemovedMembers = new notificationModel({
-				creatorId: req.user._id,
-				type: 'workspaceDelation',
-				message: `Vous avez été retiré du workspace ${workspace.title}`,
-				users: removedMembersIds,
-				workspaceId: workspace._id,
-			});
-
-			await notificationRemovedMembers.save();
+			for (const userId of removedMembersIds) {
+				const notificationForRemovedMember = new notificationModel({
+					creatorId: req.user._id,
+					type: 'workspaceDeletion',
+					message: `Vous avez été retiré du workspace ${workspace.title}`,
+					users: [userId],
+					workspaceId: workspace._id,
+				});
+			
+				await notificationForRemovedMember.save();
+			}
+			
 
 			const removedMembersNames = await userModel.find({ _id: { $in: removedMembersIds } }).select('username');
 			const userNames = removedMembersNames.map(user => user.username);
@@ -351,7 +355,7 @@ export const deleteWorkspace = async (req: express.Request, res: express.Respons
 
 		const notification = new notificationModel({
 			creatorId: req.user._id,
-			type: 'workspaceDelation',
+			type: 'workspaceDeletion',
 			message: `${user.username} a supprimé le workspace ${workspace.title}`,
 			users: workspace.members.filter((member) => member.userId !== req.user._id).map((member) => member.userId),
 		});

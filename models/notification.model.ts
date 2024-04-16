@@ -29,7 +29,7 @@ const notificationSchema = new mongoose.Schema(
 		},
 		type: {
 			type: String,
-			enum: ['invitationUpdate', 'taskUpdate', 'workspaceUpdate', 'taskCreation', 'taskDelation', 'workspaceDelation', 'workspaceInvitation'],
+			enum: ['invitationUpdate', 'taskUpdate', 'workspaceUpdate', 'taskCreation', 'taskDeletion', 'workspaceDeletion', 'workspaceInvitation'],
 			required: true,
 		},
 		message: {
