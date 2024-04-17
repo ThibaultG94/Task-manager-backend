@@ -22,11 +22,11 @@ const notificationSchema = new mongoose.Schema(
 			ref: 'Workspace',
 			required: false,
 		},
-		users: {
-			type: [String],
-			ref: 'User',
-			required: false,
-		},
+		userId: {
+            type: String,
+            ref: 'User',
+            required: true,
+        },
 		type: {
 			type: String,
 			enum: ['invitationUpdate', 'taskUpdate', 'workspaceUpdate', 'taskCreation', 'taskDeletion', 'workspaceDeletion', 'workspaceInvitation'],

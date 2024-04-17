@@ -185,17 +185,24 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
         let bulkOperations = [];
 
 		if (workspace.title !== updates.title || workspace.description !== updates.description) {
-			// Create a notification for workspace update
-			const notification = new notificationModel({
-				creatorId: req.user._id,
-				type: 'workspaceUpdate',
-				message: `Le workspace ${workspace.title} a été mis à jour`,
-				users: workspace.members.filter((member) => member.userId !== req.user._id).map((member) => member.userId),
-				workspaceId: workspace._id,
-			});
-
-			await notification.save();
-		}
+			// Retrieve the IDs of workspace members to be notified (all except the modification creator)
+			const memberIdsToNotify = workspace.members
+				.filter((member) => member.userId !== req.user._id)
+				.map((member) => member.userId);
+		
+			// Create a notification for each member to be notified
+			for (const userId of memberIdsToNotify) {
+				const notification = new notificationModel({
+					creatorId: req.user._id,
+					userId: userId,  // Specify notification recipient ID
+					type: 'workspaceUpdate',
+					message: `Le workspace ${workspace.title} a été mis à jour`,
+					workspaceId: workspace._id,
+				});
+		
+				await notification.save();
+			}
+		}		
 
         // Updates the fields of the workspace
         if (updates.title !== undefined) workspace.title = updates.title;
@@ -204,7 +211,7 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
 
         // Process new member invitations
         if (updates.members !== undefined) {
-            const newMembers = updates.members.filter((member:any) => !workspace.members.some(existingMember => existingMember.userId === member.userId));
+            const newMembers: any = updates.members.filter((member:any) => !workspace.members.some(existingMember => existingMember.userId === member.userId));
             
             for (const member of newMembers) {
                 const guestUser = await userModel.findById(member.userId);
@@ -235,7 +242,7 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
 							creatorId: req.user._id,
 							type: 'workspaceInvitation',
 							message: `${senderUser.username} vous a invité à rejoindre le workspace ${workspace.title}`,
-							users: [member.userId],
+							userId: member.userId,
 							workspaceId: workspace._id,
 						});
 					
@@ -254,6 +261,7 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
         if (removedMembersIds.length > 0) {
             // Cancel invitations in workspace.invitationStatus
             workspace.invitationStatus = workspace.invitationStatus.filter(invitation => !removedMembersIds.includes(invitation.userId));
+
             // Prepare to delete invitations from workspaceInvitationModel
             removedMembersIds.forEach(userId => {
                 bulkOperations.push({
@@ -264,34 +272,30 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
             });
 
 			// Remove the user(s) from the workspace's notifications
-			const worskpaceNotifications = await notificationModel.find({ workspaceId: workspace._id });
+			const workspaceNotifications = await notificationModel.find({ workspaceId: workspace._id });
 
-			for (const notification of worskpaceNotifications) {
-				notification.users = notification.users.filter((userId: any) => !removedMembersIds.includes(userId));
-				if (notification.users.length === 0) {
+			for (const notification of workspaceNotifications) {
+				if (removedMembersIds.includes(notification.userId)) {
 					await notification.deleteOne();
-				} else {
-					await notification.save();
 				}
 			}
 
 			for (const userId of removedMembersIds) {
 				const notificationForRemovedMember = new notificationModel({
 					creatorId: req.user._id,
+					userId: userId,
 					type: 'workspaceDeletion',
 					message: `Vous avez été retiré du workspace ${workspace.title}`,
-					users: [userId],
 					workspaceId: workspace._id,
 				});
 			
 				await notificationForRemovedMember.save();
-			}
-			
+			}			
 
 			const removedMembersNames = await userModel.find({ _id: { $in: removedMembersIds } }).select('username');
 			const userNames = removedMembersNames.map(user => user.username);
-
 			let message;
+
 			if (userNames.length === 1) {
 				message = `Le membre ${userNames[0]} a été retiré du workspace ${workspace.title}`;
 			} else {
@@ -303,15 +307,17 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
 				.map(member => member.userId)
 				.filter(userId => !removedMembersIds.includes(userId) && userId !== req.user._id);
 
-			const notificationWorkspaceMembers = new notificationModel({
-				creatorId: req.user._id,
-				type: 'workspaceUpdate',
-				message: message,
-				users: notificationRecipients, 
-				workspaceId: workspace._id,
-			});
+			for (const userId of notificationRecipients) {
+				const notificationWorkspaceMembers = new notificationModel({
+					creatorId: req.user._id,
+					userId: userId,
+					type: 'workspaceUpdate',
+					message: message,
+					workspaceId: workspace._id,
+				});
 
-			await notificationWorkspaceMembers.save();
+				await notificationWorkspaceMembers.save();
+			}
 
 			// Trouver toutes les tâches liées au workspace
 			const tasks = await taskModel.find({ workspaceId: req.params.id });
@@ -359,33 +365,39 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
 // Endpoint to delete a workspace
 export const deleteWorkspace = async (req: express.Request, res: express.Response) => {
     try {
-        const workspaceId = req.params.id;
-        const workspace = await workspaceModel.findById(workspaceId);
+		const workspaceId = req.params.id;
+		const workspace = await workspaceModel.findById(workspaceId);
 		const user = await userModel.findById(req.user._id);
-
-        if (!workspace) {
-            return res.status(400).json({ message: 'This workspace does not exist' });
-        }
-
-        const isSuperAdmin = workspace.members.some(member => member.userId == req.user._id && member.role === 'superadmin');
-
+		
+		if (!workspace) {
+			return res.status(400).json({ message: 'This workspace does not exist' });
+		}
+		
+		const isSuperAdmin = workspace.members.some(member => member.userId == req.user._id && member.role === 'superadmin');
+		
 		if (!isSuperAdmin) {
 			return res.status(403).json({
-				message:
-					'You do not have sufficient rights to perform this action, you must be a superadmin'});
+				message: 'You do not have sufficient rights to perform this action, you must be a superadmin'
+			});
 		}
-
+		
+		// Delete all workspace notifications
 		await notificationModel.deleteMany({ workspaceId: workspace._id });
-
-		const notification = new notificationModel({
-			creatorId: req.user._id,
-			type: 'workspaceDeletion',
-			message: `${user.username} a supprimé le workspace ${workspace.title}`,
-			users: workspace.members.filter((member) => member.userId !== req.user._id).map((member) => member.userId),
-		});
-	
-		await notification.save();
-
+		
+		// Create an individual notification for each workspace member
+		const membersToNotify = workspace.members.filter(member => member.userId !== req.user._id);
+		
+		for (const member of membersToNotify) {
+			const notification = new notificationModel({
+				creatorId: req.user._id,
+				userId: member.userId,  // Destinataire unique de la notification
+				type: 'workspaceDeletion',
+				message: `${user.username} a supprimé le workspace ${workspace.title}`,
+				workspaceId: workspace._id,
+			});
+		
+			await notification.save();
+		}
 
         // Here, we handle the cleanup of all associated workspace invitations before proceeding with workspace deletion
         await workspaceInvitationModel.deleteMany({ workspaceId: workspaceId });

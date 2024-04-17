@@ -99,7 +99,7 @@ export const sendInvitationWorkspace = async (
 			invitationId: workspaceInvitation._id,
 			type: 'workspaceInvitation',
 			message: `${sender.username} vous a envoyé une invitation a rejoindre le workspace ${workspace.title} en tant que ${role}`,
-			users: [guestId],
+			userId: guestId,
 			workspaceId: workspaceId,
 		});
 
@@ -239,88 +239,82 @@ export const getReceivedWorkspaceInvitations = async (
 
 // Endpoint to accept an invitation
 export const acceptWorkspaceInvitation = async (
-	req: express.Request,
-	res: express.Response
+    req: express.Request,
+    res: express.Response
 ) => {
-	try {
-		const invitationId = req.params.invitationId;
-		const invitation = await workspaceInvitationModel.findById(
-			invitationId
-		);
-		const workspace = await workspaceModel.findById(
-			invitation?.workspaceId
-		);
-		const userId = req.body.userId;
+    try {
+        const invitationId = req.params.invitationId;
+        const invitation = await workspaceInvitationModel.findById(invitationId);
+        const workspace = await workspaceModel.findById(invitation?.workspaceId);
+        const userId = req.body.userId;
 
+        if (!invitation || invitation.status === 'CANCELLED') {
+            return res.status(400).json({
+                message: 'Invitation does not exist or is not pending',
+            });
+        }
 
-		if (!invitation || invitation.status === 'CANCELLED') {
-			return res.status(400).json({
-				message: 'Invitation does not exist or is not pending',
-			});
-		}
+        if (!userId || userId !== invitation.guestId) {
+            return res.status(403).json({
+                message: 'You do not have sufficient rights to accept this invitation',
+            });
+        }
 
-		if (!userId || userId !== invitation.guestId) {
-			return res.status(403).json({
-				message:
-					'You do not have sufficients rights to accept this invitation',
-			});
-		}
+        if (!workspace) {
+            return res.status(400).json({ message: 'Workspace does not exist' });
+        }
 
-		if (!workspace) {
-			return res
-				.status(400)
-				.json({ message: 'Workspace does not exist' });
-		}
+        invitation.status = 'ACCEPTED';
+        workspace.members.push({
+            userId: invitation.guestId,
+            role: invitation.role,
+        });
 
-		invitation.status = 'ACCEPTED';
-		workspace.members.push({
-			userId: invitation?.guestId,
-			role: invitation?.role,
-		});
+        // Update workspace invitations status
+        workspace.invitationStatus = workspace.invitationStatus.filter(
+            workspaceInvitation => workspaceInvitation.userId !== invitation.guestId
+        );
 
-		workspace.invitationStatus = workspace.invitationStatus.filter(
-			(workspaceInvitation) =>
-				workspaceInvitation.userId !== invitation?.guestId
-		);
+		const guestUser = await userModel.findById(invitation.guestId);
 
-		if (invitation) {
-			const guestUser = await userModel.findById(invitation.guestId);
+        // Send notification to the invitation sender
+        const senderNotification = new notificationModel({
+            creatorId: invitation.guestId,
+            userId: invitation.senderId,
+            type: 'workspaceInvitation',
+            message: `${guestUser.username} a rejoint le workspace ${workspace.title} en tant que ${invitation.role}`,
+            workspaceId: workspace._id,
+        });
 
-			const notification = new notificationModel({
-				creatorId: invitation.guestId,
-				invitationId: invitation._id,
-				type: 'workspaceInvitation',
-				message: `${guestUser.username} a rejoint le workspace ${workspace.title} en tant que ${invitation.role}`,
-				users: [invitation.senderId],
-				workspaceId: invitation.workspaceId,
-			});
+        await senderNotification.save();
 
-			// Create one notification for the other members of the workspace in users
-			const notificationMembers = new notificationModel({
-				creatorId: invitation.guestId,
-				invitationId: invitation._id,
-				type: 'workspaceUpdate',
-				message: `${guestUser.username} a rejoint le workspace ${workspace.title} en tant que ${invitation.role}`,
-				users: workspace.members.filter(
-					(member) => member.userId !== invitation.guestId && member.userId !== invitation.senderId
-				).map((member) => member.userId),
-				workspaceId: invitation.workspaceId,
-			});	
-		
-		await notification.save();
-		await notificationMembers.save();
-	}
+        // Send notifications to other members
+        const otherMembers = workspace.members.filter(
+            member => member.userId !== invitation.guestId && member.userId !== invitation.senderId
+        );
 
-		await invitation.save();
-		await workspace.save();
+        for (const member of otherMembers) {
+            const notification = new notificationModel({
+                creatorId: invitation.guestId,
+                userId: member.userId,
+                type: 'workspaceUpdate',
+                message: `${guestUser.username} a rejoint le workspace ${workspace.title} en tant que ${invitation.role}`,
+                workspaceId: workspace._id,
+            });
 
-		res.status(200).json({
-			message: 'Workspace invitation accepted',
-			invitation,
-		});
-	} catch (error) {
-		return res.status(500).json({ message: 'Internal server error' });
-	}
+            await notification.save();
+        }
+
+        await invitation.save();
+        await workspace.save();
+
+        res.status(200).json({
+            message: 'Workspace invitation accepted',
+            invitation,
+        });
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error', error });
+    }
 };
 
 // Endpoint to decline an invitation
