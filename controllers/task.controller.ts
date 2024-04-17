@@ -7,7 +7,6 @@ import workspaceModel from '../models/workspace.model';
 import notificationModel from '../models/notification.model';
 import logger from '../config/logger';
 import { Task } from '../types/types';
-import { ExtendedTask } from '../types/types';
 import { priorityToNumber } from '../utils/priorityToNumber';
 import { GetCategoryDay } from '../utils/GetCategoryDay';
 import { FormatDateForDisplay } from '../utils/FormatDateForDisplay';
@@ -1650,32 +1649,27 @@ export const getNextYearTasks = async (req: express.Request, res: express.Respon
 export const getBecomingTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
-        // Retrieve workspaces where the user is a member
         const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
         let allTasks = [];
         let becomingTasks = [];
 
-        // Browse each workspace and apply the appropriate filters
         for (const workspace of workspaces) {
-            // Check user role in workspace
             const userInWorkspace = workspace.members.find(member => member.userId === userId);
             const role = userInWorkspace ? userInWorkspace.role : null;
 
             let tasks;
             if (role === 'admin' || role === 'superadmin') {
-                // If user is admin or superadmin, retrieve all tasks (since becoming status will be checked later)
                 tasks = await TaskModel.find({
                     workspaceId: workspace._id,
                     status: { $ne: 'Archived' }
                 }).lean();
             } else {
-                // Otherwise, filter tasks where the user is the creator or assigned
                 tasks = await TaskModel.find({
                     workspaceId: workspace._id,
                     $or: [
                         { userId: userId },
-                        { 'assignedTo.userId': userId }
+                        { assignedTo: userId }
                     ],
                     status: { $ne: 'Archived' }
                 }).lean();
@@ -1684,7 +1678,7 @@ export const getBecomingTasks = async (req: express.Request, res: express.Respon
             allTasks.push(...tasks);
         }
 
-        // Check each task with your custom date formatting logic for becoming relevant
+        // Determine becoming tasks
         for (const task of allTasks) {
             const day = await FormatDateForDisplay(task.deadline);
             const category = GetCategoryDay(day, task.status, task.deadline);
@@ -1693,8 +1687,26 @@ export const getBecomingTasks = async (req: express.Request, res: express.Respon
             }
         }
 
+        // Collect all unique assignedTo userIds from becoming tasks
+        const assignedUserIds = [...new Set(becomingTasks.flatMap(task => task.assignedTo))];
+        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
+            .select('email _id username')
+            .lean();
+
+        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
+
+        // Enrich the assignedTo field in all becoming tasks
+        const enrichedBecomingTasks = becomingTasks.map(task => ({
+            ...task,
+            assignedTo: task.assignedTo.map(userId => ({
+                userId: userId,
+                email: userMap.get(userId)?.email,
+                username: userMap.get(userId)?.username
+            }))
+        }));
+
         // Sort becoming tasks by deadline, then priority
-        const sortedBecomingTasks = becomingTasks.sort((a, b) => {
+        const sortedBecomingTasks = enrichedBecomingTasks.sort((a, b) => {
             const deadlineA = new Date(a.deadline).getTime();
             const deadlineB = new Date(b.deadline).getTime();
             if (deadlineA !== deadlineB) {
@@ -1727,37 +1739,32 @@ export const getArchivedTasks = async (req: express.Request, res: express.Respon
             console.error('Cache retrieval error:', err);
         }
 
-        let archivedTasks: ExtendedTask[] | any;
+        let archivedTasks = [];
         let totalTasks = 0;
 
         if (cachedTasks) {
             archivedTasks = JSON.parse(cachedTasks);
         } else {
-            // Retrieve workspaces where the user is a member
             const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
             let allRelevantTasks = [];
 
-            // Browse each workspace and apply the appropriate filters
             for (const workspace of workspaces) {
-                // Check user role in workspace
                 const userInWorkspace = workspace.members.find(member => member.userId === userId);
                 const role = userInWorkspace ? userInWorkspace.role : null;
 
                 let tasks;
                 if (role === 'admin' || role === 'superadmin') {
-                    // If user is admin or superadmin, retrieve all archived tasks
                     tasks = await TaskModel.find({
                         workspaceId: workspace._id,
                         status: 'Archived'
                     }).lean();
                 } else {
-                    // Otherwise, filter tasks where the user is the creator or assigned
                     tasks = await TaskModel.find({
                         workspaceId: workspace._id,
                         $or: [
                             { userId: userId },
-                            { 'assignedTo.userId': userId }
+                            { assignedTo: userId }
                         ],
                         status: 'Archived'
                     }).lean();
@@ -1768,15 +1775,28 @@ export const getArchivedTasks = async (req: express.Request, res: express.Respon
 
             totalTasks = allRelevantTasks.length;
 
-            // Sort archived tasks by archiveDate then limit and paginate
             let sortedTasks = allRelevantTasks.sort((a, b) => {
-                return (
-                    new Date(b.archiveDate).getTime() -
-                    new Date(a.archiveDate).getTime()
-                );
+                return new Date(b.archiveDate).getTime() - new Date(a.archiveDate).getTime();
             });
 
             archivedTasks = sortedTasks.slice(skip, skip + limit);
+
+            // Enrich assignedTo field in archived tasks
+            const assignedUserIds = [...new Set(archivedTasks.flatMap(task => task.assignedTo))];
+            const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
+                .select('email _id username')
+                .lean();
+
+            const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
+
+            archivedTasks = archivedTasks.map(task => ({
+                ...task,
+                assignedTo: task.assignedTo.map(userId => ({
+                    userId: userId,
+                    email: userMap.get(userId)?.email,
+                    username: userMap.get(userId)?.username
+                }))
+            }));
 
             try {
                 await client.setEx(key, 10800, JSON.stringify(archivedTasks));
@@ -1787,8 +1807,9 @@ export const getArchivedTasks = async (req: express.Request, res: express.Respon
 
         return res.status(200).json({ archivedTasks, totalTasks });
     } catch (error) {
+        console.error('An error occurred while retrieving archived tasks:', error);
         res.status(500).json({
-            message: 'An error occurred while retrieving archived tasks',
+            message: 'An error occurred while retrieving archived tasks.'
         });
     }
 };
