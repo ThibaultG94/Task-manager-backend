@@ -949,32 +949,27 @@ export const getTodayTasks = async (req: express.Request, res: express.Response)
 export const getTomorrowTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
-        // Retrieve workspaces where the user is a member
         const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
         let allTasks = [];
         let tomorrowTasks = [];
 
-        // Browse each workspace and apply the appropriate filters
         for (const workspace of workspaces) {
-            // Check user role in workspace
             const userInWorkspace = workspace.members.find(member => member.userId === userId);
             const role = userInWorkspace ? userInWorkspace.role : null;
 
             let tasks;
             if (role === 'admin' || role === 'superadmin') {
-                // If user is admin or superadmin, retrieve all tasks (since tomorrow status will be checked later)
                 tasks = await TaskModel.find({
                     workspaceId: workspace._id,
                     status: { $ne: 'Archived' }
                 }).lean();
             } else {
-                // Otherwise, filter tasks where the user is the creator or assigned
                 tasks = await TaskModel.find({
                     workspaceId: workspace._id,
                     $or: [
                         { userId: userId },
-                        { 'assignedTo.userId': userId }
+                        { assignedTo: userId }
                     ],
                     status: { $ne: 'Archived' }
                 }).lean();
@@ -983,7 +978,7 @@ export const getTomorrowTasks = async (req: express.Request, res: express.Respon
             allTasks.push(...tasks);
         }
 
-        // Check each task with your custom date formatting logic for 'Demain'
+        // Determine tomorrow's tasks
         for (const task of allTasks) {
             const day = await FormatDateForDisplay(task.deadline);
             if (day === 'Demain') {
@@ -991,8 +986,26 @@ export const getTomorrowTasks = async (req: express.Request, res: express.Respon
             }
         }
 
+        // Collect all unique assignedTo userIds from tomorrow's tasks
+        const assignedUserIds = [...new Set(tomorrowTasks.flatMap(task => task.assignedTo))];
+        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
+            .select('email _id username')
+            .lean();
+
+        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
+
+        // Enrich the assignedTo field in all tomorrow tasks
+        const enrichedTomorrowTasks = tomorrowTasks.map(task => ({
+            ...task,
+            assignedTo: task.assignedTo.map(userId => ({
+                userId: userId,
+                email: userMap.get(userId)?.email,
+                username: userMap.get(userId)?.username
+            }))
+        }));
+
         // Sort tomorrow tasks by deadline, then priority
-        const sortedTomorrowTasks = tomorrowTasks.sort((a, b) => {
+        const sortedTomorrowTasks = enrichedTomorrowTasks.sort((a, b) => {
             const deadlineA = new Date(a.deadline).getTime();
             const deadlineB = new Date(b.deadline).getTime();
             if (deadlineA !== deadlineB) {
