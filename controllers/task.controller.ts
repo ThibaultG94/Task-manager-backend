@@ -77,16 +77,11 @@ export const getWorkspaceTasks = async (
     res: express.Response
 ) => {
     try {
-        // Parsing the page and limit query parameters. If not provided, default values are used.
         const page = parseInt(req.query.page as string, 10) || 1;
         const limit = parseInt(req.query.limit as string, 10) || 10;
-
-        // Calculate the number of tasks to skip based on the page and limit.
         const skip = (page - 1) * limit;
-
         const workspaceId = req.params.id;
 
-        // Verify if the workspace exists and if the user is a member of it
         const workspace = await workspaceModel.findById(workspaceId);
         if (!workspace) {
             return res.status(404).json({ message: 'Workspace not found' });
@@ -101,48 +96,56 @@ export const getWorkspaceTasks = async (
             });
         }
 
-        // Generate a unique key for caching purposes using the workspace ID, page, and limit.
         const key = `task:${workspaceId}:${page}:${limit}`;
-
-        // First, check if the tasks are already cached
         let cachedTasks: string | null = null;
+
         try {
             cachedTasks = await client.get(key);
         } catch (err) {
             console.error('Cache retrieval error:', err);
         }
 
-        let tasks: Task[] | null;
+        let tasks = [];
         if (cachedTasks) {
-            // If the tasks are cached, use them
             tasks = JSON.parse(cachedTasks);
         } else {
             const userRole = workspace.members.find(member => member.userId === req.user._id)?.role;
-
-            // Define query conditions as a FilterQuery for Task
             let queryConditions: FilterQuery<Task> = { workspaceId: workspaceId };
 
             if (userRole === 'superadmin' || userRole === 'admin') {
-                // If the user is a superadmin or admin, they can see all tasks in the workspace
                 queryConditions = { ...queryConditions };
             } else {
-                // Otherwise, they can only see their tasks or those to which they are assigned.
                 queryConditions = { 
                     ...queryConditions,
                     $or: [
-                        { userId: req.user._id },  // User-created tasks
-                        { assignedTo: { $in: [req.user._id] } }  // Checking if the user's ID is in the assignedTo array
+                        { userId: req.user._id },
+                        { assignedTo: { $in: [req.user._id] } }
                     ]
                 };
             }
 
-            // Query with correct type management
             tasks = await TaskModel.find(queryConditions)
                 .skip(skip)
                 .limit(limit)
                 .lean();
 
-            // Then, cache the fetched tasks for future requests
+            // Fetch user details for assignedTo
+            const assignedUserIds = tasks.flatMap(task => task.assignedTo);
+            const uniqueUserIds = [...new Set(assignedUserIds)];
+            const usersDetails = await userModel.find({ '_id': { $in: uniqueUserIds } })
+                .select('email _id username')
+                .lean();
+
+            const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
+            tasks = tasks.map(task => ({
+                ...task,
+                assignedTo: task.assignedTo.map(userId => ({
+                    userId: userId,
+                    email: userMap.get(userId)?.email,
+                    username: userMap.get(userId)?.username
+                }))
+            }));
+
             try {
                 await client.setEx(key, 10800, JSON.stringify(tasks));
             } catch (err) {
@@ -150,12 +153,10 @@ export const getWorkspaceTasks = async (
             }
         }
 
-        // Return the tasks
         res.status(200).json(tasks);
     } catch (err) {
         const result = (err as Error).message;
         logger.info(result);
-
         res.status(500).json({ message: 'Internal server error' });
     }
 };
