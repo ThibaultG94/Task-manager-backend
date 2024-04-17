@@ -650,20 +650,16 @@ export const deleteTask = async (
 export const getUrgentTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
-        // Retrieve workspaces where user is a member
         const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
         let allUrgentTasks = [];
 
-        // Browse each workspace and apply the appropriate filters
         for (const workspace of workspaces) {
-            // Check user role in workspace
             const userInWorkspace = workspace.members.find(member => member.userId === userId);
             const role = userInWorkspace ? userInWorkspace.role : null;
 
             let tasks;
             if (role === 'admin' || role === 'superadmin') {
-                // If user is admin or superadmin, retrieve all urgent tasks
                 tasks = await TaskModel.find({
                     workspaceId: workspace._id,
                     deadline: { $exists: true },
@@ -671,12 +667,11 @@ export const getUrgentTasks = async (req: express.Request, res: express.Response
                     status: { $ne: 'Archived' }
                 }).lean();
             } else {
-                // Otherwise, filter tasks where the user is the creator or assigned
                 tasks = await TaskModel.find({
                     workspaceId: workspace._id,
                     $or: [
                         { userId: userId },
-                        { assignedTo: { $elemMatch: { userId: userId } } }
+                        { assignedTo: userId }
                     ],
                     deadline: { $exists: true },
                     priority: { $exists: true },
@@ -687,8 +682,26 @@ export const getUrgentTasks = async (req: express.Request, res: express.Response
             allUrgentTasks.push(...tasks);
         }
 
+        // Collect all unique assignedTo userIds from the tasks
+        const assignedUserIds = [...new Set(allUrgentTasks.flatMap(task => task.assignedTo))];
+        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
+            .select('email _id username')
+            .lean();
+
+        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
+
+        // Enrich the assignedTo field in all tasks
+        const enrichedTasks = allUrgentTasks.map(task => ({
+            ...task,
+            assignedTo: task.assignedTo.map(userId => ({
+                userId: userId,
+                email: userMap.get(userId)?.email,
+                username: userMap.get(userId)?.username
+            }))
+        }));
+
         // Sort and limit results
-        const sortedTasks = allUrgentTasks.sort((a, b) => {
+        const sortedTasks = enrichedTasks.sort((a, b) => {
             const dateA = new Date(a.deadline).getTime();
             const dateB = new Date(b.deadline).getTime();
             const numericPriorityA = priorityToNumber(a.priority);
@@ -709,30 +722,25 @@ export const getUrgentTasks = async (req: express.Request, res: express.Response
 export const getUserTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
-        // Retrieve workspaces where the user is a member
         const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
         let allUserTasks = [];
 
-        // Browse each workspace and apply the appropriate filters
         for (const workspace of workspaces) {
-            // Check user role in workspace
             const userInWorkspace = workspace.members.find(member => member.userId === userId);
             const role = userInWorkspace ? userInWorkspace.role : null;
 
             let tasks;
             if (role === 'admin' || role === 'superadmin') {
-                // If user is admin or superadmin, retrieve all tasks
                 tasks = await TaskModel.find({
                     workspaceId: workspace._id
                 }).lean();
             } else {
-                // Otherwise, filter tasks where the user is the creator or assigned
                 tasks = await TaskModel.find({
                     workspaceId: workspace._id,
                     $or: [
                         { userId: userId },
-                        { 'assignedTo.userId': userId }
+                        { assignedTo: userId }
                     ]
                 }).lean();
             }
@@ -740,8 +748,26 @@ export const getUserTasks = async (req: express.Request, res: express.Response) 
             allUserTasks.push(...tasks);
         }
 
+        // Collect all unique assignedTo userIds from the tasks
+        const assignedUserIds = [...new Set(allUserTasks.flatMap(task => task.assignedTo))];
+        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
+            .select('email _id username')
+            .lean();
+
+        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
+
+        // Enrich the assignedTo field in all tasks
+        const enrichedTasks = allUserTasks.map(task => ({
+            ...task,
+            assignedTo: task.assignedTo.map(userId => ({
+                userId: userId,
+                email: userMap.get(userId)?.email,
+                username: userMap.get(userId)?.username
+            }))
+        }));
+
         // Sort all tasks by deadline, then priority, then creation date
-        const sortedTasks = allUserTasks.sort((a, b) => {
+        const sortedTasks = enrichedTasks.sort((a, b) => {
             const dateA = new Date(a.deadline).getTime();
             const dateB = new Date(b.deadline).getTime();
             if (dateA !== dateB) {
