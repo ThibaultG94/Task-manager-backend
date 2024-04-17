@@ -57,7 +57,7 @@ export const setNotification = async (req: express.Request, res: express.Respons
             }
 
             // Create a notification for each user assigned to the task, excluding the creator
-            task.assignedTo.forEach(async (userId) => {
+            task.assignedTo.forEach(async (userId: string) => {
                 if (creatorId !== userId) {
                     const message = `${creator.username} a mis à jour la tâche ${task.title}`;
                     const notification = new notificationModel({

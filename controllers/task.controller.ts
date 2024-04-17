@@ -57,8 +57,8 @@ export const getTask = async (req: express.Request, res: express.Response) => {
 				member.userId === req.user._id &&
 				member.role === 'admin'
 		);
-		const isTaskOwner = task.userId === req.user._id;
-		const isAssigned = task.assignedTo.some((user) => user.userId === req.user._id);
+		const isTaskOwner = task.userId.toString() === req.user._id.toString();
+		const isAssigned = task.assignedTo.includes(req.user._id.toString());
 
 		if (!isSuperAdmin && !isAdmin && !isTaskOwner && !isAssigned) {
 			return res.status(403).json({
@@ -80,94 +80,91 @@ export const getTask = async (req: express.Request, res: express.Response) => {
 
 // Endpoint to get tasks of a specific workspace
 export const getWorkspaceTasks = async (
-	req: express.Request,
-	res: express.Response
+    req: express.Request,
+    res: express.Response
 ) => {
-	try {
-		// Parsing the page and limit query parameters. If not provided, default value are used.
-		const page = parseInt(req.query.page as string, 10) || 1;
-		const limit = parseInt(req.query.limit as string, 10) || 10;
+    try {
+        // Parsing the page and limit query parameters. If not provided, default values are used.
+        const page = parseInt(req.query.page as string, 10) || 1;
+        const limit = parseInt(req.query.limit as string, 10) || 10;
 
-		// Calculate the number of tasks to skip based on the page and limit.
-		const skip = (page - 1) * limit;
+        // Calculate the number of tasks to skip based on the page and limit.
+        const skip = (page - 1) * limit;
 
-		const workspaceId = req.params.id;
+        const workspaceId = req.params.id;
 
-		// Verify if the workspace exists and if the user is a member of it
-		const workspace = await workspaceModel.findById(workspaceId);
-		if (!workspace) {
-			return res.status(404).json({ message: 'Workspace not found' });
-		}
+        // Verify if the workspace exists and if the user is a member of it
+        const workspace = await workspaceModel.findById(workspaceId);
+        if (!workspace) {
+            return res.status(404).json({ message: 'Workspace not found' });
+        }
 
-		if (
-			!workspace.members.some(
-				(member) => member.userId === req.user._id
-			) &&
-			workspace.userId !== req.user._id
-		) {
-			return res.status(403).json({
-				message:
-					'You do not have sufficient rights to perform this action',
-			});
-		}
+        if (
+            !workspace.members.some(member => member.userId === req.user._id) &&
+            workspace.userId !== req.user._id
+        ) {
+            return res.status(403).json({
+                message: 'You do not have sufficient rights to perform this action',
+            });
+        }
 
-		// Generate a unique key for caching purposes using the worspace ID, page, and limit.
-		const key = `task:${workspaceId}:${page}:${limit}`;
+        // Generate a unique key for caching purposes using the workspace ID, page, and limit.
+        const key = `task:${workspaceId}:${page}:${limit}`;
 
-		// First, check if the tasks are already cached
-		let cachedTasks: string | null = null;
-		try {
-			cachedTasks = await client.get(key);
-		} catch (err) {
-			console.error('Cache retrieval error :', err);
-		}
+        // First, check if the tasks are already cached
+        let cachedTasks: string | null = null;
+        try {
+            cachedTasks = await client.get(key);
+        } catch (err) {
+            console.error('Cache retrieval error:', err);
+        }
 
-		let tasks: Task[] | null;
-		if (cachedTasks) {
-			// If the tasks are cached, use them
-			tasks = JSON.parse(cachedTasks);
-		} else {
-			const userRole = workspace.members.find(member => member.userId === req.user._id)?.role;
+        let tasks: Task[] | null;
+        if (cachedTasks) {
+            // If the tasks are cached, use them
+            tasks = JSON.parse(cachedTasks);
+        } else {
+            const userRole = workspace.members.find(member => member.userId === req.user._id)?.role;
 
-			// Define query conditions as a FilterQuery for Task
-			let queryConditions: FilterQuery<Task> = { workspaceId: workspaceId };
+            // Define query conditions as a FilterQuery for Task
+            let queryConditions: FilterQuery<Task> = { workspaceId: workspaceId };
 
-			if (userRole === 'superadmin' || userRole === 'admin') {
-			// If the user is superadmin or admin, he can see all tasks in the workspace
-			queryConditions = { ...queryConditions };
-			} else {
-			// Otherwise, he can only see his tasks or those to which he is assigned.
-			queryConditions = { 
-				...queryConditions,
-				$or: [
-				{ userId: req.user._id },  // User-created tasks
-				{ assignedTo: { $elemMatch: { userId: req.user._id } } }  // Tasks to which the user is assigned
-				]
-			};
-			}
+            if (userRole === 'superadmin' || userRole === 'admin') {
+                // If the user is a superadmin or admin, they can see all tasks in the workspace
+                queryConditions = { ...queryConditions };
+            } else {
+                // Otherwise, they can only see their tasks or those to which they are assigned.
+                queryConditions = { 
+                    ...queryConditions,
+                    $or: [
+                        { userId: req.user._id },  // User-created tasks
+                        { assignedTo: { $in: [req.user._id] } }  // Checking if the user's ID is in the assignedTo array
+                    ]
+                };
+            }
 
-			// Query with correct type management
-			tasks = await TaskModel.find(queryConditions)
-			.skip(skip)
-			.limit(limit)
-			.lean();
+            // Query with correct type management
+            tasks = await TaskModel.find(queryConditions)
+                .skip(skip)
+                .limit(limit)
+                .lean();
 
-			// Then, cache the fetched tasks for future requests
-			try {
-				await client.setEx(key, 10800, JSON.stringify(tasks));
-			} catch (err) {
-				console.error('Task caching error :', err);
-			}
-		}
+            // Then, cache the fetched tasks for future requests
+            try {
+                await client.setEx(key, 10800, JSON.stringify(tasks));
+            } catch (err) {
+                console.error('Task caching error:', err);
+            }
+        }
 
-		// Return the tasks
-		res.status(200).json(tasks);
-	} catch (err) {
-		const result = (err as Error).message;
-		logger.info(result);
+        // Return the tasks
+        res.status(200).json(tasks);
+    } catch (err) {
+        const result = (err as Error).message;
+        logger.info(result);
 
-		res.status(500).json({ message: 'Internal server error' });
-	}
+        res.status(500).json({ message: 'Internal server error' });
+    }
 };
 
 // Endpoint to get the count of tasks by status in a specific workspace
@@ -305,7 +302,7 @@ export const createTask = async (
 			const message = `${creator.username} vous à assigner la tâche ${task.title}`;
 
 			let users: any = [];
-			task.assignedTo.forEach((user) => {	
+			task.assignedTo.forEach((user: any) => {	
 				if (userId !== user.userId) {
 					users.push(user.userId);
 				}
@@ -531,11 +528,15 @@ export const editTask = async (
 		}
 
 		if (updates.assignedTo !== undefined) {
-			if (!isSuperAdmin && !isAdmin && !isTaskOwner && updates.assignedTo[0].userId !== task.assignedTo[0].userId) {
-				return res.status(403).json({
-					message:
-						'You do not have sufficients rights to modify the assigned users of this task',
-				});
+			if (!isSuperAdmin && !isAdmin && !isTaskOwner && updates.assignedTo !== task.assignedTo) {
+                const currentAssignedUserIds = new Set(task.assignedTo);
+                const isModifyingExistingAssignees = updates.assignedTo.some((userId: string )=> currentAssignedUserIds.has(userId));
+
+                if (!isModifyingExistingAssignees) {
+                    return res.status(403).json({
+                        message: 'You do not have sufficient rights to modify the assigned users of this task',
+                    });
+                }
 			} else {
 				task.assignedTo = updates.assignedTo;
 			}
@@ -614,11 +615,11 @@ export const deleteTask = async (
 		await notificationModel.deleteMany({ taskId: task._id });
 
 		let users: any = [];
-		task.assignedTo.forEach((user) => {
-			if (req.user._id !== user.userId) {
-				users.push(user.userId);
-			}
-		});
+		task.assignedTo.forEach((userId: string) => {
+            if (req.user._id !== userId) {
+                users.push(userId);
+            }
+        });        
 
 		if (users.length > 0)  {
 			const notification = new notificationModel({
@@ -1482,7 +1483,6 @@ export const getNextYearTasks = async (req: express.Request, res: express.Respon
         });
     }
 };
-
 
 export const getBecomingTasks = async (req: express.Request, res: express.Response) => {
     try {

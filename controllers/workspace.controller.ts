@@ -319,25 +319,20 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
 				await notificationWorkspaceMembers.save();
 			}
 
-			// Trouver toutes les tâches liées au workspace
+			// Find all workspace tasks
 			const tasks = await taskModel.find({ workspaceId: req.params.id });
 
 			for (const task of tasks) {
-				// Filter assignedTo to remove removed limbs
-				task.assignedTo = task.assignedTo.filter((member: any) => !removedMembersIds.includes(member.userId));
-		   
-				// If assignedTo is empty after removal, add the ID of the member initiating the request
+				// Filter assignedTo to remove deleted members
+				task.assignedTo = task.assignedTo.filter(userId => !removedMembersIds.includes(userId));
+			
+				// If assignedTo is empty after deletion, add the ID of the member initiating the request
 				if (task.assignedTo.length === 0) {
-					const userAdmin = await userModel.findById(req.user._id);
-					task.assignedTo.push({
-						email: userAdmin.email,
-						userId: (userAdmin._id).toString(),
-						username: userAdmin.username,
-					});
+					task.assignedTo.push(req.user._id.toString());
 				}
-		   
+			
 				await task.save();
-			}
+			}			
         }
 
         // Execute all bulk operations if any
