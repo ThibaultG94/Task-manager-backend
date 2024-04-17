@@ -23,59 +23,52 @@ const priorityValues: { [key in Priority]: number } = {
 
 // Endpoint to get a task by id
 export const getTask = async (req: express.Request, res: express.Response) => {
-	try {
-		// Find the task with the id provided in params
-		const task: Task = await TaskModel.findById(req.params.id);
+    try {
+        const task = await TaskModel.findById(req.params.id).lean();
 
-		if (!req.user) {
-			return res.status(401).json({ message: 'User not authenticated' });
-		}
+        if (!req.user) {
+            return res.status(401).json({ message: 'User not authenticated' });
+        }
 
-		// If the task does not exist, return a 400 status
-		if (!task) {
-			return res
-				.status(400)
-				.json({ message: 'This task does not exist' });
-		}
+        if (!task) {
+            return res.status(400).json({ message: 'This task does not exist' });
+        }
 
-		// Find the workspace by ID
-		const workspace = await workspaceModel.findById(task.workspaceId);
+        const workspace = await workspaceModel.findById(task.workspaceId);
+        if (!workspace) {
+            return res.status(400).json({ message: 'This workspace does not exist' });
+        }
 
-		if (!workspace) {
-			return res
-				.status(400)
-				.json({ message: 'This workspace does not exist' });
-		}
+        const isSuperAdmin = workspace.members.some(member => member.userId === req.user._id && member.role === 'superadmin');
+        const isAdmin = workspace.members.some(member => member.userId === req.user._id && member.role === 'admin');
+        const isTaskOwner = task.userId.toString() === req.user._id.toString();
+        const isAssigned = task.assignedTo.includes(req.user._id.toString());
 
-		const isSuperAdmin = workspace.members.some(
-			(member) =>
-				member.userId === req.user._id &&
-				member.role === 'superadmin'
-		);
-		const isAdmin = workspace.members.some(
-			(member) =>
-				member.userId === req.user._id &&
-				member.role === 'admin'
-		);
-		const isTaskOwner = task.userId.toString() === req.user._id.toString();
-		const isAssigned = task.assignedTo.includes(req.user._id.toString());
+        if (!isSuperAdmin && !isAdmin && !isTaskOwner && !isAssigned) {
+            return res.status(403).json({
+                message: 'You do not have sufficient rights to perform this action',
+            });
+        }
 
-		if (!isSuperAdmin && !isAdmin && !isTaskOwner && !isAssigned) {
-			return res.status(403).json({
-				message:
-					'You do not have sufficients rights to perform this action',
-			});
-		}
+        const usersDetails = await userModel.find({
+            '_id': { $in: task.assignedTo }
+        }).select('email _id username').lean();
 
-		// If everything is okay, return the task
-		res.status(200).json({ task });
-	} catch (error) {
-		// In case of error, return a 500 status with the error message
-		const result = (error as Error).message;
-		logger.info(result);
+        const enrichedAssignedTo = usersDetails.map(user => ({
+            userId: user._id.toString(),
+            email: user.email,
+            username: user.username
+        }));
 
-		res.status(500).json({ message: 'Internal server error' });
-	}
+        const responseTask = { ...task, assignedTo: enrichedAssignedTo };
+
+        res.status(200).json({ task: responseTask });
+    } catch (error) {
+        const result = (error as Error).message;
+        logger.info(result);
+
+        res.status(500).json({ message: 'Internal server error' });
+    }
 };
 
 // Endpoint to get tasks of a specific workspace
