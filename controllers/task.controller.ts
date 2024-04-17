@@ -1026,32 +1026,27 @@ export const getTomorrowTasks = async (req: express.Request, res: express.Respon
 export const getThisWeekTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
-        // Retrieve workspaces where the user is a member
         const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
         let allTasks = [];
         let thisWeekTasks = [];
 
-        // Browse each workspace and apply the appropriate filters
         for (const workspace of workspaces) {
-            // Check user role in workspace
             const userInWorkspace = workspace.members.find(member => member.userId === userId);
             const role = userInWorkspace ? userInWorkspace.role : null;
 
             let tasks;
             if (role === 'admin' || role === 'superadmin') {
-                // If user is admin or superadmin, retrieve all tasks (since week status will be checked later)
                 tasks = await TaskModel.find({
                     workspaceId: workspace._id,
                     status: { $ne: 'Archived' }
                 }).lean();
             } else {
-                // Otherwise, filter tasks where the user is the creator or assigned
                 tasks = await TaskModel.find({
                     workspaceId: workspace._id,
                     $or: [
                         { userId: userId },
-                        { 'assignedTo.userId': userId }
+                        { assignedTo: userId }
                     ],
                     status: { $ne: 'Archived' }
                 }).lean();
@@ -1060,7 +1055,7 @@ export const getThisWeekTasks = async (req: express.Request, res: express.Respon
             allTasks.push(...tasks);
         }
 
-        // Check each task with your custom date formatting logic for this week
+        // Determine this week's tasks
         for (const task of allTasks) {
             const day = await FormatDateForDisplay(task.deadline);
             const category = GetCategoryDay(day, task.status, task.deadline);
@@ -1069,8 +1064,26 @@ export const getThisWeekTasks = async (req: express.Request, res: express.Respon
             }
         }
 
+        // Collect all unique assignedTo userIds from this week's tasks
+        const assignedUserIds = [...new Set(thisWeekTasks.flatMap(task => task.assignedTo))];
+        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
+            .select('email _id username')
+            .lean();
+
+        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
+
+        // Enrich the assignedTo field in all this week tasks
+        const enrichedThisWeekTasks = thisWeekTasks.map(task => ({
+            ...task,
+            assignedTo: task.assignedTo.map(userId => ({
+                userId: userId,
+                email: userMap.get(userId)?.email,
+                username: userMap.get(userId)?.username
+            }))
+        }));
+
         // Sort this week tasks by deadline, then priority
-        const sortedThisWeekTasks = thisWeekTasks.sort((a, b) => {
+        const sortedThisWeekTasks = enrichedThisWeekTasks.sort((a, b) => {
             const deadlineA = new Date(a.deadline).getTime();
             const deadlineB = new Date(b.deadline).getTime();
             if (deadlineA !== deadlineB) {
@@ -1091,32 +1104,27 @@ export const getThisWeekTasks = async (req: express.Request, res: express.Respon
 export const getThisWeekendTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
-        // Retrieve workspaces where the user is a member
         const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
         let allTasks = [];
         let thisWeekendTasks = [];
 
-        // Browse each workspace and apply the appropriate filters
         for (const workspace of workspaces) {
-            // Check user role in workspace
             const userInWorkspace = workspace.members.find(member => member.userId === userId);
             const role = userInWorkspace ? userInWorkspace.role : null;
 
             let tasks;
             if (role === 'admin' || role === 'superadmin') {
-                // If user is admin or superadmin, retrieve all tasks (since weekend status will be checked later)
                 tasks = await TaskModel.find({
                     workspaceId: workspace._id,
                     status: { $ne: 'Archived' }
                 }).lean();
             } else {
-                // Otherwise, filter tasks where the user is the creator or assigned
                 tasks = await TaskModel.find({
                     workspaceId: workspace._id,
                     $or: [
                         { userId: userId },
-                        { 'assignedTo.userId': userId }
+                        { assignedTo: userId }
                     ],
                     status: { $ne: 'Archived' }
                 }).lean();
@@ -1125,7 +1133,7 @@ export const getThisWeekendTasks = async (req: express.Request, res: express.Res
             allTasks.push(...tasks);
         }
 
-        // Check each task with your custom date formatting logic for this weekend
+        // Determine this weekend's tasks
         for (const task of allTasks) {
             const day = await FormatDateForDisplay(task.deadline);
             const category = GetCategoryDay(day, task.status, task.deadline);
@@ -1134,8 +1142,26 @@ export const getThisWeekendTasks = async (req: express.Request, res: express.Res
             }
         }
 
+        // Collect all unique assignedTo userIds from this weekend's tasks
+        const assignedUserIds = [...new Set(thisWeekendTasks.flatMap(task => task.assignedTo))];
+        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
+            .select('email _id username')
+            .lean();
+
+        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
+
+        // Enrich the assignedTo field in all this weekend tasks
+        const enrichedThisWeekendTasks = thisWeekendTasks.map(task => ({
+            ...task,
+            assignedTo: task.assignedTo.map(userId => ({
+                userId: userId,
+                email: userMap.get(userId)?.email,
+                username: userMap.get(userId)?.username
+            }))
+        }));
+
         // Sort this weekend tasks by deadline, then priority
-        const sortedThisWeekendTasks = thisWeekendTasks.sort((a, b) => {
+        const sortedThisWeekendTasks = enrichedThisWeekendTasks.sort((a, b) => {
             const deadlineA = new Date(a.deadline).getTime();
             const deadlineB = new Date(b.deadline).getTime();
             if (deadlineA !== deadlineB) {
@@ -1156,32 +1182,27 @@ export const getThisWeekendTasks = async (req: express.Request, res: express.Res
 export const getNextWeekTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
-        // Retrieve workspaces where the user is a member
         const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
         let allTasks = [];
         let nextWeekTasks = [];
 
-        // Browse each workspace and apply the appropriate filters
         for (const workspace of workspaces) {
-            // Check user role in workspace
             const userInWorkspace = workspace.members.find(member => member.userId === userId);
             const role = userInWorkspace ? userInWorkspace.role : null;
 
             let tasks;
             if (role === 'admin' || role === 'superadmin') {
-                // If user is admin or superadmin, retrieve all tasks (since next week status will be checked later)
                 tasks = await TaskModel.find({
                     workspaceId: workspace._id,
                     status: { $ne: 'Archived' }
                 }).lean();
             } else {
-                // Otherwise, filter tasks where the user is the creator or assigned
                 tasks = await TaskModel.find({
                     workspaceId: workspace._id,
                     $or: [
                         { userId: userId },
-                        { 'assignedTo.userId': userId }
+                        { assignedTo: userId }
                     ],
                     status: { $ne: 'Archived' }
                 }).lean();
@@ -1190,7 +1211,7 @@ export const getNextWeekTasks = async (req: express.Request, res: express.Respon
             allTasks.push(...tasks);
         }
 
-        // Check each task with your custom date formatting logic for next week
+        // Determine next week's tasks
         for (const task of allTasks) {
             const day = await FormatDateForDisplay(task.deadline);
             const category = GetCategoryDay(day, task.status, task.deadline);
@@ -1199,8 +1220,26 @@ export const getNextWeekTasks = async (req: express.Request, res: express.Respon
             }
         }
 
+        // Collect all unique assignedTo userIds from next week's tasks
+        const assignedUserIds = [...new Set(nextWeekTasks.flatMap(task => task.assignedTo))];
+        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
+            .select('email _id username')
+            .lean();
+
+        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
+
+        // Enrich the assignedTo field in all next week tasks
+        const enrichedNextWeekTasks = nextWeekTasks.map(task => ({
+            ...task,
+            assignedTo: task.assignedTo.map(userId => ({
+                userId: userId,
+                email: userMap.get(userId)?.email,
+                username: userMap.get(userId)?.username
+            }))
+        }));
+
         // Sort next week tasks by deadline, then priority
-        const sortedNextWeekTasks = nextWeekTasks.sort((a, b) => {
+        const sortedNextWeekTasks = enrichedNextWeekTasks.sort((a, b) => {
             const deadlineA = new Date(a.deadline).getTime();
             const deadlineB = new Date(b.deadline).getTime();
             if (deadlineA !== deadlineB) {
@@ -1221,32 +1260,27 @@ export const getNextWeekTasks = async (req: express.Request, res: express.Respon
 export const getNextWeekendTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
-        // Retrieve workspaces where the user is a member
         const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
         let allTasks = [];
         let nextWeekendTasks = [];
 
-        // Browse each workspace and apply the appropriate filters
         for (const workspace of workspaces) {
-            // Check user role in workspace
             const userInWorkspace = workspace.members.find(member => member.userId === userId);
             const role = userInWorkspace ? userInWorkspace.role : null;
 
             let tasks;
             if (role === 'admin' || role === 'superadmin') {
-                // If user is admin or superadmin, retrieve all tasks (since next weekend status will be checked later)
                 tasks = await TaskModel.find({
                     workspaceId: workspace._id,
                     status: { $ne: 'Archived' }
                 }).lean();
             } else {
-                // Otherwise, filter tasks where the user is the creator or assigned
                 tasks = await TaskModel.find({
                     workspaceId: workspace._id,
                     $or: [
                         { userId: userId },
-                        { 'assignedTo.userId': userId }
+                        { assignedTo: userId }
                     ],
                     status: { $ne: 'Archived' }
                 }).lean();
@@ -1255,7 +1289,7 @@ export const getNextWeekendTasks = async (req: express.Request, res: express.Res
             allTasks.push(...tasks);
         }
 
-        // Check each task with your custom date formatting logic for next weekend
+        // Determine next weekend's tasks
         for (const task of allTasks) {
             const day = await FormatDateForDisplay(task.deadline);
             const category = GetCategoryDay(day, task.status, task.deadline);
@@ -1264,8 +1298,26 @@ export const getNextWeekendTasks = async (req: express.Request, res: express.Res
             }
         }
 
+        // Collect all unique assignedTo userIds from next weekend's tasks
+        const assignedUserIds = [...new Set(nextWeekendTasks.flatMap(task => task.assignedTo))];
+        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
+            .select('email _id username')
+            .lean();
+
+        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
+
+        // Enrich the assignedTo field in all next weekend tasks
+        const enrichedNextWeekendTasks = nextWeekendTasks.map(task => ({
+            ...task,
+            assignedTo: task.assignedTo.map(userId => ({
+                userId: userId,
+                email: userMap.get(userId)?.email,
+                username: userMap.get(userId)?.username
+            }))
+        }));
+
         // Sort next weekend tasks by deadline, then priority
-        const sortedNextWeekendTasks = nextWeekendTasks.sort((a, b) => {
+        const sortedNextWeekendTasks = enrichedNextWeekendTasks.sort((a, b) => {
             const deadlineA = new Date(a.deadline).getTime();
             const deadlineB = new Date(b.deadline).getTime();
             if (deadlineA !== deadlineB) {
