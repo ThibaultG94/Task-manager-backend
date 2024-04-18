@@ -294,26 +294,24 @@ export const createTask = async (
 
 			const message = `${creator.username} vous à assigner la tâche ${task.title}`;
 
-			let users: any = [];
-			task.assignedTo.forEach((user: any) => {	
-				if (userId !== user.userId) {
-					users.push(user.userId);
-				}
-			});
-			if (users.length === 0) {
-				return res.status(200).json({ message: 'No users ' });
-			} else {
-				const notification = new notificationModel({
-					creatorId: userId,
-					taskId,
-					type: 'taskCreation',
-					message,
-					users,
+			const assignedUserIds = task.assignedTo.filter(memberId => memberId !== userId);
+
+            if (assignedUserIds.length === 0) {
+                return res.status(200).json({ message: 'No users to notify' });
+            }
+
+            for (const memberId of assignedUserIds) {
+                const notification = new notificationModel({
+                    creatorId: userId,
+                    userId: memberId,
+                    taskId: taskId,
+                    type: 'taskCreation',
+                    message: message,
                     workspaceId: workspaceId,
-				});
-	
-				await notification.save();
-			}
+                });
+
+                await notification.save();
+            }
 
 		} else {
 			return res.status(404).json({ message: 'Task not found' });
