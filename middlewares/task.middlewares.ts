@@ -43,35 +43,37 @@ interface AssignedUser {
 }
 
 export const validateAssignedUsers = async (
-	req: express.Request,
-	res: express.Response,
-	next: express.NextFunction
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
 ) => {
-	try {
-		if (req.body.assignedTo && Array.isArray(req.body.assignedTo)) {
-			const userChecks = await Promise.all(
-				req.body.assignedTo.map(async (assignedUser: AssignedUser) => {
-					if (!assignedUser.userId) {
-						return false;
-					}
-					const userExists = await userModel.findOne({
-						_id: assignedUser.userId,
-					});
-					return userExists != null;
-				})
-			);
+    try {
+        if (req.body.assignedTo && Array.isArray(req.body.assignedTo)) {
+            // Map over each userID in the assignedTo array and check for existence
+            const userChecks = await Promise.all(
+                req.body.assignedTo.map(async (userId: string) => {
+                    if (!userId) {
+                        return false; // Ensure the userId is not empty
+                    }
+                    const userExists = await userModel.findOne({
+                        _id: userId
+                    });
+                    return userExists != null; // Check if the user exists
+                })
+            );
 
-			if (userChecks.includes(false)) {
-				return res
-					.status(400)
-					.json({ message: 'Assigned user not found' });
-			}
-		}
+            // If any of the checks failed (include false), return an error
+            if (userChecks.includes(false)) {
+                return res
+                    .status(400)
+                    .json({ message: 'One or more assigned users not found' });
+            }
+        }
 
-		next();
-	} catch (error) {
-		return res.status(500).json({ message: 'Internal server error' });
-	}
+        next(); // Proceed if all user IDs are valid
+    } catch (error) {
+        return res.status(500).json({ message: 'Error validating assigned users' });
+    }
 };
 
 export const checkWorkspacePermission = async (
