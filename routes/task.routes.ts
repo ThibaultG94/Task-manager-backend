@@ -122,7 +122,6 @@ router.put(
 router.delete(
 	'/:id',
 	auth,
-	checkWorkspacePermission,
 	deleteTask,
 	updateWorkspaceTimestamp
 );

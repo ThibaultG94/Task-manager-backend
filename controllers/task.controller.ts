@@ -564,83 +564,89 @@ export const deleteTask = async (
 	res: express.Response,
 	next: express.NextFunction
 ) => {
-	// Attempt to find and delete the task by the provided id
-	const task = await TaskModel.findById(req.params.id);
-	const user = await userModel.findById(req.user._id);
-	const workspace = await workspaceModel.findById(task?.workspaceId);
+    try {
+        // Attempt to find and delete the task by the provided id
+        const task = await TaskModel.findById(req.params.id);
+        const user = await userModel.findById(req.user._id);
+        const workspace = await workspaceModel.findById(task?.workspaceId);
 
-	const isSuperAdmin = workspace.members.some(
-		(member) =>
-			member.userId === req.user._id &&
-			member.role === 'superadmin'
-	);
-	const isAdmin = workspace.members.some(
-		(member) =>
-			member.userId === req.user._id &&
-			member.role === 'admin'
-	);
-	const isTaskOwner = task.userId == req.user._id;
+        const isSuperAdmin = workspace.members.some(
+            (member) =>
+                member.userId === req.user._id &&
+                member.role === 'superadmin'
+        );
+        const isAdmin = workspace.members.some(
+            (member) =>
+                member.userId === req.user._id &&
+                member.role === 'admin'
+        );
+        const isTaskOwner = task.userId == req.user._id;
 
-	// If no task is found, return a 400 status
-	if (!task) {
-		return res.status(400).json({ message: 'This task does not exist' });
-	}
+        // If no task is found, return a 400 status
+        if (!task) {
+            return res.status(400).json({ message: 'This task does not exist' });
+        }
 
-	// If a task is found, check if the user making the request is the same as the one who created the task
-	if (task && req.user._id !== task.userId) {
-		return res.status(403).json({
-			message: 'You do not have the right to modify this task',
-		});
-	}
+        // If a task is found, check if the user making the request is the same as the one who created the task
+        if (task && req.user._id !== task.userId) {
+            return res.status(403).json({
+                message: 'You do not have the right to modify this task',
+            });
+        }
 
-	// If the task is found and the user has sufficients rights, delete the task
-	if (task) {
-		if (!isSuperAdmin && !isAdmin && !isTaskOwner) {
-			return res.status(403).json({
-				message:
-					'You do not have sufficients rights to perform this action',
-			});
-		}
-
-		// find notifications related to the task and delete them
-		await notificationModel.deleteMany({ taskId: task._id });
-
-		let users: any = [];
-		task.assignedTo.forEach((userId: string) => {
-            if (req.user._id !== userId) {
-                users.push(userId);
+        // If the task is found and the user has sufficients rights, delete the task
+        if (task) {
+            if (!isSuperAdmin && !isAdmin && !isTaskOwner) {
+                return res.status(403).json({
+                    message:
+                        'You do not have sufficients rights to perform this action',
+                });
             }
-        });        
 
-		if (users.length > 0)  {
-			const notification = new notificationModel({
-				creatorId: req.user._id,
-				type: 'taskDeletion',
-				message: `${user.username} a supprimé la tâche ${task.title} du workspace ${workspace?.title}`,
-				users: users,
-			});
-	
-			await notification.save();
-		}
+            // find notifications related to the task and delete them
+            await notificationModel.deleteMany({ taskId: task._id });
 
-		// Invalidates all cache keys for this user after a task update
-		const keys = await client.keys(`task:${req.user._id}:*`);
-		try {
-			keys &&
-				keys.forEach(async (key) => {
-					await client.del(key);
-				});
-		} catch (error) {
-			console.error(
-				'Error invalidating cache after task deletion :',
-				error
-			);
-		}
+            let assignedUserIds = task.assignedTo.filter(userId => req.user._id !== userId);
 
-		await task.deleteOne();
-		res.status(200).json({ message: 'Task deleted ' + req.params.id });
+            if (assignedUserIds.length > 0) {
+                for (const memberId of assignedUserIds) {
+                    const notification = new notificationModel({
+                        creatorId: req.user._id,
+                        userId: memberId, 
+                        type: 'taskDeletion',
+                        message: `${user.username} a supprimé la tâche ${task.title} du workspace ${workspace?.title}`,
+                        workspaceId: workspace._id,
+                    });
 
-	}
+                    await notification.save();
+                }
+            }
+
+
+            // Invalidates all cache keys for this user after a task update
+            const keys = await client.keys(`task:${req.user._id}:*`);
+            try {
+                keys &&
+                    keys.forEach(async (key) => {
+                        await client.del(key);
+                    });
+            } catch (error) {
+                console.error(
+                    'Error invalidating cache after task deletion :',
+                    error
+                );
+            }
+
+            await task.deleteOne();
+            res.status(200).json({ message: 'Task deleted ' + req.params.id });
+
+            next();
+        }
+
+    } catch (error) {
+        const result = (error as Error).message;
+        return res.status(500).json({ message: 'Internal server error', error });
+    }
 };
 
 // Endpoint to get Urgent Tasks
