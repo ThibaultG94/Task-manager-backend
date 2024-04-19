@@ -410,6 +410,8 @@ export const deleteWorkspace = async (req: express.Request, res: express.Respons
                 title: 'Default Workspace',
                 userId: req.user._id,
                 isDefault: true,
+				members: [{ userId: req.user._id, role: 'superadmin' }],
+				description: 'This is your default workspace',
             });
         }
 

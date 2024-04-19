@@ -50,6 +50,7 @@ export const registerUser = async (
 					userId: newUser._id,
 					username: newUser.username,
 					email: newUser.email,
+					role: 'superadmin',
 				},
 			],
 			isDefault: true,
