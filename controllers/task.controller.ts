@@ -532,16 +532,26 @@ export const editTask = async (
             } else {
                 task.assignedTo = updates.assignedTo;
         
-                // Notification suppression for unassigned users
+                // Remove notifications for unassigned users and create new notifications
                 usersToRemove.forEach(async (userId) => {
                     if (!isSuperAdmin && !isAdmin && task.userId !== userId) { // Make sure it's not an admin or the creator
                         await notificationModel.deleteMany({ taskId: task._id, userId: userId });
+        
+                        // Create new notification for unassigned user
+                        const newNotification = new notificationModel({
+                            userId: userId,
+                            message: `Vous avez été désaffecté de la tâche: ${task.title}`,
+                            createdAt: new Date(),
+                            type: 'task-update',
+                            workspaceId: task.workspaceId,
+                        });
+                        await newNotification.save();
                     }
                 });
             }
         
-            task.assignedTo = updates.assignedTo; 
-        }        
+            task.assignedTo = updates.assignedTo;
+        }     
 
 		const updatedTask = await task.save();
 
