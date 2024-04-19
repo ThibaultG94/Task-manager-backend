@@ -4,6 +4,7 @@ import {
 	createWorkspace,
 	deleteWorkspace,
 	editWorkspace,
+	exitWorkspace,
 	getUserWorkspaces,
 	getWorkspace,
 } from '../controllers/workspace.controller';
@@ -26,5 +27,8 @@ router.put('/:id', auth, validateUserID, editWorkspace, updateLastUpdateDate);
 
 // Route to delete a workspace by its id
 router.delete('/:id', auth, validateUserID, deleteWorkspace);
+
+// Route to exit a workspace by its id
+router.put('/:id/exit', auth, validateUserID, exitWorkspace, updateLastUpdateDate);
 
 export default router;

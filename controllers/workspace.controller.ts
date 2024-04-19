@@ -428,3 +428,70 @@ export const deleteWorkspace = async (req: express.Request, res: express.Respons
         return res.status(500).json({ message: 'Internal server error' });
     }
 };
+
+// Endpoint to exit workspace
+export const exitWorkspace = async (req: express.Request, res: express.Response) => {
+	try {
+		const workspaceId = req.params.id;
+		const workspace = await workspaceModel.findById(workspaceId);
+		const user = await userModel.findById(req.user._id);
+
+		if (!workspace) {
+			return res.status(400).json({ message: 'This workspace does not exist' });
+		}
+
+		// Delete all workspace notifications
+		await notificationModel.deleteMany({ workspaceId: workspace._id });
+
+		// Create an individual notification for each workspace member
+		const membersToNotify = workspace.members.filter(member => member.userId !== req.user._id);
+
+		if (membersToNotify && membersToNotify.length > 0) {
+			for (const member of membersToNotify) {
+				const notification = new notificationModel({
+					creatorId: req.user._id,
+					userId: member.userId,
+					type: 'workspaceUpdate',
+					message: `${user.username} a quitté le workspace ${workspace.title}`,
+					workspaceId: workspace._id,
+				});
+
+				await notification.save();
+			}
+		}
+
+		// Find all workspace tasks for which the user is assignedTo, and remove this user from assignedTo. If assignedTo is empty, replace with either 
+		// task.userId if this is not the member leaving the workspace, otherwise replace with the workspace superadmin
+		const tasksToUpdate = await taskModel.find({ workspaceId: workspaceId, assignedTo: req.user._id });
+		if (tasksToUpdate && tasksToUpdate.length > 0) {
+			const superadmin = workspace.members.find(member => member.role === 'superadmin');
+			for (const task of tasksToUpdate) {
+				if (task.assignedTo.length === 1) {
+					if (task.userId !== req.user._id) {
+						task.assignedTo = [task.userId];
+					} else {
+						if (superadmin) {
+							task.assignedTo = [superadmin.userId];
+						} else {
+							task.assignedTo = [];
+						}
+					}
+				} else {
+					task.assignedTo = task.assignedTo.filter(userId => userId !== req.user._id);
+				}
+				await task.save();
+			}
+		}
+
+		// Search for and delete all notifications from the user whose workspaceId is the same as the workspaceId.
+		await notificationModel.deleteMany({ userId: req.user._id, workspaceId: workspaceId });
+
+		workspace.members = workspace.members.filter(member => member.userId !== req.user._id);
+		await workspace.save();
+
+		return res.status(200).json('User removed from workspace ' + workspace.title);
+	} catch (error) {
+		console.error(error);
+		return res.status(500).json({ message: 'Internal server error', error });
+	}
+};

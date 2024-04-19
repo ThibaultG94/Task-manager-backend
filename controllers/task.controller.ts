@@ -448,7 +448,6 @@ export const editTask = async (
 			updates.status === 'Archived'
 		) {
 			if (!isSuperAdmin && !isAdmin && !isTaskOwner && updates.archiveDate !== task.archiveDate) {
-				console.log('archiveDate', updates.archiveDate);
 				return res.status(403).json({
 					message:
 						'You do not have sufficients rights to archive this task',
