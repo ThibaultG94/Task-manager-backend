@@ -518,19 +518,30 @@ export const editTask = async (
 		}
 
 		if (updates.assignedTo !== undefined) {
-			if (!isSuperAdmin && !isAdmin && !isTaskOwner && updates.assignedTo !== task.assignedTo) {
-                const currentAssignedUserIds = new Set(task.assignedTo);
-                const isModifyingExistingAssignees = updates.assignedTo.some((userId: string )=> currentAssignedUserIds.has(userId));
-
-                if (!isModifyingExistingAssignees) {
-                    return res.status(403).json({
-                        message: 'You do not have sufficient rights to modify the assigned users of this task',
-                    });
-                }
-			} else {
-				task.assignedTo = updates.assignedTo;
-			}
-		}
+            const currentAssignedUserIds = new Set(task.assignedTo);
+            const updatedAssignedUserIds = new Set(updates.assignedTo);
+        
+            // Unassigned users
+            const usersToRemove = Array.from(currentAssignedUserIds).filter(userId => !updatedAssignedUserIds.has(userId));
+        
+            // Update list of assigned users
+            if (!isSuperAdmin && !isAdmin && !isTaskOwner && usersToRemove.some(userId => !currentAssignedUserIds.has(userId))) {
+                return res.status(403).json({
+                    message: 'You do not have sufficient rights to modify the assigned users of this task',
+                });
+            } else {
+                task.assignedTo = updates.assignedTo;
+        
+                // Notification suppression for unassigned users
+                usersToRemove.forEach(async (userId) => {
+                    if (!isSuperAdmin && !isAdmin && task.userId !== userId) { // Make sure it's not an admin or the creator
+                        await notificationModel.deleteMany({ taskId: task._id, userId: userId });
+                    }
+                });
+            }
+        
+            task.assignedTo = updates.assignedTo; 
+        }        
 
 		const updatedTask = await task.save();
 
