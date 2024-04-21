@@ -520,10 +520,16 @@ export const editTask = async (
 		if (updates.assignedTo !== undefined) {
             const currentAssignedUserIds = new Set(task.assignedTo);
             const updatedAssignedUserIds = new Set(updates.assignedTo);
-        
+            
             // Unassigned users
             const usersToRemove = Array.from(currentAssignedUserIds).filter(userId => !updatedAssignedUserIds.has(userId));
         
+            // Map to store user roles
+            const userRoles = new Map();
+            workspace.members.forEach(member => {
+                userRoles.set(member.userId, member.role);
+            });
+            
             // Update list of assigned users
             if (!isSuperAdmin && !isAdmin && !isTaskOwner && usersToRemove.some(userId => !currentAssignedUserIds.has(userId))) {
                 return res.status(403).json({
@@ -531,27 +537,33 @@ export const editTask = async (
                 });
             } else {
                 task.assignedTo = updates.assignedTo;
-        
-                // Remove notifications for unassigned users and create new notifications
+            
+                // Handle notifications for unassigned users
                 usersToRemove.forEach(async (userId) => {
-                    if (!isSuperAdmin && !isAdmin && task.userId !== userId) { // Make sure it's not an admin or the creator
-                        await notificationModel.deleteMany({ taskId: task._id, userId: userId });
-        
+                    if (userId !== req.user._id) { // Ensure the notification is not created for the user making the request
+                        const userRole = userRoles.get(userId) || 'member'; // Assuming 'member' as default if no role is found
+                        const isUserSuperAdmin = userRole === 'superadmin';
+                        const isUserAdmin = userRole === 'admin';
+                        const isUserOwner = task.userId === userId;
+            
+                        if (!isUserSuperAdmin && !isUserAdmin && !isUserOwner) { // Check if the unassigned user is not a superadmin, admin, or the owner
+                            await notificationModel.deleteMany({ taskId: task._id, userId: userId });
+                        }
+            
                         // Create new notification for unassigned user
                         const newNotification = new notificationModel({
+                            creatorId: req.user._id,
                             userId: userId,
                             message: `Vous avez été désaffecté de la tâche: ${task.title}`,
-                            createdAt: new Date(),
-                            type: 'task-update',
+                            type: isUserSuperAdmin || isUserAdmin || isUserOwner ? 'taskUpdate' : 'workspaceUpdate',
+                            taskId: task._id,
                             workspaceId: task.workspaceId,
                         });
                         await newNotification.save();
                     }
                 });
             }
-        
-            task.assignedTo = updates.assignedTo;
-        }     
+        }              
 
 		const updatedTask = await task.save();
 
