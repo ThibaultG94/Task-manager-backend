@@ -654,7 +654,6 @@ export const deleteTask = async (
                 }
             }
 
-
             // Invalidates all cache keys for this user after a task update
             const keys = await client.keys(`task:${req.user._id}:*`);
             try {
@@ -676,7 +675,6 @@ export const deleteTask = async (
         }
 
     } catch (error) {
-        const result = (error as Error).message;
         return res.status(500).json({ message: 'Internal server error', error });
     }
 };

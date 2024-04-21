@@ -50,15 +50,22 @@ export const setNotification = async (req: express.Request, res: express.Respons
                     message: "Task ID is required for this type of notification",
                 });
             }
-
+        
             const task = await taskModel.findById(taskId);
             if (!task) {
                 return res.status(404).json({ message: 'Task not found' });
             }
-
-            // Create a notification for each user assigned to the task, excluding the creator
-            task.assignedTo.forEach(async (userId: string) => {
-                if (creatorId !== userId) {
+        
+            // Retrieving the workspace to obtain the list of members
+            const workspace = await workspaceModel.findById(task.workspaceId);
+            if (!workspace) {
+                return res.status(404).json({ message: 'Workspace not found' });
+            }
+        
+            // Create notifications for users assigned to the task
+            const assignedUsers = new Set(task.assignedTo); // Using a Set to optimize checks
+            assignedUsers.forEach(async (userId) => {
+                if (creatorId !== userId) { // Exclude notification creator from notifications
                     const message = `${creator.username} a mis à jour la tâche ${task.title}`;
                     const notification = new notificationModel({
                         creatorId,
@@ -70,10 +77,25 @@ export const setNotification = async (req: express.Request, res: express.Respons
                     await notification.save();
                 }
             });
-
-            return res.status(200).json({ message: 'Notifications sent to task members' });
-
-        } else if (type === 'workspaceUpdate') {
+        
+            // Créer une notification pour les superadmins, admins, et le propriétaire du workspace
+            workspace.members.forEach(async (member) => {
+                if ((member.role === 'superadmin' || member.role === 'admin' || member.userId === task.userId) && creatorId !== member.userId) {
+                    const message = `${creator.username} a mis à jour la tâche ${task.title}`;
+                    const notification = new notificationModel({
+                        creatorId,
+                        taskId,
+                        userId: member.userId,
+                        type,
+                        message,
+                    });
+                    await notification.save();
+                }
+            });
+        
+            return res.status(200).json({ message: 'Notifications sent to task members and relevant workspace members' });
+        }
+         else if (type === 'workspaceUpdate') {
             if (!workspaceId) {
                 return res.status(400).json({
                     message: "Workspace ID is required for this type of notification",
