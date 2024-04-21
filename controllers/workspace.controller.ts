@@ -417,13 +417,15 @@ export const deleteWorkspace = async (req: express.Request, res: express.Respons
 
         await taskModel.updateMany({ workspaceId: workspaceId, userId: req.user._id }, { workspaceId: defaultWorkspace._id });
 
+		const workspaces = await workspaceModel.find({ userId: req.user._id });
+
         if (req.user._id === workspace.userId) {
             await workspace.deleteOne();
-            return res.status(200).json('Workspace deleted ' + workspaceId);
+            return res.status(200).json({message:'Workspace deleted ' + workspaceId, workspaces: workspaces});
         } else {
             workspace.members = workspace.members.filter(member => member.userId !== req.user._id);
             await workspace.save();
-            return res.status(200).json('User removed from workspace ' + workspaceId);
+            return res.status(200).json({message: 'User removed from workspace ' + workspaceId, workspaces: workspaces});
         }
     } catch (error) {
         console.error(error);
@@ -491,7 +493,9 @@ export const exitWorkspace = async (req: express.Request, res: express.Response)
 		workspace.members = workspace.members.filter(member => member.userId !== req.user._id);
 		await workspace.save();
 
-		return res.status(200).json('User removed from workspace ' + workspace.title);
+		const workspaces = await workspaceModel.find({ userId: req.user._id });
+
+		return res.status(200).json({message: 'User removed from workspace ' + workspace.title, workspaces: workspaces});
 	} catch (error) {
 		console.error(error);
 		return res.status(500).json({ message: 'Internal server error', error });
