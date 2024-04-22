@@ -232,7 +232,7 @@ export const getNotifications = async (
                 $or: [
                     {
                         read: true,
-                        viewedAt: { $gte: oneWeekAgo, $lte: oneDayAgo },
+                        viewedAt: { $gte: oneMonthAgo, $lte: oneDayAgo },
                     },
                     {
                         read: false,
