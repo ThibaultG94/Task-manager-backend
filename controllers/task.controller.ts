@@ -278,28 +278,14 @@ export const createTask = async (
 					: null,
 		});
 
-		if (task) {
-			const taskId = task._id;
-			if (!taskId) {
-				return res.status(400).json({
-					message:
-					"Task ID is required or notification's type is wrong",
-				});
-			}
+		// Création de la tâche réussie, maintenant envoyer des notifications
+        if (task) {
+            const taskId = task._id;
+            const creator = await userModel.findById(userId);
+            const message = `${creator.username} vous a assigné la tâche ${task.title}`;
 
-			const creator = await userModel.findById(userId);
-			if (!creator) {
-				return res.status(404).json({ message: 'User not found' });
-			}
-
-			const message = `${creator.username} vous à assigner la tâche ${task.title}`;
-
-			const assignedUserIds = task.assignedTo.filter(memberId => memberId !== userId);
-
-            if (assignedUserIds.length === 0) {
-                return res.status(200).json({ message: 'No users to notify' });
-            }
-
+            // Notifications pour les utilisateurs assignés
+            const assignedUserIds = task.assignedTo.filter(memberId => memberId !== userId);
             for (const memberId of assignedUserIds) {
                 const notification = new notificationModel({
                     creatorId: userId,
@@ -309,14 +295,28 @@ export const createTask = async (
                     message: message,
                     workspaceId: workspaceId,
                 });
-
                 await notification.save();
             }
 
-		} else {
-			return res.status(404).json({ message: 'Task not found' });
-		}
+            // Notifications pour les superadmins et admins du workspace qui ne sont pas l'utilisateur à l'origine de la requête
+            workspace.members.forEach(async (member) => {
+                if ((member.role === 'superadmin' || member.role === 'admin') && member.userId !== req.user._id) {
+                    const notificationForAdmins = new notificationModel({
+                        creatorId: userId,
+                        userId: member.userId,
+                        taskId: taskId,
+                        type: 'taskCreation',
+                        message: `Une nouvelle tâche '${task.title}' a été créée dans le workspace ${workspace.title}.`,
+                        workspaceId: workspaceId,
+                    });
+                    await notificationForAdmins.save();
+                }
+            });
 
+            res.status(200).json({ task: task });
+        } else {
+            return res.status(404).json({ message: 'Task not found' });
+        }
 		// Invalide all cache keys for this user
 		const keys = await client.keys(`task:${userId}:*`);
 		try {
@@ -592,89 +592,80 @@ export const editTask = async (
 
 // Endpoint to delete a task
 export const deleteTask = async (
-	req: express.Request,
-	res: express.Response,
-	next: express.NextFunction
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
 ) => {
     try {
-        // Attempt to find and delete the task by the provided id
+        // Tentative de trouver et supprimer la tâche par l'id fourni
         const task = await TaskModel.findById(req.params.id);
         const user = await userModel.findById(req.user._id);
-        const workspace = await workspaceModel.findById(task?.workspaceId);
-
-        const isSuperAdmin = workspace.members.some(
-            (member) =>
-                member.userId === req.user._id &&
-                member.role === 'superadmin'
-        );
-        const isAdmin = workspace.members.some(
-            (member) =>
-                member.userId === req.user._id &&
-                member.role === 'admin'
-        );
-        const isTaskOwner = task.userId == req.user._id;
-
-        // If no task is found, return a 400 status
         if (!task) {
             return res.status(400).json({ message: 'This task does not exist' });
         }
 
-        // If a task is found, check if the user making the request is the same as the one who created the task
-        if (task && req.user._id !== task.userId) {
+        const workspace = await workspaceModel.findById(task.workspaceId);
+        if (!workspace) {
+            return res.status(400).json({ message: 'Workspace does not exist' });
+        }
+
+        const isSuperAdmin = workspace.members.some(
+            (member) => member.userId === req.user._id && member.role === 'superadmin'
+        );
+        const isAdmin = workspace.members.some(
+            (member) => member.userId === req.user._id && member.role === 'admin'
+        );
+        const isTaskOwner = task.userId == req.user._id;
+
+        if (!isSuperAdmin && !isAdmin && !isTaskOwner) {
             return res.status(403).json({
-                message: 'You do not have the right to modify this task',
+                message: 'You do not have sufficient rights to perform this action',
             });
         }
 
-        // If the task is found and the user has sufficients rights, delete the task
-        if (task) {
-            if (!isSuperAdmin && !isAdmin && !isTaskOwner) {
-                return res.status(403).json({
-                    message:
-                        'You do not have sufficients rights to perform this action',
+        // Delete notifications related to the task
+        await notificationModel.deleteMany({ taskId: task._id });
+
+        // Send notifications to assigned users except the user who is deleting the task
+        const assignedUserIds = task.assignedTo.filter(userId => userId !== req.user._id);
+        assignedUserIds.forEach(async (userId) => {
+            const notification = new notificationModel({
+                creatorId: req.user._id,
+                userId: userId,
+                type: 'taskDeletion',
+                message: `${user.username} a supprimé la tâche ${task.title} du workspace ${workspace.title}`,
+                workspaceId: workspace._id,
+            });
+            await notification.save();
+        });
+
+        // Additionally notify superadmins and admins of the workspace
+        workspace.members.forEach(async (member) => {
+            if ((member.role === 'superadmin' || member.role === 'admin') && member.userId !== req.user._id) {
+                const notification = new notificationModel({
+                    creatorId: req.user._id,
+                    userId: member.userId,
+                    type: 'taskDeletion',
+                    message: `${user.username} a supprimé la tâche ${task.title} qui vous concerne dans le workspace ${workspace.title}`,
+                    workspaceId: workspace._id,
                 });
+                await notification.save();
             }
+        });
 
-            // find notifications related to the task and delete them
-            await notificationModel.deleteMany({ taskId: task._id });
+        // Delete the task
+        await task.deleteOne();
+        res.status(200).json({ message: 'Task deleted ' + req.params.id });
 
-            let assignedUserIds = task.assignedTo.filter(userId => req.user._id !== userId);
+        // Invalidate cache if necessary
+        const keys = await client.keys(`task:${req.user._id}:*`);
+        keys.forEach(async (key) => {
+            await client.del(key);
+        });
 
-            if (assignedUserIds.length > 0) {
-                for (const memberId of assignedUserIds) {
-                    const notification = new notificationModel({
-                        creatorId: req.user._id,
-                        userId: memberId, 
-                        type: 'taskDeletion',
-                        message: `${user.username} a supprimé la tâche ${task.title} du workspace ${workspace?.title}`,
-                        workspaceId: workspace._id,
-                    });
-
-                    await notification.save();
-                }
-            }
-
-            // Invalidates all cache keys for this user after a task update
-            const keys = await client.keys(`task:${req.user._id}:*`);
-            try {
-                keys &&
-                    keys.forEach(async (key) => {
-                        await client.del(key);
-                    });
-            } catch (error) {
-                console.error(
-                    'Error invalidating cache after task deletion :',
-                    error
-                );
-            }
-
-            await task.deleteOne();
-            res.status(200).json({ message: 'Task deleted ' + req.params.id });
-
-            next();
-        }
-
+        next();
     } catch (error) {
+        console.error('Error during task deletion:', error);
         return res.status(500).json({ message: 'Internal server error', error });
     }
 };
