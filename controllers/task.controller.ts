@@ -198,7 +198,7 @@ export const getWorkspaceTaskStatusCount = async (
 				acc[curr._id] = curr.count;
 				return acc;
 			},
-			{ Pending: 0, 'In Progress': 0, Completed: 0, Archived: 0 }
+			{ Pending: 0, InProgress: 0, Completed: 0, Archived: 0 }
 		);
 
 		// Retourner le décompte des tâches
