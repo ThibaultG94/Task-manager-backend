@@ -35,7 +35,6 @@
 		"passport-local": "^1.0.0",
 		"redis": "^4.6.7",
 		"swagger-express-ts": "^1.1.0",
-		"ts-node": "^10.9.2",
 		"typedoc": "^0.24.8",
 		"winston": "^3.10.0"
 	},
@@ -56,6 +55,7 @@
 		"sinon": "^15.1.0",
 		"supertest": "^6.3.3",
 		"ts-mocha": "^10.0.0",
-		"typescript": "^5.0.4"
+		"ts-node": "^10.9.2",
+		"typescript": "^5.4.5"
 	}
 }
