@@ -567,15 +567,32 @@ export const editTask = async (
 
 		const updatedTask = await task.save();
 
+        const taskObject = updatedTask.toObject();
+
+        const usersDetails = await userModel.find({ '_id': { $in: taskObject.assignedTo } })
+            .select('email _id username')
+            .lean();
+
+        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
+
+        const enrichedTask = {
+            ...taskObject,
+            assignedTo: updatedTask.assignedTo.map(userId => ({
+                userId: userId,
+                email: userMap.get(userId)?.email,
+                username: userMap.get(userId)?.username
+            }))
+        };
+
 		res.status(200).json({
 			message: 'Task updated',
-			task: updatedTask,
+			task: enrichedTask,
 		});
 
 		// Update the cache for this task
 		const key = `task:${task.workspaceId}:${req.user._id}`;
 		try {
-			await client.setEx(key, 10800, JSON.stringify(updatedTask));
+			await client.setEx(key, 10800, JSON.stringify(enrichedTask));
 		} catch (error) {
 			console.error('Cache update error for a task :', error);
 		}
