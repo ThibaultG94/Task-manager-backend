@@ -292,6 +292,7 @@ export const cancelInvitation = async (
 	try {
 		const invitationId = req.params.invitationId;
 		const invitation = await invitationModel.findById(invitationId);
+		const userId = req.user._id;
 
 		if (!invitation || invitation.status === 'ACCEPTED') {
 			return res.status(400).json({
@@ -299,7 +300,7 @@ export const cancelInvitation = async (
 			});
 		}
 
-		if (!req.user || req.user._id !== invitation.senderId) {
+		if (!req.user || userId !== invitation.senderId) {
 			return res.status(403).json({
 				message:
 					'You do not have sufficients rights to cancel this invitation',
@@ -308,7 +309,40 @@ export const cancelInvitation = async (
 
 		await invitation.deleteOne();
 
-		res.status(200).json({ message: 'Invitation cancelled' });
+		const invitationsSentOut = await invitationModel.find({
+			senderId: userId,
+		}).sort({ createdAt: -1 });
+
+		// Transform invitations using Promise.all
+		const invitationsInformations: any = await Promise.all(
+			invitationsSentOut.map(async (invitation) => {
+				const guest = await userModel.findById(invitation.guestId);
+				return {
+					invitationId: invitation._id,
+					guestEmail: guest?.email,
+					guestUsername: guest?.username,
+					message: invitation.message,
+					status: invitation.status,
+				};
+			})
+		);
+
+		// Filter invitations
+		const invitationsPending = invitationsInformations.filter(
+			(invitation: any) =>
+				invitation.status === 'PENDING' ||
+				invitation.status === 'REJECTED'
+		);
+		const invitationsAccepted = invitationsInformations.filter(
+			(invitation: any) => invitation.status === 'ACCEPTED'
+		);
+
+		const invitations = {
+			pending: invitationsPending,
+			accepted: invitationsAccepted,
+		};
+
+		return res.status(200).json({ invitations, message: 'Invitation cancelled' });
 	} catch (error) {
 		return res.status(500).json({ message: 'Internal server error' });
 	}
