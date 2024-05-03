@@ -316,7 +316,6 @@ export const markNotificationsAsViewed = async (
     }
 };
 
-
 // Endpoint to mark a notification as read
 export const markNotificationAsRead = async (
     req: express.Request,
