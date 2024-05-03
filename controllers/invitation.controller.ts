@@ -1,6 +1,7 @@
 import express from 'express';
 import invitationModel from '../models/invitation.model';
 import userModel from '../models/user.model';
+import notificationModel from '../models/notification.model';
 
 // Endpoint to send an invitation
 export const sendInvitation = async (
@@ -195,6 +196,16 @@ export const acceptInvitation = async (
 		await userOne?.save();
 		await userTwo?.save();
 
+		const notification = new notificationModel({
+			creatorId: invitation.guestId,
+			invitationId: invitation._id,
+			userId: invitation.senderId,
+			type: 'invitationUpdate',
+			message: `${userOne?.username} a accepté votre invitation`,
+		});
+
+		await notification.save();
+
 		const invitationsReceived = await invitationModel.find({
 			guestId: userId,
 		}).sort({ createdAt: -1 });
@@ -226,7 +237,17 @@ export const acceptInvitation = async (
 			accepted: invitationsAccepted,
 		};
 
-		return res.status(200).json({ invitations });
+		const contactsPromises = userOne.contacts.map((contactId) =>
+			userModel.findById(contactId).then((userContact) => ({
+				id: userContact?._id,
+				username: userContact?.username,
+				email: userContact?.email,
+			}))
+		);
+
+		const userContacts = await Promise.all(contactsPromises);
+
+		return res.status(200).json({ invitations, userContacts });
 	} catch (error) {
 		return res.status(500).json({ message: 'Internal server error' });
 	}
