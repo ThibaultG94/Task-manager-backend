@@ -152,13 +152,13 @@ export const getAllNotifications = async (req: express.Request, res: express.Res
         }
 
         let notifications: any;
-        let totalNotifications = 0;
+        let totalNumberOfNotifications = 0;
 
         if (cachedNotifications) {
             notifications = JSON.parse(cachedNotifications);
         } else {
             // Retrieve the total number of notifications
-            totalNotifications = await notificationModel.countDocuments({
+            totalNumberOfNotifications = await notificationModel.countDocuments({
                 userId: userId,  // Use userId for filter
             });
 
@@ -201,7 +201,7 @@ export const getAllNotifications = async (req: express.Request, res: express.Res
             }
         }
 
-        return res.status(200).json({ notifications, totalNotifications });
+        return res.status(200).json({ notifications, totalNumberOfNotifications });
     } catch (error) {
         res.status(500).json({ message: 'Internal server error', error });
     }
