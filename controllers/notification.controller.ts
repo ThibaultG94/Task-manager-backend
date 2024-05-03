@@ -4,11 +4,10 @@ import notificationModel from '../models/notification.model';
 import userModel from '../models/user.model';
 import taskModel from '../models/task.model';
 import workspaceModel from '../models/workspace.model';
-import invitationModel from '../models/invitation.model';
 
 // Endpoint to set a notification
 export const setNotification = async (req: express.Request, res: express.Response) => {
-    const { creatorId, invitationId, taskId, workspaceId, type } = req.body;
+    const { creatorId, taskId, workspaceId, type } = req.body;
 
     try {
         const creator = await userModel.findById(creatorId);
@@ -19,34 +18,7 @@ export const setNotification = async (req: express.Request, res: express.Respons
         let notificationsIds: any = [];
 
         // Handle invitation updates
-        if (type === 'invitationUpdate') {
-            if (!invitationId) {
-                return res.status(400).json({
-                    message: "Invitation ID is required for this type of notification",
-                });
-            }
-            const invitation = await invitationModel.findById(invitationId);
-            if (!invitation) {
-                return res.status(404).json({ message: 'Invitation not found' });
-            }
-
-            // Determine the recipient and message based on invitation status
-            const userId = (creatorId === invitation.senderId) ? invitation.guestId : invitation.senderId;
-            const action = (creatorId === invitation.senderId) ? "envoyé une invitation à" : "accepté votre invitation de";
-            const message = `${creator.username} a ${action} ${creator.username}`;
-
-            const notification = new notificationModel({
-                creatorId,
-                invitationId,
-                userId,
-                type,
-                message,
-            });
-
-            await notification.save();
-            return res.status(200).json({ notification });
-
-        } else if (type === 'taskUpdate') {
+        if (type === 'taskUpdate') {
             if (!taskId) {
                 return res.status(400).json({
                     message: "Task ID is required for this type of notification",
