@@ -10,6 +10,7 @@ export const sendInvitation = async (
 ) => {
 	try {
 		const { senderId, guestEmail, message } = req.body;
+		const userId = req.user._id;
 
 		const sender = await userModel.findById(senderId);
 		const guestUser = await userModel.findOne({ email: guestEmail });
@@ -56,7 +57,50 @@ export const sendInvitation = async (
 
 		await invitation.save();
 
-		res.status(200).json({ invitation: invitation });
+		const notification = new notificationModel({
+			creatorId: senderId,
+			invitationId: invitation._id,
+			userId: guestUser._id,
+			type: 'invitationUpdate',
+			message: `${sender?.username} vous a envoyé une invitation`,
+		});
+
+		await notification.save();
+
+		const invitationsSentOut = await invitationModel.find({
+			senderId: userId,
+		}).sort({ createdAt: -1 });
+
+		// Transformer les invitations en utilisant Promise.all
+		const invitationsInformations = await Promise.all(
+			invitationsSentOut.map(async (invitation) => {
+				const guest = await userModel.findById(invitation.guestId);
+				return {
+					invitationId: invitation._id,
+					guestEmail: guest?.email,
+					guestUsername: guest?.username,
+					message: invitation.message,
+					status: invitation.status,
+				};
+			})
+		);
+
+		// Filtrer les invitations
+		const invitationsPending = invitationsInformations.filter(
+			(invitation) =>
+				invitation.status === 'PENDING' ||
+				invitation.status === 'REJECTED'
+		);
+		const invitationsAccepted = invitationsInformations.filter(
+			(invitation) => invitation.status === 'ACCEPTED'
+		);
+
+		const invitations = {
+			pending: invitationsPending,
+			accepted: invitationsAccepted,
+		};
+
+		return res.status(200).json({ invitations });
 	} catch (error) {
 		res.status(500).json({ message: 'Internal server error' });
 	}
