@@ -16,6 +16,8 @@ export const setNotification = async (req: express.Request, res: express.Respons
             return res.status(404).json({ message: 'User not found' });
         }
 
+        let notificationsIds: any = [];
+
         // Handle invitation updates
         if (type === 'invitationUpdate') {
             if (!invitationId) {
@@ -63,9 +65,8 @@ export const setNotification = async (req: express.Request, res: express.Respons
             }
         
             // Create notifications for users assigned to the task
-            const assignedUsers = new Set(task.assignedTo); // Using a Set to optimize checks
-            assignedUsers.forEach(async (userId) => {
-                if (creatorId !== userId) { // Exclude notification creator from notifications
+            const promises = task.assignedTo.map(async (userId) => {
+                if (creatorId !== userId) {
                     const message = `${creator.username} a mis à jour la tâche ${task.title}`;
                     const notification = new notificationModel({
                         creatorId,
@@ -75,10 +76,13 @@ export const setNotification = async (req: express.Request, res: express.Respons
                         message,
                     });
                     await notification.save();
+                    notificationsIds.push(notification._id);
                 }
             });
+
+            await Promise.all(promises);
         
-            // Créer une notification pour les superadmins, admins, et le propriétaire du workspace
+            // Create notification for superadmins, admins, and workspace owner
             workspace.members.forEach(async (member) => {
                 if ((member.role === 'superadmin' || member.role === 'admin' || member.userId === task.userId) && creatorId !== member.userId) {
                     const message = `${creator.username} a mis à jour la tâche ${task.title}`;
@@ -90,10 +94,11 @@ export const setNotification = async (req: express.Request, res: express.Respons
                         message,
                     });
                     await notification.save();
+                    notificationsIds.push(notification._id);
                 }
             });
         
-            return res.status(200).json({ message: 'Notifications sent to task members and relevant workspace members' });
+            return res.status(200).json({ notificationsIds });
         }
          else if (type === 'workspaceUpdate') {
             if (!workspaceId) {
@@ -348,6 +353,44 @@ export const markNotificationAsRead = async (
         });
 
         return res.status(200).json({ message: 'Notification marked as read' });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ message: 'Internal server error', error });
+    }
+};
+// Endpoint to delete a notification
+export const deleteNotification = async (
+    req: express.Request,
+    res: express.Response
+) => {
+    try {
+        const { notificationId } = req.params;
+        const userId = req.user._id;
+
+        if (!notificationId) {
+            return res.status(400).json({ message: 'Notification ID is required' });
+        }
+
+        if (!userId) {
+            return res.status(400).json({ message: 'User ID is required' });
+        }
+
+        const notification = await notificationModel.findById(notificationId);
+
+        if (!notification) {
+            return res.status(404).json({ message: 'Notification not found' });
+        }
+
+        // Check whether the notification belongs to the user before deleting it
+        if (notification.creatorId !== userId) {
+            return res.status(403).json({
+                message: 'User is not allowed to access this notification',
+            });
+        }
+
+        await notification.deleteOne();
+
+        return res.status(200).json({ message: 'Notification deleted' });
     } catch (error) {
         console.log(error);
         return res.status(500).json({ message: 'Internal server error', error });

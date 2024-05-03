@@ -1,6 +1,7 @@
 import express from 'express';
 import { auth } from '../middlewares/auth.middlewares';
 import {
+	deleteNotification,
 	getAllNotifications,
 	getNotifications,
 	markNotificationAsRead,
@@ -24,5 +25,8 @@ router.put('/mark-viewed/:userId', auth, markNotificationsAsViewed);
 
 // Route to mark a notification as read
 router.put('/mark-read/:notificationId', auth, markNotificationAsRead);
+
+// Route to delete a notification
+router.delete('/delete-notification/:notificationId', auth, deleteNotification);
 
 export default router;
