@@ -130,7 +130,7 @@ export const getReceivedInvitations = async (
 			guestId: userId,
 		}).sort({ createdAt: -1 });
 
-		// Transformer les invitations en utilisant Promise.all
+		// Transform invitations using Promise.all
 		const invitationsInformations = await Promise.all(
 			invitationsReceived.map(async (invitation) => {
 				const sender = await userModel.findById(invitation.senderId);
@@ -144,7 +144,7 @@ export const getReceivedInvitations = async (
 			})
 		);
 
-		// Filtrer les invitations
+		// Filter invitations
 		const invitationsPending = invitationsInformations.filter(
 			(invitation) => invitation.status === 'PENDING'
 		);
@@ -195,7 +195,38 @@ export const acceptInvitation = async (
 		await userOne?.save();
 		await userTwo?.save();
 
-		res.status(200).json({ message: 'Invitation accepted', invitation });
+		const invitationsReceived = await invitationModel.find({
+			guestId: userId,
+		}).sort({ createdAt: -1 });
+
+		// Transform invitations using Promise.all
+		const invitationsInformations = await Promise.all(
+			invitationsReceived.map(async (invitation) => {
+				const sender = await userModel.findById(invitation.senderId);
+				return {
+					invitationId: invitation._id,
+					senderEmail: sender?.email,
+					senderUsername: sender?.username,
+					message: invitation.message,
+					status: invitation.status,
+				};
+			})
+		);
+
+		// Filter invitations
+		const invitationsPending = invitationsInformations.filter(
+			(invitation) => invitation.status === 'PENDING'
+		);
+		const invitationsAccepted = invitationsInformations.filter(
+			(invitation) => invitation.status === 'ACCEPTED'
+		);
+
+		const invitations = {
+			pending: invitationsPending,
+			accepted: invitationsAccepted,
+		};
+
+		return res.status(200).json({ invitations });
 	} catch (error) {
 		return res.status(500).json({ message: 'Internal server error' });
 	}
