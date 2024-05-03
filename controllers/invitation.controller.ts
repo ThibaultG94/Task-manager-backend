@@ -152,10 +152,14 @@ export const getReceivedInvitations = async (
 		const invitationsAccepted = invitationsInformations.filter(
 			(invitation) => invitation.status === 'ACCEPTED'
 		);
+		const invitationsRejected = invitationsInformations.filter(
+			(invitation) => invitation.status === 'REJECTED'
+		);
 
 		const invitations = {
 			pending: invitationsPending,
 			accepted: invitationsAccepted,
+			rejected: invitationsRejected,
 		};
 
 		return res.status(200).json({ invitations });
@@ -231,10 +235,14 @@ export const acceptInvitation = async (
 		const invitationsAccepted = invitationsInformations.filter(
 			(invitation) => invitation.status === 'ACCEPTED'
 		);
+		const invitationsRejected = invitationsInformations.filter(
+			(invitation) => invitation.status === 'REJECTED'
+		);
 
 		const invitations = {
 			pending: invitationsPending,
 			accepted: invitationsAccepted,
+			rejected: invitationsRejected,
 		};
 
 		const contactsPromises = userOne.contacts.map((contactId) =>
@@ -279,7 +287,42 @@ export const declineInvitation = async (
 		invitation.status = 'REJECTED';
 		await invitation.save();
 
-		res.status(200).json({ message: 'Invitation declined' });
+		const invitationsReceived = await invitationModel.find({
+			guestId: userId,
+		}).sort({ createdAt: -1 });
+
+		// Transform invitations using Promise.all
+		const invitationsInformations = await Promise.all(
+			invitationsReceived.map(async (invitation) => {
+				const sender = await userModel.findById(invitation.senderId);
+				return {
+					invitationId: invitation._id,
+					senderEmail: sender?.email,
+					senderUsername: sender?.username,
+					message: invitation.message,
+					status: invitation.status,
+				};
+			})
+		);
+
+		// Filter invitations
+		const invitationsPending = invitationsInformations.filter(
+			(invitation) => invitation.status === 'PENDING'
+		);
+		const invitationsAccepted = invitationsInformations.filter(
+			(invitation) => invitation.status === 'ACCEPTED'
+		);
+		const invitationsRejected = invitationsInformations.filter(
+			(invitation) => invitation.status === 'REJECTED'
+		);
+
+		const invitations = {
+			pending: invitationsPending,
+			accepted: invitationsAccepted,
+			rejected: invitationsRejected,
+		};
+
+		return res.status(200).json({ invitations, message: 'Invitation declined' });
 	} catch (error) {
 		return res.status(500).json({ message: 'Internal server error' });
 	}
@@ -305,6 +348,15 @@ export const cancelInvitation = async (
 				message:
 					'You do not have sufficients rights to cancel this invitation',
 			});
+		}
+
+		// Find notification and delete it
+		const notification = await notificationModel.findOne({
+			invitationId: invitationId,
+		});
+
+		if (notification) {
+			await notification.deleteOne();
 		}
 
 		await invitation.deleteOne();
