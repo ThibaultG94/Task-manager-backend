@@ -477,6 +477,7 @@ export const cancelWorkspaceInvitation = async (
 	res: express.Response
 ) => {
 	try {
+		const userId = req.user._id;
 		const invitationId = req.params.invitationId;
 		const invitation = await workspaceInvitationModel.findById(
 			invitationId
@@ -538,9 +539,47 @@ export const cancelWorkspaceInvitation = async (
 
 		await invitation.deleteOne();
 
-		res.status(200).json({
-			message: 'Invitation cancelled and member removed from workspace',
-		});
+		const invitationsSentOut = await workspaceInvitationModel.find({
+			senderId: userId,
+		}).sort({ createdAt: -1 });
+
+		const invitationsInformations = await Promise.all(
+			invitationsSentOut.map(async (invitation) => {
+				const guest = await userModel.findById(invitation.guestId);
+				const workspace = await workspaceModel.findById(
+					invitation.workspaceId
+				);
+				if (!guest || !workspace) {
+					return res.status(400).json({
+						message: 'Guest or workspace does not exist',
+					});
+				}
+				return {
+					invitationId: invitation._id,
+					guestEmail: guest?.email,
+					guestUsername: guest?.username,
+					role: invitation.role,
+					status: invitation.status,
+					workspace,
+				};
+			})
+		);
+
+		const invitationsPending = invitationsInformations.filter(
+			(invitation) =>
+				invitation.status === 'PENDING' ||
+				invitation.status === 'REJECTED'
+		);
+		const invitationsAccepted = invitationsInformations.filter(
+			(invitation) => invitation.status === 'ACCEPTED'
+		);
+
+		const invitations = {
+			pending: invitationsPending,
+			accepted: invitationsAccepted,
+		};
+
+		return res.status(200).json({ message: 'Invitation cancelled and member removed from workspace', workspaceInvitations: invitations });
 	} catch (error) {
 		return res
 			.status(500)
