@@ -125,7 +125,7 @@ export const getUserWorkspaces = async (
 			return { ...workspace, members: enrichedMembers };
 		});
 
-		res.status(200).json(workspaces);
+		res.status(200).json({ workspaces: workspaces });
 	} catch (error) {
 		res.status(500).json({ message: 'Internal server error' });
 	}
