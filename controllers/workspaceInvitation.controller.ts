@@ -466,7 +466,49 @@ export const declineWorkspaceInvitation = async (
 		invitation.status = 'REJECTED';
 		await invitation.save();
 
-		res.status(200).json({ message: 'Invitation declined' });
+		const invitationsReceived = await workspaceInvitationModel.find({
+			guestId: userId,
+		}).sort({ createdAt: -1 });
+
+		const invitationsInformations = await Promise.all(
+			invitationsReceived.map(async (invitation) => {
+				const sender = await userModel.findById(invitation.senderId);
+				const workspace = await workspaceModel.findById(
+					invitation.workspaceId
+				);
+				if (!sender || !workspace) {
+					return res.status(400).json({
+						message: 'Guest or workspace does not exist',
+					});
+				}
+				return {
+					invitationId: invitation._id,
+					senderEmail: sender?.email,
+					senderUsername: sender?.username,
+					role: invitation.role,
+					status: invitation.status,
+					workspace,
+				};
+			})
+		);
+
+		const invitationsPending = invitationsInformations.filter(
+			(invitation) => invitation.status === 'PENDING'
+		);
+		const invitationsAccepted = invitationsInformations.filter(
+			(invitation) => invitation.status === 'ACCEPTED'
+		);
+		const invitationRejected = invitationsInformations.filter(
+			(invitation) => invitation.status === 'REJECTED'
+		);
+
+		const invitations = {
+			pending: invitationsPending,
+			accepted: invitationsAccepted,
+			rejected: invitationRejected,
+		};
+
+		return res.status(200).json({ workspaceInvitations: invitations, message: 'Invitation declined' });
 	} catch (error) {
 		return res.status(500).json({ message: 'Internal server error' });
 	}
@@ -539,11 +581,22 @@ export const cancelWorkspaceInvitation = async (
 
 		await invitation.deleteOne();
 
+		// Find notifications related to this invitation
+		const notifications = await notificationModel.find({
+			invitationId: invitationId,
+		});
+		
+		await Promise.all(
+			notifications.map(async (notification) => {
+				await notification.deleteOne();
+			})
+		);
+
 		const invitationsSentOut = await workspaceInvitationModel.find({
 			senderId: userId,
 		}).sort({ createdAt: -1 });
 
-		const invitationsInformations = await Promise.all(
+		const invitationsInformations: any = await Promise.all(
 			invitationsSentOut.map(async (invitation) => {
 				const guest = await userModel.findById(invitation.guestId);
 				const workspace = await workspaceModel.findById(
@@ -566,12 +619,12 @@ export const cancelWorkspaceInvitation = async (
 		);
 
 		const invitationsPending = invitationsInformations.filter(
-			(invitation) =>
+			(invitation: any) =>
 				invitation.status === 'PENDING' ||
 				invitation.status === 'REJECTED'
 		);
 		const invitationsAccepted = invitationsInformations.filter(
-			(invitation) => invitation.status === 'ACCEPTED'
+			(invitation: any) => invitation.status === 'ACCEPTED'
 		);
 
 		const invitations = {
