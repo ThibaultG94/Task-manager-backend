@@ -409,6 +409,7 @@ export const deleteWorkspace = async (req: express.Request, res: express.Respons
 		const workspaceId = req.params.id;
 		const workspace = await workspaceModel.findById(workspaceId);
 		const user = await userModel.findById(req.user._id);
+		const userId = req.user._id;
 		
 		if (!workspace) {
 			return res.status(400).json({ message: 'This workspace does not exist' });
@@ -463,16 +464,55 @@ export const deleteWorkspace = async (req: express.Request, res: express.Respons
 
         await taskModel.updateMany({ workspaceId: workspaceId, userId: req.user._id }, { workspaceId: defaultWorkspace._id });
 
-		const workspaces = await workspaceModel.find({ userId: req.user._id });
+        await workspace.deleteOne();
 
-        if (req.user._id === workspace.userId) {
-            await workspace.deleteOne();
-            return res.status(200).json({message:'Workspace deleted ' + workspaceId, workspaces: workspaces});
-        } else {
-            workspace.members = workspace.members.filter(member => member.userId !== req.user._id);
-            await workspace.save();
-            return res.status(200).json({message: 'User removed from workspace ' + workspaceId, workspaces: workspaces});
-        }
+		let workspaces = await workspaceModel
+			.find({
+				$or: [{ userId }, { 'members.userId': userId }],
+			})
+			.sort({ lastUpdateDate: -1 })
+			.lean();
+
+		const memberIds = [
+			...new Set(
+				workspaces.flatMap((workspace) =>
+					workspace.members.map((member) => member.userId.toString())
+				)
+			),
+		];
+		const users = await userModel
+			.find({
+				_id: {
+					$in: memberIds.map((id) => new mongoose.Types.ObjectId(id)),
+				},
+			})
+			.lean();
+
+		const usersMap = users.reduce<{ [key: string]: UserInfo }>(
+			(acc, user) => {
+				acc[user._id.toString()] = {
+					username: user.username,
+					email: user.email,
+				};
+				return acc;
+			},
+			{}
+		);
+
+		workspaces = workspaces.map((workspace) => {
+			const enrichedMembers = workspace.members.map((member) => {
+				const userInfo = usersMap[member.userId.toString()];
+				return {
+					userId: member.userId,
+					role: member.role,
+					username: userInfo?.username,
+					email: userInfo?.email,
+				};
+			});
+			return { ...workspace, members: enrichedMembers };
+		});
+
+        return res.status(200).json({message:'Workspace deleted ' + workspaceId, workspaces: workspaces});
     } catch (error) {
         console.error(error);
         return res.status(500).json({ message: 'Internal server error' });
