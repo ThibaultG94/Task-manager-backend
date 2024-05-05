@@ -58,7 +58,7 @@ export const getWorkspace = async (
 
 		workspace.members = memberInfo;
 
-		res.status(200).json(workspace);
+		res.status(200).json({ workspace: workspace });
 	} catch (err) {
 		res.status(500).json({ message: 'Internal server error' });
 	}
