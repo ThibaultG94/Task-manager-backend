@@ -17,6 +17,7 @@ export const sendInvitationWorkspace = async (
 ) => {
 	try {
 		const { senderId, guestId, role, workspaceId } = req.body;
+		const userId = req.user._id;
 
 		const sender = await userModel.findById(senderId);
 		const guestUser = await userModel.findById(guestId);
@@ -72,6 +73,7 @@ export const sendInvitationWorkspace = async (
 			if (invitationUpdated) {
 				await invitationExists.save();
 				await workspace.save();
+				
 				res.status(200).json({ message: 'Invitation declined' });
 			} else {
 				res.status(404).json({
@@ -113,10 +115,95 @@ export const sendInvitationWorkspace = async (
 		await workspaceInvitation.save();
 		await workspace.save();
 
-		res.status(200).json({
-			workspaceInvitation: workspaceInvitation,
-			workspace: workspace,
-			notification: notification,
+		let workspaces = await workspaceModel
+			.find({
+				$or: [{ userId }, { 'members.userId': userId }],
+			})
+			.sort({ lastUpdateDate: -1 })
+			.lean();
+
+		const memberIds = [
+			...new Set(
+				workspaces.flatMap((workspace) =>
+					workspace.members.map((member) => member.userId.toString())
+				)
+			),
+		];
+		const users = await userModel
+			.find({
+				_id: {
+					$in: memberIds.map((id) => new mongoose.Types.ObjectId(id)),
+				},
+			})
+			.lean();
+
+		const usersMap = users.reduce<{ [key: string]: UserInfo }>(
+			(acc, user) => {
+				acc[user._id.toString()] = {
+					username: user.username,
+					email: user.email,
+				};
+				return acc;
+			},
+			{}
+		);
+
+		workspaces = workspaces.map((workspace) => {
+			const enrichedMembers = workspace.members.map((member) => {
+				const userInfo = usersMap[member.userId.toString()];
+				return {
+					userId: member.userId,
+					role: member.role,
+					username: userInfo?.username,
+					email: userInfo?.email,
+				};
+			});
+			return { ...workspace, members: enrichedMembers };
+		});
+
+		const invitationsSentOut = await workspaceInvitationModel.find({
+			senderId: userId,
+		}).sort({ createdAt: -1 });
+
+		const invitationsInformations = await Promise.all(
+			invitationsSentOut.map(async (invitation) => {
+				const guest = await userModel.findById(invitation.guestId);
+				const workspace = await workspaceModel.findById(
+					invitation.workspaceId
+				);
+				if (!guest || !workspace) {
+					return res.status(400).json({
+						message: 'Guest or workspace does not exist',
+					});
+				}
+				return {
+					invitationId: invitation._id,
+					guestEmail: guest?.email,
+					guestUsername: guest?.username,
+					role: invitation.role,
+					status: invitation.status,
+					workspace,
+				};
+			})
+		);
+
+		const invitationsPending = invitationsInformations.filter(
+			(invitation) =>
+				invitation.status === 'PENDING' ||
+				invitation.status === 'REJECTED'
+		);
+		const invitationsAccepted = invitationsInformations.filter(
+			(invitation) => invitation.status === 'ACCEPTED'
+		);
+
+		const invitations = {
+			pending: invitationsPending,
+			accepted: invitationsAccepted,
+		};
+
+		return res.status(200).json({
+			workspaceInvitations: invitations,
+			workspaces: workspaces,
 		});
 	} catch (error) {
 		res.status(500).json({ message: 'Internal server error' });
@@ -585,7 +672,7 @@ export const cancelWorkspaceInvitation = async (
 		const notifications = await notificationModel.find({
 			invitationId: invitationId,
 		});
-		
+
 		await Promise.all(
 			notifications.map(async (notification) => {
 				await notification.deleteOne();
