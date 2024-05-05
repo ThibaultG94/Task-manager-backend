@@ -215,6 +215,7 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
     try {
         const updates = req.body;
         const workspace = await workspaceModel.findById(req.params.id);
+		const userId = req.user._id;
 
         if (!workspace) {
             return res.status(400).json({ message: 'This workspace does not exist' });
@@ -392,9 +393,55 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
         // Save the workspace with updated info
         const updatedWorkspace = await workspace.save();
 
+		let workspaces = await workspaceModel
+			.find({
+				$or: [{ userId }, { 'members.userId': userId }],
+			})
+			.sort({ lastUpdateDate: -1 })
+			.lean();
+
+		const memberIds = [
+			...new Set(
+				workspaces.flatMap((workspace) =>
+					workspace.members.map((member) => member.userId.toString())
+				)
+			),
+		];
+		const users = await userModel
+			.find({
+				_id: {
+					$in: memberIds.map((id) => new mongoose.Types.ObjectId(id)),
+				},
+			})
+			.lean();
+
+		const usersMap = users.reduce<{ [key: string]: UserInfo }>(
+			(acc, user) => {
+				acc[user._id.toString()] = {
+					username: user.username,
+					email: user.email,
+				};
+				return acc;
+			},
+			{}
+		);
+
+		workspaces = workspaces.map((workspace) => {
+			const enrichedMembers = workspace.members.map((member) => {
+				const userInfo = usersMap[member.userId.toString()];
+				return {
+					userId: member.userId,
+					role: member.role,
+					username: userInfo?.username,
+					email: userInfo?.email,
+				};
+			});
+			return { ...workspace, members: enrichedMembers };
+		});
+
         return res.status(200).json({
             message: 'Workspace updated successfully',
-            workspace: updatedWorkspace,
+			workspaces: workspaces
         });
     } catch (error) {
         console.error(error);
