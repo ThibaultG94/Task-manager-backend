@@ -579,7 +579,53 @@ export const cancelWorkspaceInvitation = async (
 			accepted: invitationsAccepted,
 		};
 
-		return res.status(200).json({ message: 'Invitation cancelled and member removed from workspace', workspaceInvitations: invitations });
+		let workspaces = await workspaceModel
+			.find({
+				$or: [{ userId }, { 'members.userId': userId }],
+			})
+			.sort({ lastUpdateDate: -1 })
+			.lean();
+
+		const memberIds = [
+			...new Set(
+				workspaces.flatMap((workspace) =>
+					workspace.members.map((member) => member.userId.toString())
+				)
+			),
+		];
+		const users = await userModel
+			.find({
+				_id: {
+					$in: memberIds.map((id) => new mongoose.Types.ObjectId(id)),
+				},
+			})
+			.lean();
+
+		const usersMap = users.reduce<{ [key: string]: UserInfo }>(
+			(acc, user) => {
+				acc[user._id.toString()] = {
+					username: user.username,
+					email: user.email,
+				};
+				return acc;
+			},
+			{}
+		);
+
+		workspaces = workspaces.map((workspace) => {
+			const enrichedMembers = workspace.members.map((member) => {
+				const userInfo = usersMap[member.userId.toString()];
+				return {
+					userId: member.userId,
+					role: member.role,
+					username: userInfo?.username,
+					email: userInfo?.email,
+				};
+			});
+			return { ...workspace, members: enrichedMembers };
+		});
+
+		return res.status(200).json({ message: 'Invitation cancelled and member removed from workspace', workspaceInvitations: invitations, workspaces: workspaces });
 	} catch (error) {
 		return res
 			.status(500)
