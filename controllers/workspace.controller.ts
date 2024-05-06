@@ -624,6 +624,9 @@ export const exitWorkspace = async (req: express.Request, res: express.Response)
 		// Search for and delete all notifications from the user whose workspaceId is the same as the workspaceId.
 		await notificationModel.deleteMany({ userId: req.user._id, workspaceId: workspaceId });
 
+		// Search for and delete all workspace invitations from the user whose workspaceId is the same as the workspaceId.
+		await workspaceInvitationModel.deleteMany({ guestId: req.user._id, workspaceId: workspaceId });
+
 		workspace.members = workspace.members.filter(member => member.userId !== req.user._id);
 		await workspace.save();
 
