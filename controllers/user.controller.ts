@@ -8,6 +8,7 @@ import refreshTokenModel from '../models/refreshToken.model';
 import workspaceModel from '../models/workspace.model';
 import { Workspace } from '../types/types';
 import logger from '../config/logger';
+import invitationModel from '../models/invitation.model';
 
 // Enpoint to create a user
 export const registerUser = async (
@@ -666,4 +667,40 @@ export const resetPassword = async (
 		logger.error((error as Error).message);
 		res.status(500).send({ message: 'Internal server error' });
 	}
+};
+
+export const deleteContact = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.user._id;
+        const contactId = req.params.contactId;
+
+        const user: User = await UserModel.findById(userId);
+        user.contacts = user.contacts.filter((contact) => contact !== contactId);
+        await user.save();
+
+        // Search invitation and delete it
+        const invitation = await invitationModel.findOneAndDelete({
+            $or: [
+                { invitedId: userId, inviterId: contactId },
+                { invitedId: contactId, inviterId: userId }
+            ]
+        });
+
+		await invitation?.deleteOne();
+
+        const contactsPromises = user.contacts.map((contactId) =>
+			UserModel.findById(contactId).then((userContact) => ({
+				id: userContact?._id,
+				username: userContact?.username,
+				email: userContact?.email,
+			}))
+		);
+
+		const userContacts = await Promise.all(contactsPromises);
+
+		res.status(200).json({ userContacts });
+    } catch (error) {
+        logger.error((error as Error).message);
+        res.status(500).send({ message: 'Internal server error' });
+    }
 };
