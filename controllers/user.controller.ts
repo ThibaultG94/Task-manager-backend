@@ -675,18 +675,21 @@ export const deleteContact = async (req: express.Request, res: express.Response)
         const contactId = req.params.contactId;
 
         const user: User = await UserModel.findById(userId);
-        user.contacts = user.contacts.filter((contact) => contact !== contactId);
+		if (!user.contacts.map(contact => contact.toString()).includes(contactId)) {
+			console.log("Contact non trouvé dans les contacts de l'utilisateur.");
+			return res.status(404).send({ message: 'Contact not found' });
+		}
+		
+		user.contacts = user.contacts.filter((contact) => contact.toString() !== contactId);
         await user.save();
 
         // Search invitation and delete it
-        const invitation = await invitationModel.findOneAndDelete({
-            $or: [
-                { invitedId: userId, inviterId: contactId },
-                { invitedId: contactId, inviterId: userId }
-            ]
-        });
-
-		await invitation?.deleteOne();
+		await invitationModel.findOneAndDelete({
+			$or: [
+				{ invitedId: userId, inviterId: contactId },
+				{ invitedId: contactId, inviterId: userId }
+			]
+		});		
 
         const contactsPromises = user.contacts.map((contactId) =>
 			UserModel.findById(contactId).then((userContact) => ({
@@ -700,7 +703,8 @@ export const deleteContact = async (req: express.Request, res: express.Response)
 
 		res.status(200).json({ userContacts });
     } catch (error) {
-        logger.error((error as Error).message);
-        res.status(500).send({ message: 'Internal server error' });
+		const result = (error as Error).message;
+        logger.error(result);
+        res.status(500).send({ message: 'Internal server error', details: result.toString() });
     }
 };

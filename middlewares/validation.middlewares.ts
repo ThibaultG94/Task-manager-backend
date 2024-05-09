@@ -27,7 +27,7 @@ export const validateUserID = (
 ) => {
 	try {
 		// Get user ID from request params
-		const userId = req.params.id;
+		const userId = req.params.id || req.user._id;
 	
 		// Check if user ID is a valid Mongo ObectID
 		if (!/^[0-9a-fA-F]{24}$/.test(userId)) {

@@ -13,6 +13,7 @@ import {
 	forgotPassword,
 	resetPassword,
 	getContacts,
+	deleteContact,
 } from '../controllers/user.controller';
 import {
 	validate,
@@ -74,6 +75,6 @@ router.post('/forgot-password', forgotPassword);
 router.post('/reset-password/:token', resetPassword);
 
 // Route to delete contact
-router.delete('/:id/delete-contact', auth, validateUserID, deleteUser);
+router.delete('/:contactId/delete-contact', auth, deleteContact);
 
 export default router;
