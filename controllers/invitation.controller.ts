@@ -2,6 +2,7 @@ import express from 'express';
 import invitationModel from '../models/invitation.model';
 import userModel from '../models/user.model';
 import notificationModel from '../models/notification.model';
+import { fetchAndCategorizeReceivedInvitations, fetchAndCategorizeSentInvitations } from '../utils/invitations.utils';
 
 // Endpoint to send an invitation
 export const sendInvitation = async (
@@ -9,8 +10,8 @@ export const sendInvitation = async (
 	res: express.Response
 ) => {
 	try {
-		const { senderId, guestEmail, message } = req.body;
 		const userId = req.user._id;
+		const { senderId, guestEmail, message } = req.body;
 
 		const sender = await userModel.findById(senderId);
 		const guestUser = await userModel.findOne({ email: guestEmail });
@@ -67,38 +68,7 @@ export const sendInvitation = async (
 
 		await notification.save();
 
-		const invitationsSentOut = await invitationModel.find({
-			senderId: userId,
-		}).sort({ createdAt: -1 });
-
-		// Transformer les invitations en utilisant Promise.all
-		const invitationsInformations = await Promise.all(
-			invitationsSentOut.map(async (invitation) => {
-				const guest = await userModel.findById(invitation.guestId);
-				return {
-					invitationId: invitation._id,
-					guestEmail: guest?.email,
-					guestUsername: guest?.username,
-					message: invitation.message,
-					status: invitation.status,
-				};
-			})
-		);
-
-		// Filtrer les invitations
-		const invitationsPending = invitationsInformations.filter(
-			(invitation) =>
-				invitation.status === 'PENDING' ||
-				invitation.status === 'REJECTED'
-		);
-		const invitationsAccepted = invitationsInformations.filter(
-			(invitation) => invitation.status === 'ACCEPTED'
-		);
-
-		const invitations = {
-			pending: invitationsPending,
-			accepted: invitationsAccepted,
-		};
+        const invitations = await fetchAndCategorizeSentInvitations(userId);
 
 		return res.status(200).json({ invitations });
 	} catch (error) {
@@ -113,44 +83,8 @@ export const getSentOutInvitations = async (
 ) => {
 	try {
 		const userId = req.params.id;
-		const user = await userModel.findById(userId);
 
-		if (!user) {
-			return res.status(400).json({ message: 'User does not exist' });
-		}
-
-		const invitationsSentOut = await invitationModel.find({
-			senderId: userId,
-		}).sort({ createdAt: -1 });
-
-		// Transformer les invitations en utilisant Promise.all
-		const invitationsInformations = await Promise.all(
-			invitationsSentOut.map(async (invitation) => {
-				const guest = await userModel.findById(invitation.guestId);
-				return {
-					invitationId: invitation._id,
-					guestEmail: guest?.email,
-					guestUsername: guest?.username,
-					message: invitation.message,
-					status: invitation.status,
-				};
-			})
-		);
-
-		// Filtrer les invitations
-		const invitationsPending = invitationsInformations.filter(
-			(invitation) =>
-				invitation.status === 'PENDING' ||
-				invitation.status === 'REJECTED'
-		);
-		const invitationsAccepted = invitationsInformations.filter(
-			(invitation) => invitation.status === 'ACCEPTED'
-		);
-
-		const invitations = {
-			pending: invitationsPending,
-			accepted: invitationsAccepted,
-		};
+        const invitations = await fetchAndCategorizeSentInvitations(userId);
 
 		return res.status(200).json({ invitations });
 	} catch (error) {
@@ -165,46 +99,8 @@ export const getReceivedInvitations = async (
 ) => {
 	try {
 		const userId = req.params.id;
-		const user = await userModel.findById(userId);
 
-		if (!user) {
-			return res.status(400).json({ message: 'User does not exist' });
-		}
-
-		const invitationsReceived = await invitationModel.find({
-			guestId: userId,
-		}).sort({ createdAt: -1 });
-
-		// Transform invitations using Promise.all
-		const invitationsInformations = await Promise.all(
-			invitationsReceived.map(async (invitation) => {
-				const sender = await userModel.findById(invitation.senderId);
-				return {
-					invitationId: invitation._id,
-					senderEmail: sender?.email,
-					senderUsername: sender?.username,
-					message: invitation.message,
-					status: invitation.status,
-				};
-			})
-		);
-
-		// Filter invitations
-		const invitationsPending = invitationsInformations.filter(
-			(invitation) => invitation.status === 'PENDING'
-		);
-		const invitationsAccepted = invitationsInformations.filter(
-			(invitation) => invitation.status === 'ACCEPTED'
-		);
-		const invitationsRejected = invitationsInformations.filter(
-			(invitation) => invitation.status === 'REJECTED'
-		);
-
-		const invitations = {
-			pending: invitationsPending,
-			accepted: invitationsAccepted,
-			rejected: invitationsRejected,
-		};
+		const invitations = await fetchAndCategorizeReceivedInvitations(userId);
 
 		return res.status(200).json({ invitations });
 	} catch (error) {
@@ -254,40 +150,7 @@ export const acceptInvitation = async (
 
 		await notification.save();
 
-		const invitationsReceived = await invitationModel.find({
-			guestId: userId,
-		}).sort({ createdAt: -1 });
-
-		// Transform invitations using Promise.all
-		const invitationsInformations = await Promise.all(
-			invitationsReceived.map(async (invitation) => {
-				const sender = await userModel.findById(invitation.senderId);
-				return {
-					invitationId: invitation._id,
-					senderEmail: sender?.email,
-					senderUsername: sender?.username,
-					message: invitation.message,
-					status: invitation.status,
-				};
-			})
-		);
-
-		// Filter invitations
-		const invitationsPending = invitationsInformations.filter(
-			(invitation) => invitation.status === 'PENDING'
-		);
-		const invitationsAccepted = invitationsInformations.filter(
-			(invitation) => invitation.status === 'ACCEPTED'
-		);
-		const invitationsRejected = invitationsInformations.filter(
-			(invitation) => invitation.status === 'REJECTED'
-		);
-
-		const invitations = {
-			pending: invitationsPending,
-			accepted: invitationsAccepted,
-			rejected: invitationsRejected,
-		};
+		const invitations = await fetchAndCategorizeReceivedInvitations(userId);
 
 		const contactsPromises = userOne.contacts.map((contactId) =>
 			userModel.findById(contactId).then((userContact) => ({
@@ -331,40 +194,7 @@ export const declineInvitation = async (
 		invitation.status = 'REJECTED';
 		await invitation.save();
 
-		const invitationsReceived = await invitationModel.find({
-			guestId: userId,
-		}).sort({ createdAt: -1 });
-
-		// Transform invitations using Promise.all
-		const invitationsInformations = await Promise.all(
-			invitationsReceived.map(async (invitation) => {
-				const sender = await userModel.findById(invitation.senderId);
-				return {
-					invitationId: invitation._id,
-					senderEmail: sender?.email,
-					senderUsername: sender?.username,
-					message: invitation.message,
-					status: invitation.status,
-				};
-			})
-		);
-
-		// Filter invitations
-		const invitationsPending = invitationsInformations.filter(
-			(invitation) => invitation.status === 'PENDING'
-		);
-		const invitationsAccepted = invitationsInformations.filter(
-			(invitation) => invitation.status === 'ACCEPTED'
-		);
-		const invitationsRejected = invitationsInformations.filter(
-			(invitation) => invitation.status === 'REJECTED'
-		);
-
-		const invitations = {
-			pending: invitationsPending,
-			accepted: invitationsAccepted,
-			rejected: invitationsRejected,
-		};
+		const invitations = await fetchAndCategorizeReceivedInvitations(userId);
 
 		return res.status(200).json({ invitations, message: 'Invitation declined' });
 	} catch (error) {
@@ -405,38 +235,7 @@ export const cancelInvitation = async (
 
 		await invitation.deleteOne();
 
-		const invitationsSentOut = await invitationModel.find({
-			senderId: userId,
-		}).sort({ createdAt: -1 });
-
-		// Transform invitations using Promise.all
-		const invitationsInformations: any = await Promise.all(
-			invitationsSentOut.map(async (invitation) => {
-				const guest = await userModel.findById(invitation.guestId);
-				return {
-					invitationId: invitation._id,
-					guestEmail: guest?.email,
-					guestUsername: guest?.username,
-					message: invitation.message,
-					status: invitation.status,
-				};
-			})
-		);
-
-		// Filter invitations
-		const invitationsPending = invitationsInformations.filter(
-			(invitation: any) =>
-				invitation.status === 'PENDING' ||
-				invitation.status === 'REJECTED'
-		);
-		const invitationsAccepted = invitationsInformations.filter(
-			(invitation: any) => invitation.status === 'ACCEPTED'
-		);
-
-		const invitations = {
-			pending: invitationsPending,
-			accepted: invitationsAccepted,
-		};
+		const invitations = await fetchAndCategorizeSentInvitations(userId);
 
 		return res.status(200).json({ invitations, message: 'Invitation cancelled' });
 	} catch (error) {

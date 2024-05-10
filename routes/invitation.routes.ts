@@ -8,18 +8,18 @@ import {
 	getSentOutInvitations,
 	sendInvitation,
 } from '../controllers/invitation.controller';
-import { validateInvitationId } from '../middlewares/validation.middlewares';
+import { validateInvitationId, verifyUserExists } from '../middlewares/validation.middlewares';
 
 const router = express.Router();
 
 // Route to send an invitation
-router.post('/send-invitation', auth, sendInvitation);
+router.post('/send-invitation', auth, verifyUserExists, sendInvitation);
 
 // Route to retrieve sent invitations
-router.get('/sentout-invitations/:id', auth, getSentOutInvitations);
+router.get('/sentout-invitations/:id', auth, verifyUserExists, getSentOutInvitations);
 
 // Route to retrieve received invitations
-router.get('/received-invitations/:id', auth, getReceivedInvitations);
+router.get('/received-invitations/:id', auth, verifyUserExists, getReceivedInvitations);
 
 // Route to accept an invitation
 router.put(
@@ -41,6 +41,7 @@ router.put(
 router.delete(
 	'/:invitationId/cancel',
 	auth,
+	verifyUserExists,
 	validateInvitationId,
 	cancelInvitation
 );

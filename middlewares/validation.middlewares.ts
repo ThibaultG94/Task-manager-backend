@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { Schema } from 'joi';
 import logger from '../config/logger';
+import userModel from '../models/user.model';
 
 export const validate = (schema: Schema, property: 'body' | 'params') => {
 	return (req: Request, res: Response, next: NextFunction) => {
@@ -73,10 +74,23 @@ export const validateInvitationId = (
 ) => {
 	const invitationId = req.params.invitationId;
 
+	if (!invitationId) return res.status(400).json({ message: 'Invitation ID is required' });
+
 	if (!/^[0-9a-fA-F]{24}$/.test(invitationId)) {
 		console.error('Invalid ID:', invitationId);
 		return res.status(400).send({ error: 'Invalid invitation ID' });
 	} else {
 		next();
 	}
+};
+
+export const verifyUserExists = async (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.user._id;
+	if (!userId) return res.status(400).json({ message: 'User ID is required' });
+
+    const user = await userModel.findById(userId);
+    if (!user) {
+        return res.status(400).json({ message: 'User does not exist' });
+    }
+    next();
 };
