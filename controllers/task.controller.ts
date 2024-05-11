@@ -10,6 +10,7 @@ import { Task } from '../types/types';
 import { priorityToNumber } from '../utils/priorityToNumber';
 import { GetCategoryDay } from '../utils/GetCategoryDay';
 import { FormatDateForDisplay } from '../utils/FormatDateForDisplay';
+import { countTasksByStatus } from '../utils/tasks.utils';
 
 type Priority = 'Urgent' | 'High' | 'Medium' | 'Low';
 
@@ -152,7 +153,9 @@ export const getWorkspaceTasks = async (
             }
         }
 
-        res.status(200).json(tasks);
+        const statusCounts = await countTasksByStatus(workspaceId);
+
+        res.status(200).json({ tasks, statusCounts});
     } catch (err) {
         const result = (err as Error).message;
         logger.info(result);
@@ -168,7 +171,6 @@ export const getWorkspaceTaskStatusCount = async (
 	try {
 		const workspaceId = req.params.id;
 
-		// Vérifier si le workspace existe et si l'utilisateur est membre
 		const workspace = await workspaceModel.findById(workspaceId);
 		if (!workspace) {
 			return;
@@ -186,23 +188,9 @@ export const getWorkspaceTaskStatusCount = async (
 			});
 		}
 
-		// Compter les tâches par statut
-		const taskCountByStatus = await TaskModel.aggregate([
-			{ $match: { workspaceId } },
-			{ $group: { _id: '$status', count: { $sum: 1 } } },
-		]);
+        const statusCounts = await countTasksByStatus(workspaceId);
 
-		// Convertir le résultat en objet avec les statuts comme clés
-		const statusCounts = taskCountByStatus.reduce(
-			(acc, curr) => {
-				acc[curr._id] = curr.count;
-				return acc;
-			},
-			{ Pending: 0, InProgress: 0, Completed: 0, Archived: 0 }
-		);
-
-		// Retourner le décompte des tâches
-		res.status(200).json(statusCounts);
+		res.status(200).json({ statusCounts });
 	} catch (err) {
 		const result = (err as Error).message;
 		logger.info(result);
