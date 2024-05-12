@@ -5,6 +5,7 @@ import taskModel from '../models/task.model';
 import mongoose from 'mongoose';
 import workspaceInvitationModel from '../models/workspaceInvitation.model';
 import notificationModel from '../models/notification.model';
+import { fetchAndEnrichUserWorkspaces } from '../utils/workspaces.utils';
 
 interface UserInfo {
 	username: string;
@@ -65,70 +66,21 @@ export const getWorkspace = async (
 };
 
 // Endpoint to get workspaces of a specific user
-export const getUserWorkspaces = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.id;
+export const getUserWorkspaces = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.params.id;
 
-		if (req.user._id.toString() !== userId) {
-			return res.status(403).json({
-				message:
-					'You do not have sufficient rights to perform this action',
-			});
-		}
+        if (req.user._id.toString() !== userId) {
+            return res.status(403).json({
+                message: 'You do not have sufficient rights to perform this action',
+            });
+        }
 
-		let workspaces = await workspaceModel
-			.find({
-				$or: [{ userId }, { 'members.userId': userId }],
-			})
-			.sort({ lastUpdateDate: -1 })
-			.lean();
-
-		const memberIds = [
-			...new Set(
-				workspaces.flatMap((workspace) =>
-					workspace.members.map((member) => member.userId.toString())
-				)
-			),
-		];
-		const users = await userModel
-			.find({
-				_id: {
-					$in: memberIds.map((id) => new mongoose.Types.ObjectId(id)),
-				},
-			})
-			.lean();
-
-		const usersMap = users.reduce<{ [key: string]: UserInfo }>(
-			(acc, user) => {
-				acc[user._id.toString()] = {
-					username: user.username,
-					email: user.email,
-				};
-				return acc;
-			},
-			{}
-		);
-
-		workspaces = workspaces.map((workspace) => {
-			const enrichedMembers = workspace.members.map((member) => {
-				const userInfo = usersMap[member.userId.toString()];
-				return {
-					userId: member.userId,
-					role: member.role,
-					username: userInfo?.username,
-					email: userInfo?.email,
-				};
-			});
-			return { ...workspace, members: enrichedMembers };
-		});
-
-		res.status(200).json({ workspaces: workspaces });
-	} catch (error) {
-		res.status(500).json({ message: 'Internal server error' });
-	}
+        const workspaces = await fetchAndEnrichUserWorkspaces(userId);
+        res.status(200).json({ workspaces });
+    } catch (error) {
+        res.status(500).json({ message: 'Internal server error' });
+    }
 };
 
 // Endpoint to create a new Workpace
@@ -151,60 +103,16 @@ export const createWorkspace = async (
 				.json({ message: 'The specified user does not exist' });
 		}
 
-		const workspace = await workspaceModel.create({
+		await workspaceModel.create({
 			title: req.body.title,
 			userId: req.body.userId,
 			description: req.body.description,
 			members: req.body.members,
 		});
 
-		let workspaces = await workspaceModel
-			.find({
-				$or: [{ userId }, { 'members.userId': userId }],
-			})
-			.sort({ lastUpdateDate: -1 })
-			.lean();
+		const workspaces = await fetchAndEnrichUserWorkspaces(userId);
 
-		const memberIds = [
-			...new Set(
-				workspaces.flatMap((workspace) =>
-					workspace.members.map((member) => member.userId.toString())
-				)
-			),
-		];
-		const users = await userModel
-			.find({
-				_id: {
-					$in: memberIds.map((id) => new mongoose.Types.ObjectId(id)),
-				},
-			})
-			.lean();
-
-		const usersMap = users.reduce<{ [key: string]: UserInfo }>(
-			(acc, user) => {
-				acc[user._id.toString()] = {
-					username: user.username,
-					email: user.email,
-				};
-				return acc;
-			},
-			{}
-		);
-
-		workspaces = workspaces.map((workspace) => {
-			const enrichedMembers = workspace.members.map((member) => {
-				const userInfo = usersMap[member.userId.toString()];
-				return {
-					userId: member.userId,
-					role: member.role,
-					username: userInfo?.username,
-					email: userInfo?.email,
-				};
-			});
-			return { ...workspace, members: enrichedMembers };
-		});
-
-		return res.status(200).json({ workspaces: workspaces });
+		return res.status(200).json({ workspaces });
 	} catch (error) {
 		res.status(500).json({ message: 'Internal server error' });
 	}
@@ -391,53 +299,9 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
         workspace.members = updates.members.filter((member:any) => workspace.members.some(existingMember => existingMember.userId === member.userId));
 
         // Save the workspace with updated info
-        const updatedWorkspace = await workspace.save();
+        await workspace.save();
 
-		let workspaces = await workspaceModel
-			.find({
-				$or: [{ userId }, { 'members.userId': userId }],
-			})
-			.sort({ lastUpdateDate: -1 })
-			.lean();
-
-		const memberIds = [
-			...new Set(
-				workspaces.flatMap((workspace) =>
-					workspace.members.map((member) => member.userId.toString())
-				)
-			),
-		];
-		const users = await userModel
-			.find({
-				_id: {
-					$in: memberIds.map((id) => new mongoose.Types.ObjectId(id)),
-				},
-			})
-			.lean();
-
-		const usersMap = users.reduce<{ [key: string]: UserInfo }>(
-			(acc, user) => {
-				acc[user._id.toString()] = {
-					username: user.username,
-					email: user.email,
-				};
-				return acc;
-			},
-			{}
-		);
-
-		workspaces = workspaces.map((workspace) => {
-			const enrichedMembers = workspace.members.map((member) => {
-				const userInfo = usersMap[member.userId.toString()];
-				return {
-					userId: member.userId,
-					role: member.role,
-					username: userInfo?.username,
-					email: userInfo?.email,
-				};
-			});
-			return { ...workspace, members: enrichedMembers };
-		});
+		const workspaces = await fetchAndEnrichUserWorkspaces(userId);
 
         return res.status(200).json({
             message: 'Workspace updated successfully',
@@ -513,51 +377,7 @@ export const deleteWorkspace = async (req: express.Request, res: express.Respons
 
         await workspace.deleteOne();
 
-		let workspaces = await workspaceModel
-			.find({
-				$or: [{ userId }, { 'members.userId': userId }],
-			})
-			.sort({ lastUpdateDate: -1 })
-			.lean();
-
-		const memberIds = [
-			...new Set(
-				workspaces.flatMap((workspace) =>
-					workspace.members.map((member) => member.userId.toString())
-				)
-			),
-		];
-		const users = await userModel
-			.find({
-				_id: {
-					$in: memberIds.map((id) => new mongoose.Types.ObjectId(id)),
-				},
-			})
-			.lean();
-
-		const usersMap = users.reduce<{ [key: string]: UserInfo }>(
-			(acc, user) => {
-				acc[user._id.toString()] = {
-					username: user.username,
-					email: user.email,
-				};
-				return acc;
-			},
-			{}
-		);
-
-		workspaces = workspaces.map((workspace) => {
-			const enrichedMembers = workspace.members.map((member) => {
-				const userInfo = usersMap[member.userId.toString()];
-				return {
-					userId: member.userId,
-					role: member.role,
-					username: userInfo?.username,
-					email: userInfo?.email,
-				};
-			});
-			return { ...workspace, members: enrichedMembers };
-		});
+		const workspaces = await fetchAndEnrichUserWorkspaces(userId);
 
         return res.status(200).json({message:'Workspace deleted ' + workspaceId, workspaces: workspaces});
     } catch (error) {
@@ -630,51 +450,7 @@ export const exitWorkspace = async (req: express.Request, res: express.Response)
 		workspace.members = workspace.members.filter(member => member.userId !== req.user._id);
 		await workspace.save();
 
-		let workspaces = await workspaceModel
-			.find({
-				$or: [{ userId }, { 'members.userId': userId }],
-			})
-			.sort({ lastUpdateDate: -1 })
-			.lean();
-
-		const memberIds = [
-			...new Set(
-				workspaces.flatMap((workspace) =>
-					workspace.members.map((member) => member.userId.toString())
-				)
-			),
-		];
-		const users = await userModel
-			.find({
-				_id: {
-					$in: memberIds.map((id) => new mongoose.Types.ObjectId(id)),
-				},
-			})
-			.lean();
-
-		const usersMap = users.reduce<{ [key: string]: UserInfo }>(
-			(acc, user) => {
-				acc[user._id.toString()] = {
-					username: user.username,
-					email: user.email,
-				};
-				return acc;
-			},
-			{}
-		);
-
-		workspaces = workspaces.map((workspace) => {
-			const enrichedMembers = workspace.members.map((member) => {
-				const userInfo = usersMap[member.userId.toString()];
-				return {
-					userId: member.userId,
-					role: member.role,
-					username: userInfo?.username,
-					email: userInfo?.email,
-				};
-			});
-			return { ...workspace, members: enrichedMembers };
-		});
+		const workspaces = await fetchAndEnrichUserWorkspaces(userId);
 
 		return res.status(200).json({message: 'User removed from workspace ' + workspace.title, workspaces: workspaces});
 	} catch (error) {
