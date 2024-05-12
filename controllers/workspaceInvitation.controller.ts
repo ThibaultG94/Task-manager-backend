@@ -5,6 +5,7 @@ import workspaceInvitationModel from '../models/workspaceInvitation.model';
 import notificationModel from '../models/notification.model';
 import mongoose from 'mongoose';
 import { fetchAndEnrichUserWorkspaces } from '../utils/workspaces.utils';
+import { fetchAndProcessWorkspaceInvitations } from '../utils/workspaceInvitations.utils';
 
 interface UserInfo {
 	username: string;
@@ -117,113 +118,23 @@ export const sendInvitationWorkspace = async (
 		await workspace.save();
 
 		const workspaces = await fetchAndEnrichUserWorkspaces(userId);
+        const workspaceInvitations = await fetchAndProcessWorkspaceInvitations(userId);
 
-		const invitationsSentOut = await workspaceInvitationModel.find({
-			senderId: userId,
-		}).sort({ createdAt: -1 });
-
-		const invitationsInformations = await Promise.all(
-			invitationsSentOut.map(async (invitation) => {
-				const guest = await userModel.findById(invitation.guestId);
-				const workspace = await workspaceModel.findById(
-					invitation.workspaceId
-				);
-				if (!guest || !workspace) {
-					return res.status(400).json({
-						message: 'Guest or workspace does not exist',
-					});
-				}
-				return {
-					invitationId: invitation._id,
-					guestEmail: guest?.email,
-					guestUsername: guest?.username,
-					role: invitation.role,
-					status: invitation.status,
-					workspace,
-				};
-			})
-		);
-
-		const invitationsPending = invitationsInformations.filter(
-			(invitation) =>
-				invitation.status === 'PENDING' ||
-				invitation.status === 'REJECTED'
-		);
-		const invitationsAccepted = invitationsInformations.filter(
-			(invitation) => invitation.status === 'ACCEPTED'
-		);
-
-		const invitations = {
-			pending: invitationsPending,
-			accepted: invitationsAccepted,
-		};
-
-		return res.status(200).json({
-			workspaceInvitations: invitations,
-			workspaces: workspaces,
-		});
+		return res.status(200).json({ workspaceInvitations, workspaces });
 	} catch (error) {
 		res.status(500).json({ message: 'Internal server error' });
 	}
 };
 
 // Endpoint to retrieve sent invitations
-export const getSentOutWorkspaceInvitations = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const userId = req.params.id;
-		const user = await userModel.findById(userId);
-
-		if (!user) {
-			return res.status(400).json({ message: 'User does not exist' });
-		}
-
-		const invitationsSentOut = await workspaceInvitationModel.find({
-			senderId: userId,
-		}).sort({ createdAt: -1 });
-
-		const invitationsInformations = await Promise.all(
-			invitationsSentOut.map(async (invitation) => {
-				const guest = await userModel.findById(invitation.guestId);
-				const workspace = await workspaceModel.findById(
-					invitation.workspaceId
-				);
-				if (!guest || !workspace) {
-					return res.status(400).json({
-						message: 'Guest or workspace does not exist',
-					});
-				}
-				return {
-					invitationId: invitation._id,
-					guestEmail: guest?.email,
-					guestUsername: guest?.username,
-					role: invitation.role,
-					status: invitation.status,
-					workspace,
-				};
-			})
-		);
-
-		const invitationsPending = invitationsInformations.filter(
-			(invitation) =>
-				invitation.status === 'PENDING' ||
-				invitation.status === 'REJECTED'
-		);
-		const invitationsAccepted = invitationsInformations.filter(
-			(invitation) => invitation.status === 'ACCEPTED'
-		);
-
-		const invitations = {
-			pending: invitationsPending,
-			accepted: invitationsAccepted,
-		};
-
-		return res.status(200).json({ workspaceInvitations: invitations });
-	} catch (error) {
-		return res.status(500).json({ message: 'Internal server error', error });
-	}
+export const getSentOutWorkspaceInvitations = async (req: express.Request, res: express.Response) => {
+    try {
+        const userId = req.params.id;
+        const workspaceInvitations = await fetchAndProcessWorkspaceInvitations(userId);
+        return res.status(200).json({ workspaceInvitations });
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error', error });
+    }
 };
 
 // Endpoint to retrieve received workspace invitations
@@ -636,93 +547,10 @@ export const cancelWorkspaceInvitation = async (
 			})
 		);
 
-		const invitationsSentOut = await workspaceInvitationModel.find({
-			senderId: userId,
-		}).sort({ createdAt: -1 });
+		const workspaceInvitations = await fetchAndProcessWorkspaceInvitations(userId);
+		const workspaces = await fetchAndEnrichUserWorkspaces(userId);
 
-		const invitationsInformations: any = await Promise.all(
-			invitationsSentOut.map(async (invitation) => {
-				const guest = await userModel.findById(invitation.guestId);
-				const workspace = await workspaceModel.findById(
-					invitation.workspaceId
-				);
-				if (!guest || !workspace) {
-					return res.status(400).json({
-						message: 'Guest or workspace does not exist',
-					});
-				}
-				return {
-					invitationId: invitation._id,
-					guestEmail: guest?.email,
-					guestUsername: guest?.username,
-					role: invitation.role,
-					status: invitation.status,
-					workspace,
-				};
-			})
-		);
-
-		const invitationsPending = invitationsInformations.filter(
-			(invitation: any) =>
-				invitation.status === 'PENDING' ||
-				invitation.status === 'REJECTED'
-		);
-		const invitationsAccepted = invitationsInformations.filter(
-			(invitation: any) => invitation.status === 'ACCEPTED'
-		);
-
-		const invitations = {
-			pending: invitationsPending,
-			accepted: invitationsAccepted,
-		};
-
-		let workspaces = await workspaceModel
-			.find({
-				$or: [{ userId }, { 'members.userId': userId }],
-			})
-			.sort({ lastUpdateDate: -1 })
-			.lean();
-
-		const memberIds = [
-			...new Set(
-				workspaces.flatMap((workspace) =>
-					workspace.members.map((member) => member.userId.toString())
-				)
-			),
-		];
-		const users = await userModel
-			.find({
-				_id: {
-					$in: memberIds.map((id) => new mongoose.Types.ObjectId(id)),
-				},
-			})
-			.lean();
-
-		const usersMap = users.reduce<{ [key: string]: UserInfo }>(
-			(acc, user) => {
-				acc[user._id.toString()] = {
-					username: user.username,
-					email: user.email,
-				};
-				return acc;
-			},
-			{}
-		);
-
-		workspaces = workspaces.map((workspace) => {
-			const enrichedMembers = workspace.members.map((member) => {
-				const userInfo = usersMap[member.userId.toString()];
-				return {
-					userId: member.userId,
-					role: member.role,
-					username: userInfo?.username,
-					email: userInfo?.email,
-				};
-			});
-			return { ...workspace, members: enrichedMembers };
-		});
-
-		return res.status(200).json({ message: 'Invitation cancelled and member removed from workspace', workspaceInvitations: invitations, workspaces: workspaces });
+		return res.status(200).json({ message: 'Invitation cancelled and member removed from workspace', workspaceInvitations, workspaces });
 	} catch (error) {
 		return res
 			.status(500)
