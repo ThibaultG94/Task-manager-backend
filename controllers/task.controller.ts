@@ -944,73 +944,10 @@ export const getThisYearTasks = async (req: express.Request, res: express.Respon
 export const getNextYearTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
-        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-        let allTasks = [];
-        let nextYearTasks = [];
+        const nextYearTasks = await fetchAndProcessTasks(userId, "next-year-tasks");
 
-        for (const workspace of workspaces) {
-            const userInWorkspace = workspace.members.find(member => member.userId === userId);
-            const role = userInWorkspace ? userInWorkspace.role : null;
-
-            let tasks;
-            if (role === 'admin' || role === 'superadmin') {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    status: { $ne: 'Archived' }
-                }).lean();
-            } else {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    $or: [
-                        { userId: userId },
-                        { assignedTo: userId }
-                    ],
-                    status: { $ne: 'Archived' }
-                }).lean();
-            }
-
-            allTasks.push(...tasks);
-        }
-
-        // Determine next year's tasks
-        for (const task of allTasks) {
-            const day = await FormatDateForDisplay(task.deadline);
-            const category = GetCategoryDay(day, task.status, task.deadline);
-            if (category === 'next-year-tasks') {
-                nextYearTasks.push(task);
-            }
-        }
-
-        // Collect all unique assignedTo userIds from next year's tasks
-        const assignedUserIds = [...new Set(nextYearTasks.flatMap(task => task.assignedTo))];
-        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
-            .select('email _id username')
-            .lean();
-
-        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
-
-        // Enrich the assignedTo field in all next year tasks
-        const enrichedNextYearTasks = nextYearTasks.map(task => ({
-            ...task,
-            assignedTo: task.assignedTo.map(userId => ({
-                userId: userId,
-                email: userMap.get(userId)?.email,
-                username: userMap.get(userId)?.username
-            }))
-        }));
-
-        // Sort next year tasks by deadline, then priority
-        const sortedNextYearTasks = enrichedNextYearTasks.sort((a, b) => {
-            const deadlineA = new Date(a.deadline).getTime();
-            const deadlineB = new Date(b.deadline).getTime();
-            if (deadlineA !== deadlineB) {
-                return deadlineA - deadlineB;
-            }
-            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
-        });
-
-        return res.status(200).json({ nextYearTasks: sortedNextYearTasks });
+        return res.status(200).json({ nextYearTasks });
     } catch (error) {
         console.error('An error occurred while retrieving next year tasks:', error);
         res.status(500).json({
@@ -1022,73 +959,10 @@ export const getNextYearTasks = async (req: express.Request, res: express.Respon
 export const getBecomingTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
-        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-        let allTasks = [];
-        let becomingTasks = [];
+        const becomingTasks = await fetchAndProcessTasks(userId, "becoming-tasks");
 
-        for (const workspace of workspaces) {
-            const userInWorkspace = workspace.members.find(member => member.userId === userId);
-            const role = userInWorkspace ? userInWorkspace.role : null;
-
-            let tasks;
-            if (role === 'admin' || role === 'superadmin') {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    status: { $ne: 'Archived' }
-                }).lean();
-            } else {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    $or: [
-                        { userId: userId },
-                        { assignedTo: userId }
-                    ],
-                    status: { $ne: 'Archived' }
-                }).lean();
-            }
-
-            allTasks.push(...tasks);
-        }
-
-        // Determine becoming tasks
-        for (const task of allTasks) {
-            const day = await FormatDateForDisplay(task.deadline);
-            const category = GetCategoryDay(day, task.status, task.deadline);
-            if (category === 'becoming-tasks') {
-                becomingTasks.push(task);
-            }
-        }
-
-        // Collect all unique assignedTo userIds from becoming tasks
-        const assignedUserIds = [...new Set(becomingTasks.flatMap(task => task.assignedTo))];
-        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
-            .select('email _id username')
-            .lean();
-
-        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
-
-        // Enrich the assignedTo field in all becoming tasks
-        const enrichedBecomingTasks = becomingTasks.map(task => ({
-            ...task,
-            assignedTo: task.assignedTo.map(userId => ({
-                userId: userId,
-                email: userMap.get(userId)?.email,
-                username: userMap.get(userId)?.username
-            }))
-        }));
-
-        // Sort becoming tasks by deadline, then priority
-        const sortedBecomingTasks = enrichedBecomingTasks.sort((a, b) => {
-            const deadlineA = new Date(a.deadline).getTime();
-            const deadlineB = new Date(b.deadline).getTime();
-            if (deadlineA !== deadlineB) {
-                return deadlineA - deadlineB;
-            }
-            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
-        });
-
-        return res.status(200).json({ becomingTasks: sortedBecomingTasks });
+        return res.status(200).json({ becomingTasks });
     } catch (error) {
         console.error('An error occurred while retrieving becoming tasks:', error);
         res.status(500).json({
