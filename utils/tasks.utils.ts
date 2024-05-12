@@ -2,6 +2,7 @@ import TaskModel from '../models/task.model';
 import workspaceModel from '../models/workspace.model';
 import userModel from '../models/user.model';
 import { FormatDateForDisplay } from './FormatDateForDisplay';
+import { GetCategoryDay } from './GetCategoryDay';
 
 type Priority = 'Urgent' | 'High' | 'Medium' | 'Low';
 
@@ -59,11 +60,21 @@ export async function fetchAndProcessTasks(userId: string, statusFilter: string)
 
     let filteredTasks = [];
 
-    // Filter tasks by specified status
-    for (const task of allTasks) {
-        const day = await FormatDateForDisplay(task.deadline);
-        if (day === statusFilter) {
-            filteredTasks.push(task);
+    if (['En retard', "Aujourd'hui", "Demain"].includes(statusFilter)) {
+        // Filter tasks by specified status
+        for (const task of allTasks) {
+            const day = await FormatDateForDisplay(task.deadline);
+            if (day === statusFilter) {
+                filteredTasks.push(task);
+            }
+        }
+    } else {
+        for (const task of allTasks) {
+            const day = await FormatDateForDisplay(task.deadline);
+            const category = GetCategoryDay(day, task.status, task.deadline);
+            if (category === statusFilter) {
+                filteredTasks.push(task);
+            }
         }
     }
 

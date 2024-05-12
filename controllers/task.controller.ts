@@ -869,73 +869,10 @@ export const getTomorrowTasks = async (req: express.Request, res: express.Respon
 export const getThisWeekTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
-        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-        let allTasks = [];
-        let thisWeekTasks = [];
+        const thisWeekTasks = await fetchAndProcessTasks(userId, "this-week-tasks");
 
-        for (const workspace of workspaces) {
-            const userInWorkspace = workspace.members.find(member => member.userId === userId);
-            const role = userInWorkspace ? userInWorkspace.role : null;
-
-            let tasks;
-            if (role === 'admin' || role === 'superadmin') {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    status: { $ne: 'Archived' }
-                }).lean();
-            } else {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    $or: [
-                        { userId: userId },
-                        { assignedTo: userId }
-                    ],
-                    status: { $ne: 'Archived' }
-                }).lean();
-            }
-
-            allTasks.push(...tasks);
-        }
-
-        // Determine this week's tasks
-        for (const task of allTasks) {
-            const day = await FormatDateForDisplay(task.deadline);
-            const category = GetCategoryDay(day, task.status, task.deadline);
-            if (category === 'this-week-tasks') {
-                thisWeekTasks.push(task);
-            }
-        }
-
-        // Collect all unique assignedTo userIds from this week's tasks
-        const assignedUserIds = [...new Set(thisWeekTasks.flatMap(task => task.assignedTo))];
-        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
-            .select('email _id username')
-            .lean();
-
-        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
-
-        // Enrich the assignedTo field in all this week tasks
-        const enrichedThisWeekTasks = thisWeekTasks.map(task => ({
-            ...task,
-            assignedTo: task.assignedTo.map(userId => ({
-                userId: userId,
-                email: userMap.get(userId)?.email,
-                username: userMap.get(userId)?.username
-            }))
-        }));
-
-        // Sort this week tasks by deadline, then priority
-        const sortedThisWeekTasks = enrichedThisWeekTasks.sort((a, b) => {
-            const deadlineA = new Date(a.deadline).getTime();
-            const deadlineB = new Date(b.deadline).getTime();
-            if (deadlineA !== deadlineB) {
-                return deadlineA - deadlineB;
-            }
-            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
-        });
-
-        return res.status(200).json({ thisWeekTasks: sortedThisWeekTasks });
+        return res.status(200).json({ thisWeekTasks: thisWeekTasks });
     } catch (error) {
         console.error('An error occurred while retrieving this week tasks:', error);
         res.status(500).json({
