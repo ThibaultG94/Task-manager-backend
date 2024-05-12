@@ -5,7 +5,7 @@ import workspaceInvitationModel from '../models/workspaceInvitation.model';
 import notificationModel from '../models/notification.model';
 import mongoose from 'mongoose';
 import { fetchAndEnrichUserWorkspaces } from '../utils/workspaces.utils';
-import { fetchAndProcessWorkspaceInvitations } from '../utils/workspaceInvitations.utils';
+import { fetchAndProcessReceivedWorkspaceInvitations, fetchAndProcessWorkspaceInvitations } from '../utils/workspaceInvitations.utils';
 
 interface UserInfo {
 	username: string;
@@ -139,63 +139,15 @@ export const getSentOutWorkspaceInvitations = async (req: express.Request, res: 
 
 // Endpoint to retrieve received workspace invitations
 export const getReceivedWorkspaceInvitations = async (
-	req: express.Request,
-	res: express.Response
+    req: express.Request, res: express.Response
 ) => {
-	try {
-		const userId = req.params.id;
-		const user = await userModel.findById(userId);
-
-		if (!user) {
-			return res.status(400).json({ message: 'User does not exist' });
-		}
-
-		const invitationsReceived = await workspaceInvitationModel.find({
-			guestId: userId,
-		}).sort({ createdAt: -1 });
-
-		const invitationsInformations = await Promise.all(
-			invitationsReceived.map(async (invitation) => {
-				const sender = await userModel.findById(invitation.senderId);
-				const workspace = await workspaceModel.findById(
-					invitation.workspaceId
-				);
-				if (!sender || !workspace) {
-					return res.status(400).json({
-						message: 'Guest or workspace does not exist',
-					});
-				}
-				return {
-					invitationId: invitation._id,
-					senderEmail: sender?.email,
-					senderUsername: sender?.username,
-					role: invitation.role,
-					status: invitation.status,
-					workspace,
-				};
-			})
-		);
-
-		const invitationsPending = invitationsInformations.filter(
-			(invitation) => invitation.status === 'PENDING'
-		);
-		const invitationsAccepted = invitationsInformations.filter(
-			(invitation) => invitation.status === 'ACCEPTED'
-		);
-		const invitationRejected = invitationsInformations.filter(
-			(invitation) => invitation.status === 'REJECTED'
-		);
-
-		const invitations = {
-			pending: invitationsPending,
-			accepted: invitationsAccepted,
-			rejected: invitationRejected,
-		};
-
-		return res.status(200).json({ workspaceInvitations: invitations });
-	} catch (error) {
-		res.status(500).json({ message: 'Internal server error' });
-	}
+    try {
+        const userId = req.params.id;
+        const workspaceInvitations = await fetchAndProcessReceivedWorkspaceInvitations(userId);
+        return res.status(200).json({ workspaceInvitations });
+    } catch (error) {
+        res.status(500).json({ message: 'Internal server error', error });
+    }
 };
 
 // Endpoint to accept an invitation

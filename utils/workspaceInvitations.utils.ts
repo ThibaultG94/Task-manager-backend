@@ -39,3 +39,45 @@ export async function fetchAndProcessWorkspaceInvitations(senderId: string) {
         accepted: invitationsAccepted,
     };
 }
+
+
+export async function fetchAndProcessReceivedWorkspaceInvitations(guestId: string) {
+    const invitationsReceived = await workspaceInvitationModel.find({
+        guestId: guestId,
+    }).sort({ createdAt: -1 }).lean();
+
+    const invitationsInformations = await Promise.all(
+        invitationsReceived.map(async (invitation) => {
+            const sender = await userModel.findById(invitation.senderId);
+            const workspace = await workspaceModel.findById(invitation.workspaceId);
+            if (!sender || !workspace) {
+                throw new Error('Sender or workspace does not exist');
+            }
+            return {
+                invitationId: invitation._id,
+                senderEmail: sender.email,
+                senderUsername: sender.username,
+                role: invitation.role,
+                status: invitation.status,
+                workspaceName: workspace.title,
+                workspace,
+            };
+        })
+    );
+
+    const invitationsPending = invitationsInformations.filter(
+        (invitation) => invitation.status === 'PENDING'
+    );
+    const invitationsAccepted = invitationsInformations.filter(
+        (invitation) => invitation.status === 'ACCEPTED'
+    );
+    const invitationsRejected = invitationsInformations.filter(
+        (invitation) => invitation.status === 'REJECTED'
+    );
+
+    return {
+        pending: invitationsPending,
+        accepted: invitationsAccepted,
+        rejected: invitationsRejected,
+    };
+}
