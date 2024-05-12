@@ -827,7 +827,7 @@ export const getOverdueTasks = async (req: express.Request, res: express.Respons
 
         const overdueTasks = await fetchAndProcessTasks(userId, 'En retard'); 
 
-        return res.status(200).json({ overdueTasks: overdueTasks });
+        return res.status(200).json({ overdueTasks });
     } catch (error) {
         console.error('An error occurred while retrieving overdue tasks:', error);
         res.status(500).json({
@@ -842,7 +842,7 @@ export const getTodayTasks = async (req: express.Request, res: express.Response)
 
         const todayTasks = await fetchAndProcessTasks(userId, "Aujourd'hui");
 
-        return res.status(200).json({ todayTasks: todayTasks });
+        return res.status(200).json({ todayTasks });
     } catch (error) {
         console.error('An error occurred while retrieving today tasks:', error);
         res.status(500).json({
@@ -857,7 +857,7 @@ export const getTomorrowTasks = async (req: express.Request, res: express.Respon
 
         const tomorrowTasks = await fetchAndProcessTasks(userId, "Demain");
 
-        return res.status(200).json({ tomorrowTasks: tomorrowTasks });
+        return res.status(200).json({ tomorrowTasks });
     } catch (error) {
         console.error('An error occurred while retrieving tomorrow tasks:', error);
         res.status(500).json({
@@ -872,7 +872,7 @@ export const getThisWeekTasks = async (req: express.Request, res: express.Respon
 
         const thisWeekTasks = await fetchAndProcessTasks(userId, "this-week-tasks");
 
-        return res.status(200).json({ thisWeekTasks: thisWeekTasks });
+        return res.status(200).json({ thisWeekTasks });
     } catch (error) {
         console.error('An error occurred while retrieving this week tasks:', error);
         res.status(500).json({
@@ -881,154 +881,13 @@ export const getThisWeekTasks = async (req: express.Request, res: express.Respon
     }
 };
 
-export const getThisWeekendTasks = async (req: express.Request, res: express.Response) => {
-    try {
-        const userId = req.params.userId;
-        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
-
-        let allTasks = [];
-        let thisWeekendTasks = [];
-
-        for (const workspace of workspaces) {
-            const userInWorkspace = workspace.members.find(member => member.userId === userId);
-            const role = userInWorkspace ? userInWorkspace.role : null;
-
-            let tasks;
-            if (role === 'admin' || role === 'superadmin') {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    status: { $ne: 'Archived' }
-                }).lean();
-            } else {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    $or: [
-                        { userId: userId },
-                        { assignedTo: userId }
-                    ],
-                    status: { $ne: 'Archived' }
-                }).lean();
-            }
-
-            allTasks.push(...tasks);
-        }
-
-        // Determine this weekend's tasks
-        for (const task of allTasks) {
-            const day = await FormatDateForDisplay(task.deadline);
-            const category = GetCategoryDay(day, task.status, task.deadline);
-            if (category === 'this-weekend-tasks') {
-                thisWeekendTasks.push(task);
-            }
-        }
-
-        // Collect all unique assignedTo userIds from this weekend's tasks
-        const assignedUserIds = [...new Set(thisWeekendTasks.flatMap(task => task.assignedTo))];
-        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
-            .select('email _id username')
-            .lean();
-
-        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
-
-        // Enrich the assignedTo field in all this weekend tasks
-        const enrichedThisWeekendTasks = thisWeekendTasks.map(task => ({
-            ...task,
-            assignedTo: task.assignedTo.map(userId => ({
-                userId: userId,
-                email: userMap.get(userId)?.email,
-                username: userMap.get(userId)?.username
-            }))
-        }));
-
-        // Sort this weekend tasks by deadline, then priority
-        const sortedThisWeekendTasks = enrichedThisWeekendTasks.sort((a, b) => {
-            const deadlineA = new Date(a.deadline).getTime();
-            const deadlineB = new Date(b.deadline).getTime();
-            if (deadlineA !== deadlineB) {
-                return deadlineA - deadlineB;
-            }
-            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
-        });
-
-        return res.status(200).json({ thisWeekendTasks: sortedThisWeekendTasks });
-    } catch (error) {
-        console.error('An error occurred while retrieving this weekend tasks:', error);
-        res.status(500).json({
-            message: 'An error occurred while retrieving this weekend tasks.'
-        });
-    }
-};
-
 export const getNextWeekTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
-        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-        let allTasks = [];
-        let nextWeekTasks = [];
+        const nextWeekTasks = await fetchAndProcessTasks(userId, "next-week-tasks");
 
-        for (const workspace of workspaces) {
-            const userInWorkspace = workspace.members.find(member => member.userId === userId);
-            const role = userInWorkspace ? userInWorkspace.role : null;
-
-            let tasks;
-            if (role === 'admin' || role === 'superadmin') {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    status: { $ne: 'Archived' }
-                }).lean();
-            } else {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    $or: [
-                        { userId: userId },
-                        { assignedTo: userId }
-                    ],
-                    status: { $ne: 'Archived' }
-                }).lean();
-            }
-
-            allTasks.push(...tasks);
-        }
-
-        // Determine next week's tasks
-        for (const task of allTasks) {
-            const day = await FormatDateForDisplay(task.deadline);
-            const category = GetCategoryDay(day, task.status, task.deadline);
-            if (category === 'next-week-tasks') {
-                nextWeekTasks.push(task);
-            }
-        }
-
-        // Collect all unique assignedTo userIds from next week's tasks
-        const assignedUserIds = [...new Set(nextWeekTasks.flatMap(task => task.assignedTo))];
-        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
-            .select('email _id username')
-            .lean();
-
-        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
-
-        // Enrich the assignedTo field in all next week tasks
-        const enrichedNextWeekTasks = nextWeekTasks.map(task => ({
-            ...task,
-            assignedTo: task.assignedTo.map(userId => ({
-                userId: userId,
-                email: userMap.get(userId)?.email,
-                username: userMap.get(userId)?.username
-            }))
-        }));
-
-        // Sort next week tasks by deadline, then priority
-        const sortedNextWeekTasks = enrichedNextWeekTasks.sort((a, b) => {
-            const deadlineA = new Date(a.deadline).getTime();
-            const deadlineB = new Date(b.deadline).getTime();
-            if (deadlineA !== deadlineB) {
-                return deadlineA - deadlineB;
-            }
-            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
-        });
-
-        return res.status(200).json({ nextWeekTasks: sortedNextWeekTasks });
+        return res.status(200).json({ nextWeekTasks });
     } catch (error) {
         console.error('An error occurred while retrieving next week tasks:', error);
         res.status(500).json({
