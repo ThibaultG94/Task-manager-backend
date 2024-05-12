@@ -8,18 +8,7 @@ import notificationModel from '../models/notification.model';
 import logger from '../config/logger';
 import { Task } from '../types/types';
 import { priorityToNumber } from '../utils/priorityToNumber';
-import { GetCategoryDay } from '../utils/GetCategoryDay';
-import { FormatDateForDisplay } from '../utils/FormatDateForDisplay';
 import { countTasksByStatus, fetchAndProcessTasks } from '../utils/tasks.utils';
-
-type Priority = 'Urgent' | 'High' | 'Medium' | 'Low';
-
-const priorityValues: { [key in Priority]: number } = {
-	Urgent: 4,
-	High: 3,
-	Medium: 2,
-	Low: 1,
-};
 
 // Endpoint to get a task by id
 export const getTask = async (req: express.Request, res: express.Response) => {
