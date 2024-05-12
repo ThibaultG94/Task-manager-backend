@@ -10,7 +10,7 @@ import { Task } from '../types/types';
 import { priorityToNumber } from '../utils/priorityToNumber';
 import { GetCategoryDay } from '../utils/GetCategoryDay';
 import { FormatDateForDisplay } from '../utils/FormatDateForDisplay';
-import { countTasksByStatus } from '../utils/tasks.utils';
+import { countTasksByStatus, fetchAndProcessTasks } from '../utils/tasks.utils';
 
 type Priority = 'Urgent' | 'High' | 'Medium' | 'Low';
 
@@ -824,72 +824,10 @@ export const getUserTasks = async (req: express.Request, res: express.Response) 
 export const getOverdueTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
-        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-        let allTasks = [];
-        let allOverdueTasks = [];
+        const overdueTasks = await fetchAndProcessTasks(userId, 'En retard'); 
 
-        for (const workspace of workspaces) {
-            const userInWorkspace = workspace.members.find(member => member.userId === userId);
-            const role = userInWorkspace ? userInWorkspace.role : null;
-
-            let tasks;
-            if (role === 'admin' || role === 'superadmin') {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    status: { $ne: 'Archived' }
-                }).lean();
-            } else {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    $or: [
-                        { userId: userId },
-                        { assignedTo: userId }
-                    ],
-                    status: { $ne: 'Archived' }
-                }).lean();
-            }
-
-            allTasks.push(...tasks);
-        }
-
-        // Determine overdue tasks
-        for (const task of allTasks) {
-            const day = await FormatDateForDisplay(task.deadline);
-            if (day === 'En retard') {
-                allOverdueTasks.push(task);
-            }
-        }
-
-        // Collect all unique assignedTo userIds from overdue tasks
-        const assignedUserIds = [...new Set(allOverdueTasks.flatMap(task => task.assignedTo))];
-        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
-            .select('email _id username')
-            .lean();
-
-        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
-
-        // Enrich the assignedTo field in all overdue tasks
-        const enrichedOverdueTasks = allOverdueTasks.map(task => ({
-            ...task,
-            assignedTo: task.assignedTo.map(userId => ({
-                userId: userId,
-                email: userMap.get(userId)?.email,
-                username: userMap.get(userId)?.username
-            }))
-        }));
-
-        // Sort overdue tasks by deadline, then priority
-        const sortedOverdueTasks = enrichedOverdueTasks.sort((a, b) => {
-            const deadlineA = new Date(a.deadline).getTime();
-            const deadlineB = new Date(b.deadline).getTime();
-            if (deadlineA !== deadlineB) {
-                return deadlineA - deadlineB;
-            }
-            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
-        });
-
-        return res.status(200).json({ overdueTasks: sortedOverdueTasks });
+        return res.status(200).json({ overdueTasks: overdueTasks });
     } catch (error) {
         console.error('An error occurred while retrieving overdue tasks:', error);
         res.status(500).json({
@@ -901,72 +839,10 @@ export const getOverdueTasks = async (req: express.Request, res: express.Respons
 export const getTodayTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
-        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-        let allTasks = [];
-        let todayTasks = [];
+        const todayTasks = await fetchAndProcessTasks(userId, "Aujourd'hui");
 
-        for (const workspace of workspaces) {
-            const userInWorkspace = workspace.members.find(member => member.userId === userId);
-            const role = userInWorkspace ? userInWorkspace.role : null;
-
-            let tasks;
-            if (role === 'admin' || role === 'superadmin') {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    status: { $ne: 'Archived' }
-                }).lean();
-            } else {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    $or: [
-                        { userId: userId },
-                        { assignedTo: userId }
-                    ],
-                    status: { $ne: 'Archived' }
-                }).lean();
-            }
-
-            allTasks.push(...tasks);
-        }
-
-        // Determine today's tasks
-        for (const task of allTasks) {
-            const day = await FormatDateForDisplay(task.deadline);
-            if (day === "Aujourd'hui") {
-                todayTasks.push(task);
-            }
-        }
-
-        // Collect all unique assignedTo userIds from today's tasks
-        const assignedUserIds = [...new Set(todayTasks.flatMap(task => task.assignedTo))];
-        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
-            .select('email _id username')
-            .lean();
-
-        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
-
-        // Enrich the assignedTo field in all today tasks
-        const enrichedTodayTasks = todayTasks.map(task => ({
-            ...task,
-            assignedTo: task.assignedTo.map(userId => ({
-                userId: userId,
-                email: userMap.get(userId)?.email,
-                username: userMap.get(userId)?.username
-            }))
-        }));
-
-        // Sort today's tasks by deadline, then priority
-        const sortedTodayTasks = enrichedTodayTasks.sort((a, b) => {
-            const deadlineA = new Date(a.deadline).getTime();
-            const deadlineB = new Date(b.deadline).getTime();
-            if (deadlineA !== deadlineB) {
-                return deadlineA - deadlineB;
-            }
-            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
-        });
-
-        return res.status(200).json({ todayTasks: sortedTodayTasks });
+        return res.status(200).json({ todayTasks: todayTasks });
     } catch (error) {
         console.error('An error occurred while retrieving today tasks:', error);
         res.status(500).json({
@@ -978,72 +854,10 @@ export const getTodayTasks = async (req: express.Request, res: express.Response)
 export const getTomorrowTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
-        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-        let allTasks = [];
-        let tomorrowTasks = [];
+        const tomorrowTasks = await fetchAndProcessTasks(userId, "Demain");
 
-        for (const workspace of workspaces) {
-            const userInWorkspace = workspace.members.find(member => member.userId === userId);
-            const role = userInWorkspace ? userInWorkspace.role : null;
-
-            let tasks;
-            if (role === 'admin' || role === 'superadmin') {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    status: { $ne: 'Archived' }
-                }).lean();
-            } else {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    $or: [
-                        { userId: userId },
-                        { assignedTo: userId }
-                    ],
-                    status: { $ne: 'Archived' }
-                }).lean();
-            }
-
-            allTasks.push(...tasks);
-        }
-
-        // Determine tomorrow's tasks
-        for (const task of allTasks) {
-            const day = await FormatDateForDisplay(task.deadline);
-            if (day === 'Demain') {
-                tomorrowTasks.push(task);
-            }
-        }
-
-        // Collect all unique assignedTo userIds from tomorrow's tasks
-        const assignedUserIds = [...new Set(tomorrowTasks.flatMap(task => task.assignedTo))];
-        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
-            .select('email _id username')
-            .lean();
-
-        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
-
-        // Enrich the assignedTo field in all tomorrow tasks
-        const enrichedTomorrowTasks = tomorrowTasks.map(task => ({
-            ...task,
-            assignedTo: task.assignedTo.map(userId => ({
-                userId: userId,
-                email: userMap.get(userId)?.email,
-                username: userMap.get(userId)?.username
-            }))
-        }));
-
-        // Sort tomorrow tasks by deadline, then priority
-        const sortedTomorrowTasks = enrichedTomorrowTasks.sort((a, b) => {
-            const deadlineA = new Date(a.deadline).getTime();
-            const deadlineB = new Date(b.deadline).getTime();
-            if (deadlineA !== deadlineB) {
-                return deadlineA - deadlineB;
-            }
-            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
-        });
-
-        return res.status(200).json({ tomorrowTasks: sortedTomorrowTasks });
+        return res.status(200).json({ tomorrowTasks: tomorrowTasks });
     } catch (error) {
         console.error('An error occurred while retrieving tomorrow tasks:', error);
         res.status(500).json({

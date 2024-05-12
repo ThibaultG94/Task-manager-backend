@@ -3,6 +3,15 @@ import workspaceModel from '../models/workspace.model';
 import userModel from '../models/user.model';
 import { FormatDateForDisplay } from './FormatDateForDisplay';
 
+type Priority = 'Urgent' | 'High' | 'Medium' | 'Low';
+
+const priorityValues: { [key in Priority]: number } = {
+	Urgent: 4,
+	High: 3,
+	Medium: 2,
+	Low: 1,
+};
+
 export async function countTasksByStatus(workspaceId: string) {
     const taskCountByStatus = await TaskModel.aggregate([
         { $match: { workspaceId } },
@@ -28,20 +37,35 @@ export async function fetchAndProcessTasks(userId: string, statusFilter: string)
         const userInWorkspace = workspace.members.find(member => member.userId === userId);
         const role = userInWorkspace ? userInWorkspace.role : null;
 
-        const query = {
-            workspaceId: workspace._id,
-            status: { $ne: 'Archived' },
-            ...(
-                role === 'admin' || role === 'superadmin' ? {} : { $or: [{ userId }, { assignedTo: userId }] }
-            )
-        };
+        let tasks;
+        if (role === 'admin' || role === 'superadmin') {
+            tasks = await TaskModel.find({
+                workspaceId: workspace._id,
+                status: { $ne: 'Archived' }
+            }).lean();
+        } else {
+            tasks = await TaskModel.find({
+                workspaceId: workspace._id,
+                $or: [
+                    { userId: userId },
+                    { assignedTo: userId }
+                ],
+                status: { $ne: 'Archived' }
+            }).lean();
+        }
 
-        const tasks = await TaskModel.find(query).lean();
         allTasks.push(...tasks);
     }
 
+    let filteredTasks = [];
+
     // Filter tasks by specified status
-    const filteredTasks = allTasks.filter(async task => await FormatDateForDisplay(task.deadline) === statusFilter);
+    for (const task of allTasks) {
+        const day = await FormatDateForDisplay(task.deadline);
+        if (day === statusFilter) {
+            filteredTasks.push(task);
+        }
+    }
 
     // Enrich tasks with user details
     const userTasks = await enrichTasksWithUserDetails(filteredTasks);
@@ -77,7 +101,6 @@ function sortTasksByDateAndPriority(tasks: any[]) {
         if (deadlineA !== deadlineB) {
             return deadlineA - deadlineB;
         }
-        // Ajoute une logique pour comparer les priorités si nécessaire
-        return 0; // Modifie cette ligne en fonction de la logique de comparaison de priorité
+        return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
     });
 }
