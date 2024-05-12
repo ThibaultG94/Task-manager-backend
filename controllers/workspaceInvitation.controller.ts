@@ -4,6 +4,7 @@ import workspaceModel from '../models/workspace.model';
 import workspaceInvitationModel from '../models/workspaceInvitation.model';
 import notificationModel from '../models/notification.model';
 import mongoose from 'mongoose';
+import { fetchAndEnrichUserWorkspaces } from '../utils/workspaces.utils';
 
 interface UserInfo {
 	username: string;
@@ -115,51 +116,7 @@ export const sendInvitationWorkspace = async (
 		await workspaceInvitation.save();
 		await workspace.save();
 
-		let workspaces = await workspaceModel
-			.find({
-				$or: [{ userId }, { 'members.userId': userId }],
-			})
-			.sort({ lastUpdateDate: -1 })
-			.lean();
-
-		const memberIds = [
-			...new Set(
-				workspaces.flatMap((workspace) =>
-					workspace.members.map((member) => member.userId.toString())
-				)
-			),
-		];
-		const users = await userModel
-			.find({
-				_id: {
-					$in: memberIds.map((id) => new mongoose.Types.ObjectId(id)),
-				},
-			})
-			.lean();
-
-		const usersMap = users.reduce<{ [key: string]: UserInfo }>(
-			(acc, user) => {
-				acc[user._id.toString()] = {
-					username: user.username,
-					email: user.email,
-				};
-				return acc;
-			},
-			{}
-		);
-
-		workspaces = workspaces.map((workspace) => {
-			const enrichedMembers = workspace.members.map((member) => {
-				const userInfo = usersMap[member.userId.toString()];
-				return {
-					userId: member.userId,
-					role: member.role,
-					username: userInfo?.username,
-					email: userInfo?.email,
-				};
-			});
-			return { ...workspace, members: enrichedMembers };
-		});
+		const workspaces = await fetchAndEnrichUserWorkspaces(userId);
 
 		const invitationsSentOut = await workspaceInvitationModel.find({
 			senderId: userId,

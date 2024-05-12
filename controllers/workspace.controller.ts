@@ -2,15 +2,9 @@ import workspaceModel from '../models/workspace.model';
 import express from 'express';
 import userModel from '../models/user.model';
 import taskModel from '../models/task.model';
-import mongoose from 'mongoose';
 import workspaceInvitationModel from '../models/workspaceInvitation.model';
 import notificationModel from '../models/notification.model';
 import { fetchAndEnrichUserWorkspaces } from '../utils/workspaces.utils';
-
-interface UserInfo {
-	username: string;
-	email: string;
-}
 
 // Endpoint to get a workspace by id
 export const getWorkspace = async (
