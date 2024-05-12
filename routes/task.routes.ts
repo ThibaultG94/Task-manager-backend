@@ -14,7 +14,6 @@ import {
 	getTomorrowTasks,
 	getThisWeekTasks,
 	getNextWeekTasks,
-	getNextWeekendTasks,
 	getThisMonthTasks,
 	getThisYearTasks,
 	getNextYearTasks,
@@ -83,9 +82,6 @@ router.get('/:userId/this-week', auth, getThisWeekTasks);
 
 // Route to get all next week tasks for a specific user
 router.get('/:userId/next-week', auth, getNextWeekTasks);
-
-// Route to get all next weekend tasks for a specific user
-router.get('/:userId/next-weekend', auth, getNextWeekendTasks);
 
 // Route to get all this month tasks for a specific user
 router.get('/:userId/this-month', auth, getThisMonthTasks);
