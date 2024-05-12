@@ -914,73 +914,10 @@ export const getThisMonthTasks = async (req: express.Request, res: express.Respo
 export const getNextMonthTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
-        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-        let allTasks = [];
-        let nextMonthTasks = [];
+        const nextMonthTasks = await fetchAndProcessTasks(userId, "next-month-tasks");
 
-        for (const workspace of workspaces) {
-            const userInWorkspace = workspace.members.find(member => member.userId === userId);
-            const role = userInWorkspace ? userInWorkspace.role : null;
-
-            let tasks;
-            if (role === 'admin' || role === 'superadmin') {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    status: { $ne: 'Archived' }
-                }).lean();
-            } else {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    $or: [
-                        { userId: userId },
-                        { assignedTo: userId }
-                    ],
-                    status: { $ne: 'Archived' }
-                }).lean();
-            }
-
-            allTasks.push(...tasks);
-        }
-
-        // Determine next month's tasks
-        for (const task of allTasks) {
-            const day = await FormatDateForDisplay(task.deadline);
-            const category = GetCategoryDay(day, task.status, task.deadline);
-            if (category === 'next-month-tasks') {
-                nextMonthTasks.push(task);
-            }
-        }
-
-        // Collect all unique assignedTo userIds from next month's tasks
-        const assignedUserIds = [...new Set(nextMonthTasks.flatMap(task => task.assignedTo))];
-        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
-            .select('email _id username')
-            .lean();
-
-        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
-
-        // Enrich the assignedTo field in all next month tasks
-        const enrichedNextMonthTasks = nextMonthTasks.map(task => ({
-            ...task,
-            assignedTo: task.assignedTo.map(userId => ({
-                userId: userId,
-                email: userMap.get(userId)?.email,
-                username: userMap.get(userId)?.username
-            }))
-        }));
-
-        // Sort next month tasks by deadline, then priority
-        const sortedNextMonthTasks = enrichedNextMonthTasks.sort((a, b) => {
-            const deadlineA = new Date(a.deadline).getTime();
-            const deadlineB = new Date(b.deadline).getTime();
-            if (deadlineA !== deadlineB) {
-                return deadlineA - deadlineB;
-            }
-            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
-        });
-
-        return res.status(200).json({ nextMonthTasks: sortedNextMonthTasks });
+        return res.status(200).json({ nextMonthTasks });
     } catch (error) {
         console.error('An error occurred while retrieving next month tasks:', error);
         res.status(500).json({
@@ -992,73 +929,10 @@ export const getNextMonthTasks = async (req: express.Request, res: express.Respo
 export const getThisYearTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
-        const workspaces = await workspaceModel.find({ 'members.userId': userId }).lean();
 
-        let allTasks = [];
-        let thisYearTasks = [];
+        const thisYearTasks = await fetchAndProcessTasks(userId, "this-year-tasks");
 
-        for (const workspace of workspaces) {
-            const userInWorkspace = workspace.members.find(member => member.userId === userId);
-            const role = userInWorkspace ? userInWorkspace.role : null;
-
-            let tasks;
-            if (role === 'admin' || role === 'superadmin') {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    status: { $ne: 'Archived' }
-                }).lean();
-            } else {
-                tasks = await TaskModel.find({
-                    workspaceId: workspace._id,
-                    $or: [
-                        { userId: userId },
-                        { assignedTo: userId }
-                    ],
-                    status: { $ne: 'Archived' }
-                }).lean();
-            }
-
-            allTasks.push(...tasks);
-        }
-
-        // Determine this year's tasks
-        for (const task of allTasks) {
-            const day = await FormatDateForDisplay(task.deadline);
-            const category = GetCategoryDay(day, task.status, task.deadline);
-            if (category === 'this-year-tasks') {
-                thisYearTasks.push(task);
-            }
-        }
-
-        // Collect all unique assignedTo userIds from this year's tasks
-        const assignedUserIds = [...new Set(thisYearTasks.flatMap(task => task.assignedTo))];
-        const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
-            .select('email _id username')
-            .lean();
-
-        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
-
-        // Enrich the assignedTo field in all this year tasks
-        const enrichedThisYearTasks = thisYearTasks.map(task => ({
-            ...task,
-            assignedTo: task.assignedTo.map(userId => ({
-                userId: userId,
-                email: userMap.get(userId)?.email,
-                username: userMap.get(userId)?.username
-            }))
-        }));
-
-        // Sort this year tasks by deadline, then priority
-        const sortedThisYearTasks = enrichedThisYearTasks.sort((a, b) => {
-            const deadlineA = new Date(a.deadline).getTime();
-            const deadlineB = new Date(b.deadline).getTime();
-            if (deadlineA !== deadlineB) {
-                return deadlineA - deadlineB;
-            }
-            return priorityValues[b.priority as Priority] - priorityValues[a.priority as Priority];
-        });
-
-        return res.status(200).json({ thisYearTasks: sortedThisYearTasks });
+        return res.status(200).json({ thisYearTasks });
     } catch (error) {
         console.error('An error occurred while retrieving this year tasks:', error);
         res.status(500).json({
