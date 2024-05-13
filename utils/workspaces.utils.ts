@@ -1,15 +1,29 @@
-// workspace.utils.ts
 import workspaceModel from '../models/workspace.model';
 import userModel from '../models/user.model';
 import mongoose from 'mongoose';
+import { countTasksByStatus } from './tasks.utils';
 
 type UserInfo = {
     username: string,
     email: string
 };
 
+interface EnrichedWorkspace extends mongoose.Document {
+    title: string;
+    userId: string;
+    members: {
+        role: "admin" | "superadmin" | "member";
+        userId?: string;
+    }[];
+    invitationStatus: any[];
+    isDefault: string;
+    lastUpdateDate: Date;
+    description?: string;
+    taskStatusCounts?: Record<string, number>;
+}
+
 export async function fetchAndEnrichUserWorkspaces(userId: string) {
-    let workspaces = await workspaceModel
+    let workspaces: EnrichedWorkspace[] = await workspaceModel
         .find({
             $or: [{ userId }, { 'members.userId': userId }],
         })
@@ -41,8 +55,9 @@ export async function fetchAndEnrichUserWorkspaces(userId: string) {
         },
         {}
     );
-
-    workspaces = workspaces.map((workspace) => {
+    
+    for (let workspace of workspaces) {
+        const statusCounts = await countTasksByStatus(workspace._id.toString());
         const enrichedMembers = workspace.members.map((member) => {
             const userInfo = usersMap[member.userId.toString()];
             return {
@@ -52,8 +67,9 @@ export async function fetchAndEnrichUserWorkspaces(userId: string) {
                 email: userInfo?.email,
             };
         });
-        return { ...workspace, members: enrichedMembers };
-    });
+        workspace.members = enrichedMembers;
+        workspace.taskStatusCounts = statusCounts;
+    }
 
     return workspaces;
 }

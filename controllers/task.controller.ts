@@ -290,7 +290,9 @@ export const createTask = async (
                 }
             });
 
-            res.status(200).json({ task: task });
+            const statusCounts = await countTasksByStatus(workspaceId);
+
+            res.status(200).json({ task, statusCounts});
         } else {
             return res.status(404).json({ message: 'Task not found' });
         }

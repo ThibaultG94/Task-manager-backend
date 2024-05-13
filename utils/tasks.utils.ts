@@ -13,13 +13,13 @@ const priorityValues: { [key in Priority]: number } = {
 	Low: 1,
 };
 
-export async function countTasksByStatus(workspaceId: string) {
+export async function countTasksByStatus(workspaceId: string): Promise<Record<string, number>> {
     const taskCountByStatus = await TaskModel.aggregate([
         { $match: { workspaceId } },
         { $group: { _id: '$status', count: { $sum: 1 } } },
     ]);
 
-    const statusCounts = taskCountByStatus.reduce(
+    const statusCounts = taskCountByStatus.reduce<Record<string, number>>(
         (acc, curr) => {
             acc[curr._id] = curr.count;
             return acc;
