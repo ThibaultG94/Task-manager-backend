@@ -286,8 +286,7 @@ export const createTask = async (
 // Endpoint to edit a task
 export const editTask = async (
 	req: express.Request,
-	res: express.Response,
-	next: express.NextFunction
+	res: express.Response
 ) => {
 	try {
 		// Data to be updated
@@ -548,8 +547,7 @@ export const editTask = async (
 // Endpoint to delete a task
 export const deleteTask = async (
     req: express.Request,
-    res: express.Response,
-    next: express.NextFunction
+    res: express.Response
 ) => {
     try {
         // Tentative de trouver et supprimer la tâche par l'id fourni
@@ -610,15 +608,18 @@ export const deleteTask = async (
 
         // Delete the task
         await task.deleteOne();
-        res.status(200).json({ message: 'Task deleted ' + req.params.id });
-
+        
         // Invalidate cache if necessary
         const keys = await client.keys(`task:${req.user._id}:*`);
-        keys.forEach(async (key) => {
-            await client.del(key);
-        });
-
-        next();
+        if (keys) { 
+            keys.forEach(async (key) => {
+                await client.del(key);
+            });
+        }
+        
+        const workspaces = await fetchAndEnrichUserWorkspaces(req.user._id);
+        
+        return res.status(200).json({ message: 'Task deleted ' + req.params.id, workspaces });
     } catch (error) {
         console.error('Error during task deletion:', error);
         return res.status(500).json({ message: 'Internal server error', error });
