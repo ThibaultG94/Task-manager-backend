@@ -23,12 +23,12 @@ router.get('/:id', auth, validateUserID, getWorkspace);
 router.get('/user/:id', auth, validateUserID, getUserWorkspaces);
 
 // Route to update a workspace by its id
-router.put('/:id', auth, validateUserID, editWorkspace, updateLastUpdateDate);
+router.put('/:id', auth, validateUserID, updateLastUpdateDate, editWorkspace);
 
 // Route to delete a workspace by its id
 router.delete('/:id', auth, validateUserID, deleteWorkspace);
 
 // Route to exit a workspace by its id
-router.put('/:id/exit', auth, validateUserID, exitWorkspace, updateLastUpdateDate);
+router.put('/:id/exit', auth, validateUserID, updateLastUpdateDate, exitWorkspace);
 
 export default router;

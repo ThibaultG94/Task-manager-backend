@@ -251,6 +251,15 @@ export const createTask = async (
                     await notificationForAdmins.save();
                 }
             });
+
+            await workspaceModel.findByIdAndUpdate(
+                workspaceId,
+                {
+                    $set: { lastUpdateDate: new Date() },
+                },
+                { new: true, runValidators: true, context: 'query' }
+            );
+            
         } else {
             return res.status(404).json({ message: 'Task not found' });
         }
@@ -616,7 +625,7 @@ export const deleteTask = async (
                 await client.del(key);
             });
         }
-        
+
         const workspaces = await fetchAndEnrichUserWorkspaces(req.user._id);
         
         return res.status(200).json({ message: 'Task deleted ' + req.params.id, workspaces });

@@ -102,6 +102,7 @@ export const createWorkspace = async (
 			userId: req.body.userId,
 			description: req.body.description,
 			members: req.body.members,
+			lastUpdateDate: new Date(),
 		});
 
 		const workspaces = await fetchAndEnrichUserWorkspaces(userId);

@@ -25,10 +25,10 @@ import {
 	validatePageAndLimit,
 } from '../middlewares/validation.middlewares';
 import {
-	checkWorkspacePermission,
 	updateWorkspaceTimestamp,
 	validateAssignedUsers,
 } from '../middlewares/task.middlewares';
+import { updateLastUpdateDate, updateLastUpdateTask } from '../middlewares/workspace.middlewares';
 
 const router = express.Router();
 
@@ -97,6 +97,7 @@ router.put(
 	'/:id',
 	auth,
 	validateAssignedUsers,
+	updateLastUpdateTask,
 	editTask,
 	updateWorkspaceTimestamp
 );
@@ -105,6 +106,7 @@ router.put(
 router.delete(
 	'/:id',
 	auth,
+	updateLastUpdateTask,
 	deleteTask,
 	updateWorkspaceTimestamp
 );
