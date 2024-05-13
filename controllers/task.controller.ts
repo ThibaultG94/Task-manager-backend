@@ -521,20 +521,21 @@ export const editTask = async (
             }))
         };
 
-		res.status(200).json({
+        const workspaces = await fetchAndEnrichUserWorkspaces(req.user._id);
+
+        // Update the cache for this task
+        const key = `task:${task.workspaceId}:${req.user._id}`;
+        try {
+            await client.setEx(key, 10800, JSON.stringify(enrichedTask));
+        } catch (error) {
+            console.error('Cache update error for a task :', error);
+        }
+
+		return res.status(200).json({
 			message: 'Task updated',
 			task: enrichedTask,
+            workspaces,
 		});
-
-		// Update the cache for this task
-		const key = `task:${task.workspaceId}:${req.user._id}`;
-		try {
-			await client.setEx(key, 10800, JSON.stringify(enrichedTask));
-		} catch (error) {
-			console.error('Cache update error for a task :', error);
-		}
-
-		next();
 	} catch (error) {
 		// If something goes wrong, log the error and a server error response
 		const result = (error as Error).message;
