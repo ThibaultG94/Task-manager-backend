@@ -152,42 +152,6 @@ export const getWorkspaceTasks = async (
     }
 };
 
-// Endpoint to get the count of tasks by status in a specific workspace
-export const getWorkspaceTaskStatusCount = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const workspaceId = req.params.id;
-
-		const workspace = await workspaceModel.findById(workspaceId);
-		if (!workspace) {
-			return;
-		}
-
-		if (
-			!workspace.members.some(
-				(member) => member.userId === req.user._id
-			) &&
-			workspace.userId !== req.user._id
-		) {
-			return res.status(403).json({
-				message:
-					'You do not have sufficient rights to perform this action',
-			});
-		}
-
-        const statusCounts = await countTasksByStatus(workspaceId);
-
-		res.status(200).json({ statusCounts });
-	} catch (err) {
-		const result = (err as Error).message;
-		logger.info(result);
-
-		res.status(500).json({ message: 'Internal server error' });
-	}
-};
-
 // Endpoint to create a task
 export const createTask = async (
 	req: express.Request,
