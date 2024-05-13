@@ -8,7 +8,8 @@ import notificationModel from '../models/notification.model';
 import logger from '../config/logger';
 import { Task } from '../types/types';
 import { priorityToNumber } from '../utils/priorityToNumber';
-import { countTasksByStatus, fetchAndProcessTasks } from '../utils/tasks.utils';
+import { fetchAndProcessTasks } from '../utils/tasks.utils';
+import { fetchAndEnrichUserWorkspaces } from '../utils/workspaces.utils';
 
 // Endpoint to get a task by id
 export const getTask = async (req: express.Request, res: express.Response) => {
@@ -142,9 +143,7 @@ export const getWorkspaceTasks = async (
             }
         }
 
-        const statusCounts = await countTasksByStatus(workspaceId);
-
-        res.status(200).json({ tasks, statusCounts});
+        res.status(200).json({ tasks });
     } catch (err) {
         const result = (err as Error).message;
         logger.info(result);
@@ -155,8 +154,7 @@ export const getWorkspaceTasks = async (
 // Endpoint to create a task
 export const createTask = async (
 	req: express.Request,
-	res: express.Response,
-	next: express.NextFunction
+	res: express.Response
 ) => {
 	try {
 		// Check if the request includes task title
@@ -253,10 +251,6 @@ export const createTask = async (
                     await notificationForAdmins.save();
                 }
             });
-
-            const statusCounts = await countTasksByStatus(workspaceId);
-
-            res.status(200).json({ task, statusCounts});
         } else {
             return res.status(404).json({ message: 'Task not found' });
         }
@@ -274,9 +268,9 @@ export const createTask = async (
 			);
 		}
 
-		res.status(200).json({ task: task });
+        const workspaces = await fetchAndEnrichUserWorkspaces(userId);
 
-		next();
+        return res.status(200).json({ task, workspaces });
 	} catch (error) {
 		// If something goes wrong, log the error and send a server error response
 		const result = (error as Error).message;
