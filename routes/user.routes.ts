@@ -14,6 +14,7 @@ import {
 	resetPassword,
 	getContacts,
 	deleteContact,
+	createVisitorSession,
 } from '../controllers/user.controller';
 import {
 	validate,
@@ -34,6 +35,12 @@ router.post(
 	apiRegisterAndLoginLimiter,
 	validate(registerSchema, 'body'),
 	registerUser
+);
+
+// Route to register a new visitor
+router.post(
+	'/visitor',
+	createVisitorSession
 );
 
 // Route to log in a user

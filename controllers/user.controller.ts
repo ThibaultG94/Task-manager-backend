@@ -9,6 +9,7 @@ import workspaceModel from '../models/workspace.model';
 import { Workspace } from '../types/types';
 import logger from '../config/logger';
 import invitationModel from '../models/invitation.model';
+import jwt from 'jsonwebtoken';
 
 // Enpoint to create a user
 export const registerUser = async (
@@ -77,6 +78,46 @@ export const registerUser = async (
 		res.status(500).json({
 			message: 'Internal server error',
 		});
+	}
+};
+
+// Endpoint to create a temporary visitor session
+export const createVisitorSession = async (req: express.Request, res: express.Response) => {
+	try {
+		// Create a temporary user with visitor role
+		const tempUser = new UserModel({
+			username: 'Visitor_' + Date.now(),
+			email: `visitor_${Date.now()}@tempmail.com`,
+			password: bcrypt.hashSync('visitor', 10),
+			role: 'visitor',
+		});
+		await tempUser.save();
+
+		// Generate token with shorter expiration
+		const token = jwt.sign(
+			{
+				_id: tempUser._id.toHexString(),
+				role: tempUser.role
+			},
+			process.env.JWT_SECRET as string,
+			{
+				expiresIn: '1h'  // 1 hour validity
+			}
+		);
+
+		// Send back the token
+		res.status(200).json({
+			message: 'Visitor session created',
+			token: token,
+			tempUser: {
+				id: tempUser._id,
+				username: tempUser.username,
+				email: tempUser.email,
+				role: tempUser.role
+			}
+		});
+	} catch (error) {
+		res.status(500).json({ message: 'Internal server error', error });
 	}
 };
 

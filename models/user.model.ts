@@ -6,41 +6,52 @@ dotenv.config();
 
 // Define the schema for User model
 const userSchema = new mongoose.Schema({
-	username: {
-		type: String,
-		required: true,
+		username: {
+			type: String,
+			required: true,
+		},
+		email: {
+			type: String,
+			required: true,
+			unique: true,
+		},
+		password: {
+			type: String,
+			required: true,
+		},
+		role: {
+			type: String,
+			enum: ['user', 'admin', 'superadmin', 'visitor'],
+			default: 'user',
+		},
+		tips: {
+			type: Boolean,
+			default: true,
+		},
+		resetPasswordToken: {
+			type: String,
+			default: null,
+		},
+		resetPasswordExpires: {
+			type: Number,
+			default: null,
+		},
+		contacts: {
+			type: Array,
+			default: [],
+		}, 
 	},
-	email: {
-		type: String,
-		required: true,
-		unique: true,
-	},
-	password: {
-		type: String,
-		required: true,
-	},
-	role: {
-		type: String,
-		enum: ['user', 'admin', 'superadmin'],
-		default: 'user',
-	},
-	tips: {
-		type: Boolean,
-		default: true,
-	},
-	resetPasswordToken: {
-		type: String,
-		default: null,
-	},
-	resetPasswordExpires: {
-		type: Number,
-		default: null,
-	},
-	contacts: {
-		type: Array,
-		default: [],
-	},
-});
+	{ timestamps: true },
+);
+
+// TTL index for visitor accounts
+userSchema.index(
+    { "createdAt": 1 },
+    {
+        expireAfterSeconds: 3600, // Documents expire after 3600 seconds (1 hour)
+        partialFilterExpression: { role: "visitor" } // Applies only to documents where role is "visitor"
+    }
+);
 
 // Before saving a user, hash the password
 userSchema.pre('save', async function (next) {
