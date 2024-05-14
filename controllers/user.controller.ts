@@ -113,6 +113,22 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		const workspaceId = "66432773c64f1dbf12d7fcbb";
 		const workspace = await workspaceModel.findById(workspaceId);
 
+		// const invitation = new invitationModel({
+		// 	senderId: superAdminUser?._id,			
+		// 	guestId: tempUser._id.toString(),
+		// 	message: "Bonjour et bienvenue sur Task Manager ! Vous pouvez m'ajoutez en contact en acceptant cette invitation. N'hésitez pas à me contacter si vous avez des questions. Bonne journée !",
+		// 	visitorInvitation: true
+		// });
+
+		// const notificationInvitation = new notificationModel({
+		// 	creatorId: superAdminUser?._id,
+		// 	invitationId: invitation._id,
+		// 	userId: tempUser._id.toString(),
+		// 	type: 'invitationUpdate',
+		// 	message: `${superAdminUser.username} vous a envoyé une invitation`,
+		// 	visitorNotification: true,
+		// });
+
 		const workspaceInvitation = new workspaceInvitationModel({
 			senderId: superAdminUser?._id,
 			guestId: tempUser._id.toString(),
@@ -137,6 +153,8 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 			visitorNotification: true,
 		});
 
+		// await invitation.save();
+		// await notificationInvitation.save();
 		await notification.save();
 		await workspaceInvitation.save();
 		await workspace.save();
@@ -165,9 +183,11 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		}
 
 		const dateToday = new Date();
+		const dateTomorrow = new Date(dateToday);
+		dateTomorrow.setDate(dateToday.getDate() + 1);
 
 		const firstTask = new taskModel({
-			title: 'Validez votre première Tâche!',
+			title: 'Validez votre première Tâche',
 			workspaceId: firstWorkspaceId,
 			userId: tempUser._id,
 			description: "Ceci est votre première tâche. Cliquez sur le bouton 'Editer' pour la modifier. Vous pouvez valider la tâche en mettant le status sur 'Archivé'. Vous pouvez également archiver la tâche rapidement en cliquant sur le bouton sur l'icône de validation à droite dans le bloc Tâches Urgentes de la page Dasboard, ou dans chaque bloc de la page Tasks.",
@@ -179,7 +199,7 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		});
 
 		const secondTask = new taskModel({
-			title: 'Créez votre premier Workspace!',
+			title: 'Créez votre premier Workspace',
 			workspaceId: firstWorkspaceId,
 			userId: tempUser._id,
 			description: "Dans la sidebar à gauche, cliquez sur l'icône '+' et sélectionnez l'onglet Workspace. Vous pouvez maintenant créer votre premier Workspace !",
@@ -191,7 +211,7 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		});
 
 		const thirdTask = new taskModel({
-			title: 'Créez votre première Tâche!',
+			title: 'Créez votre première Tâche',
 			workspaceId: firstWorkspaceId,
 			userId: tempUser._id,
 			description: "Dans la sidebar à gauche, cliquez sur l'icône '+' et restez sur l'onglet Tâches. Vous pouvez maintenant créer votre première tâche !",
@@ -202,9 +222,48 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 			visitorTask: true,
 		});
 
+		const fourthTask = new taskModel({
+			title: 'Checkez vos notifications',
+			workspaceId: firstWorkspaceId,
+			userId: tempUser._id,
+			description: "En haut à droite de la page, vous pouvez voir une icône de cloche. Cliquez dessus pour voir vos notifications. Vous avez une notification de la part de l'administrateur du site.",
+			status: 'Pending',
+			deadline: dateTomorrow.toISOString(),
+			priority: 'Urgent',
+			assignedTo: [tempUser._id],
+			visitorTask: true,
+		});
+
+		const fifthTask = new taskModel({
+			title: 'Ajoutez un contact',
+			workspaceId: firstWorkspaceId,
+			userId: tempUser._id,
+			description: "Dans la sidebar à gauche, cliquez sur l'icône d'ajout de contact et sélectionnez l'onglet 'Ajouter un contact'. Vous pouvez maintenant m'ajouter avec mon email thibault.guilhem@gmail.com !",
+			status: 'Pending',
+			deadline: dateToday.toISOString(),
+			priority: 'Low',
+			assignedTo: [tempUser._id],
+			visitorTask: true,
+		});
+
+		const sixthTask = new taskModel({
+			title: 'Rejoignez un Workspace',
+			workspaceId: firstWorkspaceId,
+			userId: tempUser._id,
+			description: "Dans la sidebar à gauche, cliquez sur l'icône '+' et restez sur l'onglet Tâches. Vous pouvez maintenant créer votre première tâche !",
+			status: 'Pending',
+			deadline: dateTomorrow.toISOString(),
+			priority: 'High',
+			assignedTo: [tempUser._id],
+			visitorTask: true,
+		});
+
 		await firstTask.save();
 		await secondTask.save();
 		await thirdTask.save();
+		await fourthTask.save();
+		await fifthTask.save();
+		await sixthTask.save();
 
 		// Send back the token
 		return res.status(200).json({
