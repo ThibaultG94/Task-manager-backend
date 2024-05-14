@@ -15,6 +15,8 @@ export const setNotification = async (req: express.Request, res: express.Respons
             return res.status(404).json({ message: 'User not found' });
         }
 
+        const isVisitor = creator.role === 'visitor';
+
         let notificationsIds: any = [];
 
         // Handle invitation updates
@@ -46,6 +48,7 @@ export const setNotification = async (req: express.Request, res: express.Respons
                         userId,
                         type,
                         message,
+                        visitorNotification: isVisitor,
                     });
                     await notification.save();
                     notificationsIds.push(notification._id);
@@ -64,6 +67,7 @@ export const setNotification = async (req: express.Request, res: express.Respons
                         userId: member.userId,
                         type,
                         message,
+                        visitorNotification: isVisitor,
                     });
                     await notification.save();
                     notificationsIds.push(notification._id);
@@ -94,6 +98,7 @@ export const setNotification = async (req: express.Request, res: express.Respons
                         userId: member.userId,
                         type,
                         message,
+                        visitorNotification: isVisitor,
                     });
                     await notification.save();
                 }
