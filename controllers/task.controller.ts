@@ -165,13 +165,15 @@ export const createTask = async (
 		const userId = req.body.userId;
 
 		// Check if the user exists
-		const userExists = await userModel.exists({ _id: userId });
+		const user = await userModel.findById(userId);
 
-		if (!userExists) {
+		if (!user) {
 			return res
 				.status(404)
 				.json({ message: 'The specified user does not exist' });
 		}
+
+        const isVisitor = user.role === 'visitor';
 
 		const workspaceId = req.body.workspaceId;
 		const workspace = await workspaceModel.findById(workspaceId);
@@ -215,6 +217,7 @@ export const createTask = async (
 				req.body.status === 'Archived'
 					? new Date().toISOString()
 					: null,
+            visitorTask: isVisitor,
 		});
 
 		// Création de la tâche réussie, maintenant envoyer des notifications
@@ -233,6 +236,7 @@ export const createTask = async (
                     type: 'taskCreation',
                     message: message,
                     workspaceId: workspaceId,
+                    visitorNotification: isVisitor,
                 });
                 await notification.save();
             }
@@ -247,6 +251,7 @@ export const createTask = async (
                         type: 'taskCreation',
                         message: `Une nouvelle tâche '${task.title}' a été créée dans le workspace ${workspace.title}.`,
                         workspaceId: workspaceId,
+                        visitorNotification: isVisitor,
                     });
                     await notificationForAdmins.save();
                 }
@@ -300,6 +305,9 @@ export const editTask = async (
 	try {
 		// Data to be updated
 		const updates = req.body;
+
+        const user = await userModel.findById(req.user._id);
+        const isVisitor = user.role === 'visitor';
 
 		// Find the task by ID
 		const task = (await TaskModel.findById(req.params.id)) as Task;
@@ -503,6 +511,7 @@ export const editTask = async (
                             type: isUserSuperAdmin || isUserAdmin || isUserOwner ? 'taskUpdate' : 'workspaceUpdate',
                             taskId: task._id,
                             workspaceId: task.workspaceId,
+                            visitorNotification: isVisitor,
                         });
                         await newNotification.save();
                     }
@@ -562,6 +571,7 @@ export const deleteTask = async (
         // Tentative de trouver et supprimer la tâche par l'id fourni
         const task = await TaskModel.findById(req.params.id);
         const user = await userModel.findById(req.user._id);
+        const isVisitor = user.role === 'visitor';
         if (!task) {
             return res.status(400).json({ message: 'This task does not exist' });
         }
@@ -597,6 +607,7 @@ export const deleteTask = async (
                 type: 'taskDeletion',
                 message: `${user.username} a supprimé la tâche ${task.title} du workspace ${workspace.title}`,
                 workspaceId: workspace._id,
+                visitorNotification: isVisitor,
             });
             await notification.save();
         });
@@ -610,6 +621,7 @@ export const deleteTask = async (
                     type: 'taskDeletion',
                     message: `${user.username} a supprimé la tâche ${task.title} qui vous concerne dans le workspace ${workspace.title}`,
                     workspaceId: workspace._id,
+                    visitorNotification: isVisitor,
                 });
                 await notification.save();
             }

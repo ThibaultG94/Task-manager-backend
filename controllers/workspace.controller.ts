@@ -89,13 +89,15 @@ export const createWorkspace = async (
 
 		const userId = req.body.userId;
 
-		const userExists = await userModel.exists({ _id: userId });
+		const user = await userModel.findById(userId);
 
-		if (!userExists) {
+		if (!user) {
 			return res
 				.status(404)
 				.json({ message: 'The specified user does not exist' });
 		}
+
+		const isVisitor = user.role === 'visitor';
 
 		await workspaceModel.create({
 			title: req.body.title,
@@ -103,6 +105,7 @@ export const createWorkspace = async (
 			description: req.body.description,
 			members: req.body.members,
 			lastUpdateDate: new Date(),
+			visitorWorkspace: isVisitor,
 		});
 
 		const workspaces = await fetchAndEnrichUserWorkspaces(userId);
@@ -119,6 +122,9 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
         const updates = req.body;
         const workspace = await workspaceModel.findById(req.params.id);
 		const userId = req.user._id;
+
+		const user = await userModel.findById(userId);
+		const isVisitor = user.role === 'visitor';
 
         if (!workspace) {
             return res.status(400).json({ message: 'This workspace does not exist' });
@@ -148,6 +154,7 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
 					type: 'workspaceUpdate',
 					message: `Le workspace ${workspace.title} a été mis à jour`,
 					workspaceId: workspace._id,
+					visitorNotification: isVisitor,
 				});
 		
 				await notification.save();
@@ -184,6 +191,7 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
                         role: member.role,
                         workspaceId: req.params.id,
                         status: 'PENDING',
+						visitorWorkspace: isVisitor,
                     });
 					
 					if (workspaceInvitation) {
@@ -194,6 +202,7 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
 							message: `${senderUser.username} vous a invité à rejoindre le workspace ${workspace.title}`,
 							userId: member.userId,
 							workspaceId: workspace._id,
+							visitorNotification: isVisitor,
 						});
 					
 						await notification.save();
@@ -237,6 +246,7 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
 					type: 'workspaceDeletion',
 					message: `Vous avez été retiré du workspace ${workspace.title}`,
 					workspaceId: workspace._id,
+					visitorNotification: isVisitor,
 				});
 			
 				await notificationForRemovedMember.save();
@@ -264,6 +274,7 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
 					type: 'workspaceUpdate',
 					message: message,
 					workspaceId: workspace._id,
+					visitorNotification: isVisitor,
 				});
 
 				await notificationWorkspaceMembers.save();
@@ -308,7 +319,6 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
     }
 };
 
-
 // Endpoint to delete a workspace
 export const deleteWorkspace = async (req: express.Request, res: express.Response) => {
     try {
@@ -316,6 +326,7 @@ export const deleteWorkspace = async (req: express.Request, res: express.Respons
 		const workspace = await workspaceModel.findById(workspaceId);
 		const user = await userModel.findById(req.user._id);
 		const userId = req.user._id;
+		const isVisitor = user.role === 'visitor';
 		
 		if (!workspace) {
 			return res.status(400).json({ message: 'This workspace does not exist' });
@@ -342,6 +353,7 @@ export const deleteWorkspace = async (req: express.Request, res: express.Respons
 				type: 'workspaceDeletion',
 				message: `${user.username} a supprimé le workspace ${workspace.title}`,
 				workspaceId: workspace._id,
+				visitorNotification: isVisitor,
 			});
 		
 			await notification.save();
@@ -365,6 +377,7 @@ export const deleteWorkspace = async (req: express.Request, res: express.Respons
                 isDefault: true,
 				members: [{ userId: req.user._id, role: 'superadmin' }],
 				description: 'This is your default workspace',
+				visitorWorkspace: isVisitor,
             });
         }
 
@@ -388,6 +401,7 @@ export const exitWorkspace = async (req: express.Request, res: express.Response)
 		const workspace = await workspaceModel.findById(workspaceId);
 		const user = await userModel.findById(req.user._id);
 		const userId = req.user._id;
+		const isVisitor = user.role === 'visitor';
 
 		if (!workspace) {
 			return res.status(400).json({ message: 'This workspace does not exist' });
@@ -407,6 +421,7 @@ export const exitWorkspace = async (req: express.Request, res: express.Response)
 					type: 'workspaceUpdate',
 					message: `${user.username} a quitté le workspace ${workspace.title}`,
 					workspaceId: workspace._id,
+					visitorNotification: isVisitor,
 				});
 
 				await notification.save();

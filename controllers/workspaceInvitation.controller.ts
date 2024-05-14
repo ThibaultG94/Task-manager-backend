@@ -17,6 +17,7 @@ export const sendInvitationWorkspace = async (
 
 		const sender = await userModel.findById(senderId);
 		const guestUser = await userModel.findById(guestId);
+		const isVisitor = sender?.role === 'visitor' || guestUser?.role === 'visitor';
 		const workspace = await workspaceModel.findById(workspaceId);
 
 		if (!sender) {
@@ -91,6 +92,7 @@ export const sendInvitationWorkspace = async (
 			role,
 			workspaceId,
 			status: 'PENDING',
+			visitorWorkspace: isVisitor,
 		});
 
 		workspace.invitationStatus.push({
@@ -105,6 +107,7 @@ export const sendInvitationWorkspace = async (
 			message: `${sender.username} vous a envoyé une invitation a rejoindre le workspace ${workspace.title} en tant que ${role}`,
 			userId: guestId,
 			workspaceId: workspaceId,
+			visitorNotification: isVisitor,
 		});
 
 		await notification.save();
@@ -183,6 +186,9 @@ export const acceptWorkspaceInvitation = async (
         );
 
 		const guestUser = await userModel.findById(invitation.guestId);
+		const user = await userModel.findById(userId);
+
+		const isVisitor = guestUser?.role === 'visitor' || user?.role === 'visitor';
 
         // Send notification to the invitation sender
         const senderNotification = new notificationModel({
@@ -191,6 +197,7 @@ export const acceptWorkspaceInvitation = async (
             type: 'workspaceInvitation',
             message: `${guestUser.username} a rejoint le workspace ${workspace.title} en tant que ${invitation.role}`,
             workspaceId: workspace._id,
+			visitorNotification: isVisitor,
         });
 
         await senderNotification.save();
@@ -207,6 +214,7 @@ export const acceptWorkspaceInvitation = async (
                 type: 'workspaceUpdate',
                 message: `${guestUser.username} a rejoint le workspace ${workspace.title} en tant que ${invitation.role}`,
                 workspaceId: workspace._id,
+				visitorNotification: isVisitor,
             });
 
             await notification.save();
