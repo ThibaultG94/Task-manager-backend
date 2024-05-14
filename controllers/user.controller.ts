@@ -10,6 +10,7 @@ import { Workspace } from '../types/types';
 import logger from '../config/logger';
 import invitationModel from '../models/invitation.model';
 import jwt from 'jsonwebtoken';
+import taskModel from '../models/task.model';
 
 // Enpoint to create a user
 export const registerUser = async (
@@ -105,8 +106,47 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 			}
 		);
 
+		const firstWorkspace = new workspaceModel({
+			title: 'Visitor Workspace',
+			userId: tempUser._id,
+			description: 'Cet espace est temporaire pour les visiteurs.',
+			members: [
+				{
+					userId: tempUser._id,
+					username: tempUser.username,
+					email: tempUser.email,
+					role: 'admin',
+				},
+			],
+			isDefault: true,
+			visitorWorkspace: true,
+		});
+
+		await firstWorkspace.save();
+		const firstWorkspaceId = firstWorkspace._id;
+
+		if (!firstWorkspaceId) {
+			return res.status(400).json({ message: 'Error with firstWorkspaceID' });
+		}
+
+		const dateToday = new Date();
+
+		const firstTask = new taskModel({
+			title: 'Validez votre première Tâche!',
+			workspaceId: firstWorkspaceId,
+			userId: tempUser._id,
+			description: "Ceci est votre première tâche. Cliquez sur le bouton 'Editer' pour la modifier. Vous pouvez valider la tâche en mettant le status sur 'Archivé'. Vous pouvez également archiver la tâche rapidement en cliquant sur le bouton sur l'icône de validation à droite dans le bloc Tâches Urgentes de la page Dasboard, ou dans chaque bloc de la page Tasks.",
+			status: 'Pending',
+			deadline: dateToday.toISOString(),
+			priority: 'Urgent',
+			assignedTo: [tempUser._id],
+			visitorTask: true,
+		});
+
+		await firstTask.save();
+
 		// Send back the token
-		res.status(200).json({
+		return res.status(200).json({
 			message: 'Visitor session created',
 			token: token,
 			tempUser: {

@@ -55,9 +55,23 @@ const taskSchema = new mongoose.Schema(
 			required: false,
 			default: null,
 		},
+		visitorTask: {
+			type: Boolean,
+			default: false,
+			required: false,
+		},
 	},
 	// Add creation and update timestamps to each document
 	{ timestamps: true }
+);
+
+// TTL index for visitor accounts
+taskSchema.index(
+    { "createdAt": 1 },
+    {
+        expireAfterSeconds: 3600, // Documents expire after 3600 seconds (1 hour)
+        partialFilterExpression: { visitorTask: true } // Applies only to documents where role is "visitor"
+    }
 );
 
 // Indexing userId for  query efficiency

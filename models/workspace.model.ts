@@ -15,7 +15,7 @@ const workspaceSchema = new mongoose.Schema(
 				userId: String,
 				role: {
 					type: String,
-					enum: ['admin', 'superadmin', 'member'],
+					enum: ['admin', 'superadmin', 'member', 'visitor'],
 					default: 'member',
 				},
 			},
@@ -38,8 +38,22 @@ const workspaceSchema = new mongoose.Schema(
 			type: Date,
 			default: Date.now,
 		},
+		visitorWorkspace: {
+			type: Boolean,
+			default: false,
+			required: false,
+		},
 	},
 	{ timestamps: true }
+);
+
+// TTL index for visitor accounts
+workspaceSchema.index(
+    { "createdAt": 1 },
+    {
+        expireAfterSeconds: 3600, // Documents expire after 3600 seconds (1 hour)
+        partialFilterExpression: { visitorWorkspace: true } // Applies only to documents where role is "visitor"
+    }
 );
 
 workspaceSchema.index({ userId: 1 });
