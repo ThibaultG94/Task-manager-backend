@@ -11,6 +11,8 @@ import logger from '../config/logger';
 import invitationModel from '../models/invitation.model';
 import jwt from 'jsonwebtoken';
 import taskModel from '../models/task.model';
+import workspaceInvitationModel from '../models/workspaceInvitation.model';
+import notificationModel from '../models/notification.model';
 
 // Enpoint to create a user
 export const registerUser = async (
@@ -105,6 +107,39 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 				expiresIn: '1h'  // 1 hour validity
 			}
 		);
+
+		// Find the user which is an admin
+		const superAdminUser = await UserModel.findOne({ role: 'superadmin' });
+		const workspaceId = "66432773c64f1dbf12d7fcbb";
+		const workspace = await workspaceModel.findById(workspaceId);
+
+		const workspaceInvitation = new workspaceInvitationModel({
+			senderId: superAdminUser?._id,
+			guestId: tempUser._id.toString(),
+			role: "member",
+			workspaceId,
+			status: 'PENDING',
+			visitorWorkspace: true,
+		});
+
+		workspace.invitationStatus.push({
+			userId: tempUser._id.toString(),
+			status: 'pending',
+		});
+
+		const notification = new notificationModel({
+			creatorId: superAdminUser?._id,
+			invitationId: workspaceInvitation._id,
+			type: 'workspaceInvitation',
+			message: `${superAdminUser.username} vous a envoyé une invitation a rejoindre le workspace ${workspace.title} en tant que membre.`,
+			userId: tempUser._id.toString(),
+			workspaceId: workspaceId,
+			visitorNotification: true,
+		});
+
+		await notification.save();
+		await workspaceInvitation.save();
+		await workspace.save();
 
 		const firstWorkspace = new workspaceModel({
 			title: 'Visitor Workspace',
