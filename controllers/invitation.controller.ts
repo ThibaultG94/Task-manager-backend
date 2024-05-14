@@ -50,23 +50,46 @@ export const sendInvitation = async (
 			});
 		}
 
-		const invitation = new invitationModel({
-			senderId: req.user._id,
-			guestId: guestUser._id,
-			message,
-		});
+		if (sender.role !== "visitor" && guestUser.role === "visitor") {
+			const invitation = new invitationModel({
+				senderId: req.user._id,
+				guestId: guestUser._id,
+				message,
+			});
 
-		await invitation.save();
+			await invitation.save();
 
-		const notification = new notificationModel({
-			creatorId: senderId,
-			invitationId: invitation._id,
-			userId: guestUser._id,
-			type: 'invitationUpdate',
-			message: `${sender?.username} vous a envoyé une invitation`,
-		});
+			const notification = new notificationModel({
+				creatorId: senderId,
+				invitationId: invitation._id,
+				userId: guestUser._id,
+				type: 'invitationUpdate',
+				message: `${sender?.username} vous a envoyé une invitation`,
+			});
 
-		await notification.save();
+
+			await notification.save();
+		} else {
+			const invitation = new invitationModel({
+				senderId: req.user._id,
+				guestId: guestUser._id,
+				message,
+				visitorInvitation: true,
+			});
+
+			await invitation.save();
+
+			const notification = new notificationModel({
+				creatorId: senderId,
+				invitationId: invitation._id,
+				userId: guestUser._id,
+				type: 'invitationUpdate',
+				message: `${sender?.username} vous a envoyé une invitation`,
+				visitorNotification: true,
+			});
+
+			await notification.save();
+		}
 
         const invitations = await fetchAndCategorizeSentInvitations(userId);
 
