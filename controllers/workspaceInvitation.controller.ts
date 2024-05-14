@@ -178,6 +178,7 @@ export const acceptWorkspaceInvitation = async (
         workspace.members.push({
             userId: invitation.guestId,
             role: invitation.role,
+			createdAt: new Date(),
         });
 
         // Update workspace invitations status

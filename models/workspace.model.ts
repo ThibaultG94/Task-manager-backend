@@ -18,6 +18,15 @@ const workspaceSchema = new mongoose.Schema(
 					enum: ['admin', 'superadmin', 'member', 'visitor'],
 					default: 'member',
 				},
+				visitorWorkspace: {
+					type: Boolean,
+					default: false,
+					required: false,
+				},
+				createdAt: {
+                    type: Date,
+                    default: Date.now,
+                },
 			},
 		],
 		invitationStatus: [

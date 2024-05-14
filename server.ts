@@ -14,6 +14,7 @@ import notificationRoutes from './routes/notification.routes';
 import { apiLimiter } from './middlewares/rateLimiter.middlewares';
 import cookieParser from 'cookie-parser';
 import logger from './config/logger';
+import cleanupVisitors from './utils/cleanupVisitors';
 
 const port: number = 5000;
 
@@ -107,4 +108,7 @@ app.use((req, res, next) => {
 });
 
 // Lancer le serveur
-app.listen(port, () => logger.info('Le serveur a démarré au port ' + port));
+app.listen(port, () => {
+	cleanupVisitors();
+	logger.info('Le serveur a démarré au port ' + port)
+});
