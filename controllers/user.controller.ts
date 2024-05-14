@@ -143,7 +143,33 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 			visitorTask: true,
 		});
 
+		const secondTask = new taskModel({
+			title: 'Créez votre premier Workspace!',
+			workspaceId: firstWorkspaceId,
+			userId: tempUser._id,
+			description: "Dans la sidebar à gauche, cliquez sur l'icône '+' et sélectionnez l'onglet Workspace. Vous pouvez maintenant créer votre premier Workspace !",
+			status: 'Pending',
+			deadline: dateToday.toISOString(),
+			priority: 'High',
+			assignedTo: [tempUser._id],
+			visitorTask: true,
+		});
+
+		const thirdTask = new taskModel({
+			title: 'Créez votre première Tâche!',
+			workspaceId: firstWorkspaceId,
+			userId: tempUser._id,
+			description: "Dans la sidebar à gauche, cliquez sur l'icône '+' et restez sur l'onglet Tâches. Vous pouvez maintenant créer votre première tâche !",
+			status: 'Pending',
+			deadline: dateToday.toISOString(),
+			priority: 'Medium',
+			assignedTo: [tempUser._id],
+			visitorTask: true,
+		});
+
 		await firstTask.save();
+		await secondTask.save();
+		await thirdTask.save();
 
 		// Send back the token
 		return res.status(200).json({
