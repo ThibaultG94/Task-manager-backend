@@ -1,882 +1,1638 @@
-# API Documentation for My Task Manager App
-
-This is the backend API for the Todo List application. This API enables users to create an account, login, and manage their todo items. Users can perform CRUD (Create, Read, Update, Delete) operations on their tasks.
-
-This documentation provides information on the endpoints available, the expected request formats, and the responses.
-
-This API is built using Node.js and Express, and follows RESTful principles.
+# Task Manager API Documentation
 
 ## Authentication
 
-Before users can interact with their tasks, they need to register for an account and their Login. User authentication is performed via email and password.
+To interact with tasks, users must register and log in. User authentication is done via email and password. Upon successful login, an authentication token is provided and must be included in the `Authorization` header of all subsequent requests.
 
-Upon successful login, the user is provided with an authentication token. This token must be included in the `Authorization` header in all requests to the task endpoints, as follows:
+**Authorization header format:**
 
-`Authorization: Bearer <token>`
+## User Endpoints
 
-## Endpoints
+### User Registration
 
-### User Endpoints
+- **URL** : `/users/register`
+- **Method** : `POST`
+- **Description** : Register a new user. A default workspace is created for each new user.
+- **Request body** :
 
-#### User Registration
+  | Field      | Type   | Description                      |
+  | ---------- | ------ | -------------------------------- |
+  | `email`    | string | User's email address.            |
+  | `password` | string | User's password.                 |
+  | `username` | string | User's username.                 |
+  | `role`     | string | User's role (e.g., user, admin). |
 
--   **URL** : `/users/register`
--   **Method**: `POST`
--   **Description**: Register a new user. A default workspace is created for each new user.
--   **Request body**:
+- **Success Response** :
 
-    | Field      | Type   | Description                                  |
-    | ---------- | ------ | -------------------------------------------- |
-    | `email`    | string | User's email address.                        |
-    | `password` | string | User's password.                             |
-    | `username` | string | User's username.                             |
-    | `role`     | string | User's role (e.g., user, admin, superadmin). |
+  - **Code** : `201 Created`
+  - **Content** : `{ "message": "User successfully registered and default workspace created" }`
 
--   **Success Response**:
+- **Error Responses** :
 
-    -   **Code**: `201 Created`
-    -   **Content**: `{ "message": "User successfully registered and default workspace created" }`
+  - **Code** : `400 Bad Request`
+  - **Content** : `{ "message": "Email already in use. Please change email address or login." }`
 
--   **Error Responses**:
+  - **Code** : `422 Unprocessable Entity`
+  - **Content** : `{ "message": "Invalid input" }`
 
-    -   **Code**: `400 Bad Request`
-    -   **Content**: `{ "message": "Email already in use. Please change email address or login." }`
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error registering account" }`
 
-    or
+### User Login
 
-    -   **Code**: `422 Unprocessable Entity`
-    -   **Content**: `{ "message": "Invalid input" }`
+- **URL** : `/users/login`
+- **Method** : `POST`
+- **Description** : Log in a user.
+- **Request body** :
 
-    or
+  | Field      | Type   | Description           |
+  | ---------- | ------ | --------------------- |
+  | `email`    | string | User's email address. |
+  | `password` | string | User's password.      |
 
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Error registering account" }`
+- **Success Response** :
 
-#### User Login
+  - **Code** : `200 OK`
+  - **Content** : `{ "message": "Authentication successful", "user": {"id": "<User ID>", "username": "<User username>", "email": "<User email>"} }`
+  - **Cookies** : Two HttpOnly cookies named `token` and `refreshToken` are set, containing the JWT and the refresh token respectively.
 
--   **URL** : `/users/login`
--   **Method**: `POST`
--   **Description**: Log in a user.
--   **Request body**:
+- **Error Responses** :
 
-    | Field      | Type   | Description           |
-    | ---------- | ------ | --------------------- |
-    | `email`    | string | User's email address. |
-    | `password` | string | User's password.      |
+  - **Code** : `400 Bad Request`
+  - **Content** : `{ "message": "Invalid credentials" }`
 
--   **Success Response**:
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "Invalid password" }`
 
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "message": "Authentication successful", "user": {"id": "<User ID>", "username": "<User username>", "email": "<User email>"} }`
-    -   **Cookies**: On successful login, two HttpOnly cookies named 'token' and 'refreshToken' are set, containing the JWT token and the refresh token, respectively.
+  - **Code** : `404 Not Found`
+  - **Content** : `{ "message": "User not found" }`
 
--   **Error Responses**:
+  - **Code** : `422 Unprocessable Entity`
+  - **Content** : `{ "message": "Invalid input" }`
 
-    -   **Code**: `400 Bad Request`
-    -   **Content**: `{ "message": "Identifiants incorrects" }`
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Internal server error", "result": "<Error Details>" }`
 
-    or
+### Update User Information
 
-    -   **Code**: `401 Unauthorized`
-    -   **Content**: `{ "message": "Invalid password" }`
+- **URL** : `/users/:id/update`
+- **Method** : `PUT`
+- **Description** : Update a user's information.
+- **URL Parameters** :
 
-    or
+  | Parameter | Type       | Description              |
+  | --------- | ---------- | ------------------------ |
+  | `id`      | `ObjectId` | ID of the user to update |
 
-    -   **Code**: `404 Not Found`
-    -   **Content**: `{ "message": "User not found" }`
+- **Request body** : At least one of the following fields should be present:
 
-    or
+  | Field      | Type   | Description                      |
+  | ---------- | ------ | -------------------------------- |
+  | `email`    | string | (Optional) User's email address. |
+  | `password` | string | (Optional) User's password.      |
+  | `username` | string | (Optional) User's username.      |
+  | `role`     | string | (Optional) User's role.          |
 
-    -   **Code**: `422 Unprocessable Entity`
-    -   **Content**: `{ "message": "Invalid input" }`
+- **Success Response** :
 
-    or
+  - **Code** : `200 OK`
+  - **Content** : `{ "message": "User updated", "user": "<User Object>" }`
 
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error", "result": "<Error Details>" }`
+- **Error Responses** :
 
-#### User Update
+  - **Code** : `403 Forbidden`
+  - **Content** : `{ "message": "You do not have sufficient rights to perform this action" }`
 
--   **URL** : `/users/:id/update`
--   **Method**: `PUT`
--   **Description**: Update a user.
+  - **Code** : `404 Not Found`
+  - **Content** : `{ "message": "User not found" }`
 
--   **URL Parameters**:
+  - **Code** : `422 Unprocessable Entity`
+  - **Content** : `{ "message": "No fields for update were provided" }`
 
-    | Parameter | Type       | Description              |
-    | --------- | ---------- | ------------------------ |
-    | `id`      | `ObjectId` | ID of the user to update |
-
--   **Request body**: At least one of the following fields should be present:
-
-    | Field      | Type   | Description                      |
-    | ---------- | ------ | -------------------------------- |
-    | `email`    | string | (Optional) User's email address. |
-    | `password` | string | (Optional) User's password.      |
-    | `username` | string | (Optional) User's username.      |
-    | `role`     | string | (Optional) User's role.          |
-
--   **Success Response**:
-
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "message": "User updated", "user": "<User Object>" }`
-
--   **Error Responses**:
-
-    -   **Code**: `403 Forbidden`
-    -   **Content**: `{ "message": "You do not have sufficient rights to perform this action" }`
-
-    or
-
-    -   **Code**: `404 Not Found`
-    -   **Content**: `{ "message": "User not found" }`
-
-    or
-
-    -   **Code**: `422 Unprocessable Entity`
-    -   **Content**: `{ "message": "No fields for update were provided" }`
-
-    or
-
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error", "result": "<Error Details>" }`
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Internal server error", "result": "<Error Details>" }`
 
 **Notes**:
 
-    1. The user himself or an `admin` or `superadmin` can update the user's data.
-    2. A non-superadmin user cannot update an `admin` or `superadmin` user's data.
-    3. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
+1. The user themselves, an `admin`, or a `superadmin` can update the user's data.
+2. A non-superadmin user cannot update an `admin` or `superadmin` user's data.
+3. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
 
-#### User Deletion
+### User Logout
 
--   **URL** : `/users/:id/delete`
--   **Method**: `DELETE`
--   **Description**: Delete a user.
+- **URL** : `/users/logout`
+- **Method** : `POST`
+- **Description** : Logs out a user, clearing the refresh token from cookies and the database.
+- **Request Cookies** :
 
--   **URL Parameters**:
+  | Field          | Type   | Description           |
+  | -------------- | ------ | --------------------- |
+  | `refreshToken` | string | User's refresh token. |
 
-    | Parameter | Type       | Description              |
-    | --------- | ---------- | ------------------------ |
-    | `id`      | `ObjectId` | ID of the user to delete |
+- **Success Response** :
 
--   **Success Response**:
+  - **Code** : `200 OK`
+  - **Content** : `{ "message": "User logged out successfully" }`
 
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "message": "User deleted", "user": "<User Object>" }`
+- **Error Responses** :
 
--   **Error Responses**:
-
-    -   **Code**: `403 Forbidden`
-    -   **Content**: `{ "message": "You do not have sufficient rights to perform this action" }`
-
-    or
-
-    -   **Code**: `404 Not Found`
-    -   **Content**: `{ "message": "User not found" }`
-
-    or
-
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error", "result": "<Error Details>" }`
-
-    **Notes**:
-
-    1. Only the user himself or an `admin` or `superadmin` can delete the user's account.
-    2. A non-superadmin user cannot delete an `admin` or `superadmin` user's account.
-    3. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
-
-#### Get User Information
-
--   **URL** : `/users/:id/account`
--   **Method**: `GET`
--   **Description**: Retrieve information about a user.
-
--   **URL Parameters**:
-
-    | Parameter | Type       | Description                |
-    | --------- | ---------- | -------------------------- |
-    | `id`      | `ObjectId` | ID of the user to retrieve |
-
--   **Success Response**:
-
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "user": "<User Object without password>" }`
-
--   **Error Responses**:
-
-    -   **Code**: `403 Forbidden`
-    -   **Content**: `{ "message": "You do not have sufficient rights to perform this action" }`
-
-    or
-
-    -   **Code**: `404 Not Found`
-    -   **Content**: `{ "message": "User not found" }`
-
-    or
-
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error", "result": "<Error Details>" }`
-
-    **Notes**:
-
-    1. A user can only request his own data, unless they are `admin` or `superadmin`.
-    2. An `admin` can request the data of any user, except for other `admin` and `superadmin` user's.
-    3. A `superadmin` can request data from any user.
-    4. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
-
-#### User forgot his password
-
--   **URL** : `/users/auth/forgot-password`
--   **Method**: `POST`
--   **Description**: Reset password with email adress
-
--   **Request body**:
-
-    | Field   | Type   | Description           |
-    | ------- | ------ | --------------------- |
-    | `email` | string | User's email address. |
-
--   **Success Response**:
-
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "message": "Email sent" }`
-
--   **Error Responses**:
-
-    -   **Code**: `404 Not Found`
-    -   **Content**: `{ "message": "No account with that email address exists" }`
-
-    or
-
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error", "result": "<Error Details>" }`
-
-#### User refresh his token
-
--   **URL** : `/users/token`
--   **Method**: `POST`
--   **Description**: Refreshes the access token using the refresh token sent in cookies.
-
--   **Request cookies**:
-
-    | Field          | Type   | Description           |
-    | -------------- | ------ | --------------------- |
-    | `refreshToken` | string | User's refresh token. |
-
--   **Success Response**:
-
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "message": "Token refresh successful" }`
-    -   **Cookies**: On successful token refresh, two HttpOnly cookies named 'token' and 'refreshToken' are set, containing the new JWT token and the refresh token, respectively.
-
--   **Error Responses**:
-
-    -   **Code**: `401 Unauthorized`
-    -   **Content**: `{ "message": "Refresh token not provided" }`
-
-    or
-
-    -   **Code**: `404 Not Found`
-    -   **Content**: `{ "message": "Refresh token not found" }`
-
-    or
-
-    -   **Code**: `400 Bad Request`
-    -   **Content**: `{ "message": "User not found" }`
-
-    or
-
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error", "result": "<Error Details>" }`
-
-#### User Logout
-
--   **URL** : `/users/logout`
--   **Method**: `POST`
--   **Description**: Logs out a user, clearing the refresh token from cookies and the database.
-
--   **Request cookies**:
-
-    | Field          | Type   | Description           |
-    | -------------- | ------ | --------------------- |
-    | `refreshToken` | string | User's refresh token. |
-
--   **Success Response**:
-
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "message": "User logged out successfully" }`
-
--   **Error Responses**:
-
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error", "result": "<Error Details>" }`
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Internal server error", "result": "<Error Details>" }`
 
 **Notes**:
 
 1. To logout a user, send a `POST` request to `/users/logout` with the `refreshToken` in the cookies. No request body is required.
 2. This endpoint will clear the `refreshToken` from cookies and delete the corresponding document in the database.
 
-### Task Endpoints
+### Forgot Password
 
-#### Get Task Information
+- **URL** : `/users/auth/forgot-password`
+- **Method** : `POST`
+- **Description** : Reset password via email.
+- **Request body** :
 
--   **URL** : `/tasks/:id`
--   **Method**: `GET`
--   **Description**: Retrieve information about a specific task.
+  | Field   | Type   | Description           |
+  | ------- | ------ | --------------------- |
+  | `email` | string | User's email address. |
 
--   **URL Parameters**:
+- **Success Response** :
 
-    | Parameter | Type       | Description                |
-    | --------- | ---------- | -------------------------- |
-    | `id`      | `ObjectId` | ID of the task to retrieve |
+  - **Code** : `200 OK`
+  - **Content** : `{ "message": "Email sent" }`
 
--   **Success Response**:
+- **Error Responses** :
 
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "<Task Object>" }`
+  - **Code** : `404 Not Found`
+  - **Content** : `{ "message": "No account with that email address exists" }`
 
--   **Error Responses**:
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Internal server error", "result": "<Error Details>" }`
 
-    -   **Code**: `403 Forbidden`
-    -   **Content**: `{ "message": "You do not have sufficient rights to perform this action" }`
+### Refresh Token
 
-    or
+- **URL** : `/users/token`
+- **Method** : `POST`
+- **Description** : Refresh access token using the refresh token sent in cookies.
+- **Request Cookies** :
 
-    -   **Code**: `404 Not Found`
-    -   **Content**: `{ "message": "This task does not exist" }`
+  | Field          | Type   | Description           |
+  | -------------- | ------ | --------------------- |
+  | `refreshToken` | string | User's refresh token. |
 
-    or
+- **Success Response** :
 
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error", "result": "<Error Details>" }`
+  - **Code** : `200 OK`
+  - **Content** : `{ "message": "Token refresh successful", "token": "<New Token>" }`
+  - **Cookies** : Two HttpOnly cookies named `token` and `refreshToken` are set, containing the new JWT and refresh token respectively.
 
-    **Notes**:
+- **Error Responses** :
 
-    1. A user can only retrieve tasks that they have created.
-    2. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "Refresh token not provided" }`
 
-#### Get Workspace's Tasks
+  - **Code** : `404 Not Found`
+  - **Content** : `{ "message": "Refresh token not found" }`
 
--   **URL** : `/tasks/workspace/:id`
--   **Method**: `GET`
--   **Description**: Retrieve all tasks associated with a specific workspace.
+  - **Code** : `400 Bad Request`
+  - **Content** : `{ "message": "User not found" }`
 
--   **URL Parameters**:
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Internal server error", "result": "<Error Details>" }`
 
-    | Parameter | Type       | Description                               |
-    | --------- | ---------- | ----------------------------------------- |
-    | `id`      | `ObjectId` | ID of the workspace to retrieve tasks for |
+### Get User Information
 
--   **Query Parameters**:
+- **URL** : `/users/:id/account`
+- **Method** : `GET`
+- **Description** : Retrieve information about a user.
+- **URL Parameters** :
 
-    | Parameter | Type     | Description                | Default |
-    | --------- | -------- | -------------------------- | ------- |
-    | `page`    | `Number` | Page number for pagination | 1       |
-    | `limit`   | `Number` | Number of tasks per page   | 10      |
+  | Parameter | Type       | Description                |
+  | --------- | ---------- | -------------------------- |
+  | `id`      | `ObjectId` | ID of the user to retrieve |
 
--   **Success Response**:
+- **Success Response** :
 
-    -   **Code**: `200 OK`
-    -   **Content**: `[ "<Task Object>" ]`
+  - **Code** : `200 OK`
+  - **Content** : `{ "user": "<User Object without password>" }`
 
--   **Error Responses**:
+- **Error Responses** :
 
-    -   **Code**: `403 Forbidden`
-    -   **Content**: `{ "message": "You do not have sufficient rights to perform this action" }`
+  - **Code** : `403 Forbidden`
+  - **Content** : `{ "message": "You do not have sufficient rights to perform this action" }`
 
-    or
+  - **Code** : `404 Not Found`
+  - **Content** : `{ "message": "User not found" }`
 
-    -   **Code**: `404 Not Found`
-    -   **Content**: `{ "message": "Workspace not found" }`
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Internal server error", "result": "<Error Details>" }`
 
-    or
+**Notes**:
 
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error", "result": "<Error Details>" }`
+1. A user can only request their own data, unless they are `admin` or `superadmin`.
+2. An `admin` can request the data of any user, except for other `admin` and `superadmin` users.
+3. A `superadmin` can request data from any user.
+4. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
 
-    **Notes**:
+## Workspace Endpoints
 
-    1. A user can only retrieve tasks from a workspace they are a member of.
-    2. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
-    3. This endpoint uses caching. If the tasks are in cache, they will be retrieved from there. Otherwise, they will be retrieved from the database and then cached for future requests.
+### Get Workspace
 
-#### Set Task
+- **URL** : `/workspaces/:id`
+- **Method** : `GET`
+- **Description** : Get a workspace by ID.
+- **URL Parameters** :
 
--   **URL** : `/tasks`
--   **Method**: `POST`
--   **Description**: Create a new task.
+  | Parameter | Type       | Description                |
+  | --------- | ---------- | -------------------------- |
+  | `id`      | `ObjectId` | ID of the workspace to get |
 
--   **Request body**:
+- **Success Response** :
 
-    | Field         | Type   | Description                       |
-    | ------------- | ------ | --------------------------------- |
-    | `title`       | string | Title of the task.                |
-    | `date`        | number | Due date of the task.             |
-    | `description` | string | Description of the task.          |
-    | `workspace`   | string | ID of the workspace for the task. |
+  - **Code** : `200 OK`
+  - **Content** : `{ "workspace": "<Workspace Object>" }`
 
--   **Success Response**:
+- **Error Responses** :
 
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "task": "<Task Object>" }`
+  - **Code** : `400 Bad Request`
+  - **Content** : `{ "message": "This workspace does not exist" }`
 
--   **Error Responses**:
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
 
-    -   **Code**: `400 Bad Request`
-    -   **Content**: `{ "message": "Please add a task" }`
+  - **Code** : `403 Forbidden`
+  - **Content** : `{ "message": "You do not have sufficient rights to perform this action" }`
 
-    or
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Internal server error" }`
 
-    -   **Code**: `404 Not Found`
-    -   **Content**: `{ "message": "The specified user does not exist" }`
+**Notes**:
 
-    or
+1. A workspace can be accessed only by the user who created it or its members.
+2. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
 
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error", "result": "<Error Details>" }`
+### Get User Workspaces
 
-    **Notes**:
+- **URL** : `/workspaces/user/:id`
+- **Method** : `GET`
+- **Description** : Get all workspaces of a specific user.
+- **URL Parameters** :
 
-    1. A task can be only created by a logged-in user, who is then associated with the task.
-    2. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
-    3. When a new task is created, all cached task keys for this user are invalidated.
-    4. The user ID is retrieved from the JWT token, not the request body.
+  | Parameter | Type       | Description                            |
+  | --------- | ---------- | -------------------------------------- |
+  | `id`      | `ObjectId` | ID of the user whose workspaces to get |
 
-    #### Edit Task
+- **Success Response** :
 
--   **URL** : `/tasks/:id`
--   **Method**: `PUT`
--   **Description**: Update an existing task.
+  - **Code** : `200 OK`
+  - **Content** : `{ "workspaces": "<Array of Workspace Objects>" }`
 
--   **URL Parameters**:
+- **Error Responses** :
 
-    -   `id` : ID of the task to update.
+  - **Code** : `403 Forbidden`
+  - **Content** : `{ "message": "You do not have sufficient rights to perform this action" }`
 
--   **Request body**:
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Internal server error" }`
 
-    | Field           | Type   | Description                          |
-    | --------------- | ------ | ------------------------------------ |
-    | `title`         | string | Title of the task.                   |
-    | `date`          | number | Due date of the task.                |
-    | `description`   | string | Description of the task.             |
-    | `status`        | string | Status of the task.                  |
-    | `estimatedTime` | number | Estimated time to complete the task. |
-    | `comments`      | string | Comments on the task.                |
-    | `priority`      | string | Priority of the task.                |
-    | `workspaceId`   | string | Id of the workspace                  |
+**Notes**:
 
--   **Success Response**:
+1. A user can only retrieve their own workspaces.
+2. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
 
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "message": "Task updated", "task": "<Task Object>" }`
+### Create Workspace
 
--   **Error Responses**:
+- **URL** : `/workspaces`
+- **Method** : `POST`
+- **Description** : Create a new workspace.
+- **Request body** :
 
-    -   **Code**: `400 Bad Request`
-    -   **Content**: `{ "message": "This task does not exist" }`
+  | Field         | Type   | Description                                         |
+  | ------------- | ------ | --------------------------------------------------- |
+  | `title`       | string | Title of the workspace.                             |
+  | `userId`      | string | User's ID who created the workspace.                |
+  | `description` | string | Description of the workspace.                       |
+  | `members`     | Array  | Array of user IDs who are members of the workspace. |
 
-    or
+- **Success Response** :
 
-    -   **Code**: `403 Forbidden`
-    -   **Content**: `{ "message": "You do not have the right to modify this task" }`
+  - **Code** : `200 OK`
+  - **Content** : `{ "workspace": "<Workspace Object>" }`
 
-    or
+- **Error Responses** :
 
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error", "result": "<Error Details>" }`
+  - **Code** : `400 Bad Request`
+  - **Content** : `{ "message": "Please add a title" }`
 
-    **Notes**:
+  - **Code** : `404 Not Found`
+  - **Content** : `{ "message": "The specified user does not exist" }`
 
-    1. A task can only be updated by the user who created it.
-    2. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Internal server error" }`
 
-#### Delete Task
+**Notes**:
 
--   **URL** : `/tasks/:id`
--   **Method**: `DELETE`
--   **Description**: Delete a task.
+1. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
 
--   **URL Parameters**:
+### Edit Workspace
 
-    -   `id` : ID of the task to update.
+- **URL** : `/workspaces/:id`
+- **Method** : `PUT`
+- **Description** : Edit a workspace.
+- **URL Parameters** :
 
--   **Success Response**:
+  | Parameter | Type       | Description                 |
+  | --------- | ---------- | --------------------------- |
+  | `id`      | `ObjectId` | ID of the workspace to edit |
 
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "message": "Task deleted `req.params.id`", }`
+- **Request body** :
 
--   **Error Responses**:
+  | Field         | Type   | Description                                         |
+  | ------------- | ------ | --------------------------------------------------- |
+  | `title`       | string | Title of the workspace.                             |
+  | `userId`      | string | User's ID who created the workspace.                |
+  | `description` | string | Description of the workspace.                       |
+  | `members`     | Array  | Array of user IDs who are members of the workspace. |
 
-    -   **Code**: `400 Bad Request`
-    -   **Content**: `{ "message": "This task does not exist" }`
+- **Success Response** :
 
-    or
+  - **Code** : `200 OK`
+  - **Content** : `{ "message": "Workspace updated", "workspace": "<Workspace Object>" }`
 
-    -   **Code**: `403 Forbidden`
-    -   **Content**: `{ "message": "You do not have the right to modify this task" }`
+- **Error Responses** :
 
-    or
+  - **Code** : `400 Bad Request`
+  - **Content** : `{ "message": "This workspace does not exist" }`
 
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error", "result": "<Error Details>" }`
+  - **Code** : `403 Forbidden`
+  - **Content** : `{ "message": "You do not have sufficient rights to perform this action" }`
 
-    **Notes**:
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Internal server error" }`
 
-    1. A task can only be deleted by the user who created it.
-    2. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
+**Notes**:
 
-### Workspace Endpoints
+1. A workspace can only be edited by the user who created it or a member of it.
+2. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
 
-#### Get Workspace
+### Delete Workspace
 
--   **URL** : `/workspaces/:id`
--   **Method**: `GET`
--   **Description**: Get a workspace by ID.
+- **URL** : `/workspaces/:id`
+- **Method** : `DELETE`
+- **Description** : Delete a workspace.
+- **URL Parameters** :
 
--   **URL Parameters**:
+  | Parameter | Type       | Description                   |
+  | --------- | ---------- | ----------------------------- |
+  | `id`      | `ObjectId` | ID of the workspace to delete |
 
-    -   `id` : ID of the workspace to get.
+- **Success Response** :
 
--   **Success Response**:
+  - **Code** : `200 OK`
+  - **Content** : `{ "message": "Workspace deleted <id>" }`
 
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "workspace": "<Workspace Object>" }`
+- **Error Responses** :
 
--   **Error Responses**:
+  - **Code** : `400 Bad Request`
+  - **Content** : `{ "message": "This workspace does not exist" }`
 
-    -   **Code**: `400 Bad Request`
-    -   **Content**: `{ "message": "This workspace does not exist" }`
+  - **Code** : `403 Forbidden`
+  - **Content** : `{ "message": "You do not have sufficient rights to perform this action" }`
 
-    or
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Internal server error" }`
 
-    -   **Code**: `401 Unauthorized`
-    -   **Content**: `{ "message": "User not authenticated" }`
+**Notes**:
 
-    or
+1. A workspace can only be deleted by a member of the workspace. If the user is not the creator of the workspace, they will only be removed from the workspace, not deleting it.
+2. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
+3. When a workspace is deleted, the tasks created by the user within that workspace will be transferred to their default workspace. If the default workspace is the one being deleted, a new default workspace will be created.
 
-    -   **Code**: `403 Forbidden`
-    -   **Content**: `{ "message": "You do not have sufficient rights to perform this action" }`
+## Task Endpoints
 
-    or
+### Create Task
 
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error" }`
+- **URL** : `/tasks`
+- **Method** : `POST`
+- **Description** : Create a new task.
+- **Request Headers** :
 
-    **Notes**:
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
 
-    1. A workspace can be accessed only by the user who created it or its members.
-    2. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
+- **Request Body** :
 
-#### Get User Workspaces
+  | Field         | Type   | Description                                   |
+  | ------------- | ------ | --------------------------------------------- |
+  | `title`       | string | Title of the task.                            |
+  | `description` | string | Description of the task.                      |
+  | `dueDate`     | string | Due date of the task in ISO format.           |
+  | `priority`    | string | Priority level (low, medium, high).           |
+  | `status`      | string | Status of the task (todo, in-progress, done). |
+  | `workspaceId` | string | ID of the workspace this task belongs to.     |
 
--   **URL** : `/workspaces/user/:id`
--   **Method**: `GET`
--   **Description**: Get all workspaces of a specific user.
+- **Success Response** :
 
--   **URL Parameters**:
+  - **Code** : `201 Created`
+  - **Content** : `{ "message": "Task created successfully", "task": "<Task Object>" }`
 
-    -   `id` : ID of the user whose workspaces to get.
+- **Error Responses** :
 
--   **Success Response**:
+  - **Code** : `400 Bad Request`
+  - **Content** : `{ "message": "Invalid input data" }`
 
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "workspaces": "<Array of Workspace Objects>" }`
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
 
--   **Error Responses**:
+  - **Code** : `403 Forbidden`
+  - **Content** : `{ "message": "User does not have permission to create a task in this workspace" }`
 
-    -   **Code**: `403 Forbidden`
-    -   **Content**: `{ "message": "You do not have sufficient rights to perform this action" }`
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error creating task" }`
 
-    or
+### Get All Tasks
 
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error" }`
+- **URL** : `/tasks`
+- **Method** : `GET`
+- **Description** : Retrieve all tasks for the authenticated user.
+- **Request Headers** :
 
-    **Notes**:
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
 
-    1. A user can only retrieve their own workspaces.
-    2. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
+- **Success Response** :
 
-#### Create Workspace
+  - **Code** : `200 OK`
+  - **Content** : `{ "tasks": "<Array of Task Objects>" }`
 
--   **URL** : `/workspaces`
--   **Method**: `POST`
--   **Description**: Create a new workspace.
+- **Error Responses** :
 
--   **Request body**:
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
 
-    | Field         | Type   | Description                                         |
-    | ------------- | ------ | --------------------------------------------------- |
-    | `title`       | string | Title of the workspace.                             |
-    | `userId`      | string | User's ID who created the workspace.                |
-    | `description` | string | Description of the workspace.                       |
-    | `members`     | Array  | Array of user IDs who are members of the workspace. |
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error retrieving tasks" }`
 
--   **Success Response**:
+### Get Task
 
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "workspace": "<Workspace Object>" }`
+- **URL** : `/tasks/:id`
+- **Method** : `GET`
+- **Description** : Retrieve a task by its ID.
+- **Request Headers** :
 
--   **Error Responses**:
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
 
-    -   **Code**: `400 Bad Request`
-    -   **Content**: `{ "message": "Please add a title" }`
+- **URL Parameters** :
 
-    or
+  | Parameter | Type       | Description                |
+  | --------- | ---------- | -------------------------- |
+  | `id`      | `ObjectId` | ID of the task to retrieve |
 
-    -   **Code**: `404 Not Found`
-    -   **Content**: `{ "message": "The specified user does not exist" }`
+- **Success Response** :
 
-    or
+  - **Code** : `200 OK`
+  - **Content** : `{ "task": "<Task Object>" }`
 
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error" }`
+- **Error Responses** :
 
-    **Notes**:
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
 
-    1. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
+  - **Code** : `403 Forbidden`
+  - **Content** : `{ "message": "User does not have permission to view this task" }`
 
-#### Edit Workspace
+  - **Code** : `404 Not Found`
+  - **Content** : `{ "message": "Task not found" }`
 
--   **URL** : `/workspaces/:id`
--   **Method**: `PUT`
--   **Description**: Edit a workspace.
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error retrieving task" }`
 
--   **URL Parameters**:
+### Update Task
 
-    -   `id` : ID of the workspace to edit.
+- **URL** : `/tasks/:id`
+- **Method** : `PUT`
+- **Description** : Update a task by its ID.
+- **Request Headers** :
 
--   **Request body**:
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
 
-    | Field         | Type   | Description                                         |
-    | ------------- | ------ | --------------------------------------------------- |
-    | `title`       | string | Title of the workspace.                             |
-    | `userId`      | string | User's ID who created the workspace.                |
-    | `description` | string | Description of the workspace.                       |
-    | `members`     | Array  | Array of user IDs who are members of the workspace. |
+- **URL Parameters** :
 
--   **Success Response**:
+  | Parameter | Type       | Description              |
+  | --------- | ---------- | ------------------------ |
+  | `id`      | `ObjectId` | ID of the task to update |
 
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "message": "Workspace updated", "workspace": "<Workspace Object>" }`
+- **Request Body** : At least one of the following fields should be present:
 
--   **Error Responses**:
+  | Field         | Type   | Description                         |
+  | ------------- | ------ | ----------------------------------- |
+  | `title`       | string | (Optional) Title of the task.       |
+  | `description` | string | (Optional) Description of the task. |
+  | `dueDate`     | string | (Optional) Due date in ISO format.  |
+  | `priority`    | string | (Optional) Priority level.          |
+  | `status`      | string | (Optional) Status of the task.      |
+  | `workspaceId` | string | (Optional) ID of the workspace.     |
 
-    -   **Code**: `400 Bad Request`
-    -   **Content**: `{ "message": "This workspace does not exist" }`
+- **Success Response** :
 
-    or
+  - **Code** : `200 OK`
+  - **Content** : `{ "message": "Task updated successfully", "task": "<Task Object>" }`
 
-    -   **Code**: `403 Forbidden`
-    -   **Content**: `{ "message": "You do not have sufficients rights to perform this action" }`
+- **Error Responses** :
 
-    or
+  - **Code** : `400 Bad Request`
+  - **Content** : `{ "message": "Invalid input data" }`
 
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error" }`
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
 
-    **Notes**:
+  - **Code** : `403 Forbidden`
+  - **Content** : `{ "message": "User does not have permission to update this task" }`
 
-    1. A workspace can only be edited by the user who created it or a member of it.
-    2. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
+  - **Code** : `404 Not Found`
+  - **Content** : `{ "message": "Task not found" }`
 
-#### Delete Workspace
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error updating task" }`
 
--   **URL** : `/workspaces/:id`
--   **Method**: `DELETE`
--   **Description**: Delete a workspace.
+### Delete Task
 
--   **URL Parameters**:
+- **URL** : `/tasks/:id`
+- **Method** : `DELETE`
+- **Description** : Delete a task by its ID.
+- **Request Headers** :
 
-    -   `id` : ID of the workspace to delete.
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
 
--   **Success Response**:
+- **URL Parameters** :
 
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "message": "Workspace deleted `req.params.id`", }`
+  | Parameter | Type       | Description              |
+  | --------- | ---------- | ------------------------ |
+  | `id`      | `ObjectId` | ID of the task to delete |
 
-    or
+- **Success Response** :
 
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "message": "User removed from workspace `req.params.id`", }`
+  - **Code** : `200 OK`
+  - **Content** : `{ "message": "Task deleted successfully" }`
 
--   **Error Responses**:
+- **Error Responses** :
 
-    -   **Code**: `400 Bad Request`
-    -   **Content**: `{ "message": "This workspace does not exist" }`
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
 
-    or
+  - **Code** : `403 Forbidden`
+  - **Content** : `{ "message": "User does not have permission to delete this task" }`
 
-    -   **Code**: `403 Forbidden`
-    -   **Content**: `{ "message": "You do not have the right to modify this workspace" }`
+  - **Code** : `404 Not Found`
+  - **Content** : `{ "message": "Task not found" }`
 
-    or
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error deleting task" }`
 
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "No default workspace found" }`
+### Get Urgent Tasks
 
-    or
+- **URL** : `/tasks/:userId/urgent`
+- **Method** : `GET`
+- **Description** : Get the three most urgent tasks for a specific user.
+- **Request Headers** :
 
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error" }`
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
 
-    **Notes**:
+- **URL Parameters** :
 
-    1. A workspace can only be deleted by a member of the workspace. If the user is not the creator of the workspace, they will only be removed from the workspace, not deleting it.
-    2. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
-    3. When a workspace is deleted, the tasks created by the user within that workspace will be transferred to their default workspace. If the default workspace is the one being deleted, a new default workspace will be created.
+  | Parameter | Type       | Description                            |
+  | --------- | ---------- | -------------------------------------- |
+  | `userId`  | `ObjectId` | ID of the user to get urgent tasks for |
 
-### Workspace Endpoints
+- **Success Response** :
 
-#### Send Workspace Invitation
+  - **Code** : `200 OK`
+  - **Content** : `{ "tasks": "<Array of Urgent Task Objects>" }`
 
--   **URL** : `/invitations/send-invitation`
--   **Method**: `POST`
--   **Description**: Send a workspace invitation.
+- **Error Responses** :
 
--   **Request body**:
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
 
-    | Field         | Type   | Description                                      |
-    | ------------- | ------ | ------------------------------------------------ |
-    | `workspaceId` | string | Workspace's ID for which the invitation is sent. |
-    | `inviteeId`   | string | User's ID who is being invited to the workspace. |
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error retrieving urgent tasks" }`
 
--   **Success Response**:
+### Get All Tasks for a User
 
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "<Workspace Invitation Object>" }`
+- **URL** : `/tasks/:userId/all-tasks`
+- **Method** : `GET`
+- **Description** : Get all tasks for a specific user.
+- **Request Headers** :
 
--   **Error Responses**:
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
 
-    -   **Code**: `401 Unauthorized`
-    -   **Content**: `{ "message": "User not authenticated" }`
+- **URL Parameters** :
 
-    or
+  | Parameter | Type       | Description                         |
+  | --------- | ---------- | ----------------------------------- |
+  | `userId`  | `ObjectId` | ID of the user to get all tasks for |
 
-    -   **Code**: `400 Bad Request`
-    -   **Content**: `{ "message": "Workspace does not exist" }`
+- **Success Response** :
 
-    or
+  - **Code** : `200 OK`
+  - **Content** : `{ "tasks": "<Array of Task Objects>" }`
 
-    -   **Code**: `403 Forbidden`
-    -   **Content**: `{ "message": "You do not have sufficient rights to send an invitation for this workspace" }`
+- **Error Responses** :
 
-    or
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
 
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error" }`
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error retrieving all tasks" }`
 
-    **Notes**:
+### Get Overdue Tasks
 
-    1. A workspace invitation can only be sent by a member of the workspace or the user who created it.
-    2. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
-    3. The `inviteeId` should be a valid user ID of the user who is to be invited.
-    4. The `workspaceId` should be a valid workspace ID for which the invitation is being sent.
-    5. The returned object is the invitation object that includes `inviterId`, `inviteeId`, `workspaceId`, and the `status` of the invitation.
+- **URL** : `/tasks/:userId/overdue`
+- **Method** : `GET`
+- **Description** : Get all overdue tasks for a specific user.
+- **Request Headers** :
 
-    #### Accept Workspace Invitation
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
 
--   **URL** : `/invitations/:id/accept`
--   **Method**: `POST`
--   **Description**: Accept a workspace invitation.
+- **URL Parameters** :
 
--   **Success Response**:
+  | Parameter | Type       | Description                             |
+  | --------- | ---------- | --------------------------------------- |
+  | `userId`  | `ObjectId` | ID of the user to get overdue tasks for |
 
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "message": "Invitation accepted and user added to workspace" }`
+- **Success Response** :
 
--   **Error Responses**:
+  - **Code** : `200 OK`
+  - **Content** : `{ "tasks": "<Array of Overdue Task Objects>" }`
 
-    -   **Code**: `400 Bad Request`
-    -   **Content**: `{ "message": "Invitation does not exist or is not pending" }`
+- **Error Responses** :
 
-    or
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
 
-    -   **Code**: `403 Forbidden`
-    -   **Content**: `{ "message": "You do not have sufficients rights to accept this invitation" }`
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error retrieving overdue tasks" }`
 
-    or
+### Get Today's Tasks
 
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error" }`
+- **URL** : `/tasks/:userId/today`
+- **Method** : `GET`
+- **Description** : Get all tasks due today for a specific user.
+- **Request Headers** :
 
-    **Notes**:
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
 
-    1. An invitation can only be accepted by the user who was invited.
-    2. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
-    3. The `invitationId` should be a valid invitation ID that the user wants to accept.
+- **URL Parameters** :
 
-#### Reject Workspace Invitation
+  | Parameter | Type       | Description                             |
+  | --------- | ---------- | --------------------------------------- |
+  | `userId`  | `ObjectId` | ID of the user to get today's tasks for |
 
--   **URL** : `/invitations/:id/reject`
--   **Method**: `POST`
--   **Description**: Reject a workspace invitation.
+- **Success Response** :
 
--   **URL Parameters**:
+  - **Code** : `200 OK`
+  - **Content** : `{ "tasks": "<Array of Today's Task Objects>" }`
 
-    -   `id` : ID of the invitation to reject.
+- **Error Responses** :
 
--   **Success Response**:
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
 
-    -   **Code**: `200 OK`
-    -   **Content**: `{ "message": "Invitation rejected" }`
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error retrieving today's tasks" }`
 
--   **Error Responses**:
+### Get Tomorrow's Tasks
 
-    -   **Code**: `400 Bad Request`
-    -   **Content**: `{ "message": "Invitation does not exist or is not pending" }`
+- **URL** : `/tasks/:userId/tomorrow`
+- **Method** : `GET`
+- **Description** : Get all tasks due tomorrow for a specific user.
+- **Request Headers** :
 
-    or
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
 
-    -   **Code**: `403 Forbidden`
-    -   **Content**: `{ "message": "You do not have sufficients rights to accept this invitation" }`
+- **URL Parameters** :
 
-    or
+  | Parameter | Type       | Description                                |
+  | --------- | ---------- | ------------------------------------------ |
+  | `userId`  | `ObjectId` | ID of the user to get tomorrow's tasks for |
 
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error" }`
+- **Success Response** :
 
-    **Notes**:
+  - **Code** : `200 OK`
+  - **Content** : `{ "tasks": "<Array of Tomorrow's Task Objects>" }`
 
-    1. An invitation can only be rejected by the user who was invited.
-    2. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
-    3. The `invitationId` should be a valid invitation ID that the user wants to reject.
+- **Error Responses** :
 
-#### List User Invitations
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
 
--   **URL** : `/invitations/list`
--   **Method**: `GET`
--   **Description**: List all pending invitations for a user.
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error retrieving tomorrow's tasks" }`
 
--   **Success Response**:
+### Get This Week's Tasks
 
-    -   **Code**: `200 OK`
-    -   **Content**: `[<Invitation Object>, ...]`
+- **URL** : `/tasks/:userId/this-week`
+- **Method** : `GET`
+- **Description** : Get all tasks due this week for a specific user.
+- **Request Headers** :
 
--   **Error Responses**:
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
 
-    -   **Code**: `401 Unauthorized`
-    -   **Content**: `{ "message": "User not authenticated" }`
+- **URL Parameters** :
 
-    or
+  | Parameter | Type       | Description                                 |
+  | --------- | ---------- | ------------------------------------------- |
+  | `userId`  | `ObjectId` | ID of the user to get this week's tasks for |
 
-    -   **Code**: `500 Internal Server Error`
-    -   **Content**: `{ "message": "Internal server error" }`
+- **Success Response** :
 
-    **Notes**:
+  - **Code** : `200 OK`
+  - **Content** : `{ "tasks": "<Array of This Week's Task Objects>" }`
 
-    1. The `Authorization` header should contain a valid JWT token in the format `Bearer <JWT>`.
-    2. The API returns an array of pending workspace invitation objects associated with the authenticated user.
+- **Error Responses** :
 
-## Common Errors
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
 
-The API uses conventional HTTP response codes to indicate the success or failure of an API request.
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error retrieving this week's tasks" }`
 
--   `200 OK`: The request was successful.
--   `201 Created`: The request was successful, and a resource was created as a result.
--   `400 Bad Request`: The server could not understand the request due to invalid syntax.
--   `401 Unauthorized`: The request requires user authentication.
--   `403 Forbidden`: The client does not have access rights to the content.
--   `404 Not Found`: The server can not find the requested resource.
--   `422 Unprocessable Entity`: The server understands the content type of the request, but was unable to process the contained instructions.
--   `500 Internal Server Error`: The server has encountered a situation it doesn't know how to handle.
+### Get Next Week's Tasks
+
+- **URL** : `/tasks/:userId/next-week`
+- **Method** : `GET`
+- **Description** : Get all tasks due next week for a specific user.
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **URL Parameters** :
+
+  | Parameter | Type       | Description                                 |
+  | --------- | ---------- | ------------------------------------------- |
+  | `userId`  | `ObjectId` | ID of the user to get next week's tasks for |
+
+- **Success Response** :
+
+  - **Code** : `200 OK`
+  - **Content** : `{ "tasks": "<Array of Next Week's Task Objects>" }`
+
+- **Error Responses** :
+
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
+
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error retrieving next week's tasks" }`
+
+### Get This Month's Tasks
+
+- **URL** : `/tasks/:userId/this-month`
+- **Method** : `GET`
+- **Description** : Get all tasks due this month for a specific user.
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **URL Parameters** :
+
+  | Parameter | Type       | Description                                  |
+  | --------- | ---------- | -------------------------------------------- |
+  | `userId`  | `ObjectId` | ID of the user to get this month's tasks for |
+
+- **Success Response** :
+
+  - **Code** : `200 OK`
+  - **Content** : `{ "tasks": "<Array of This Month's Task Objects>" }`
+
+- **Error Responses** :
+
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
+
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error retrieving this month's tasks" }`
+
+### Get Next Month's Tasks
+
+- **URL** : `/tasks/:userId/next-month`
+- **Method** : `GET`
+- **Description** : Get all tasks due next month for a specific user.
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **URL Parameters** :
+
+  | Parameter | Type       | Description                                  |
+  | --------- | ---------- | -------------------------------------------- |
+  | `userId`  | `ObjectId` | ID of the user to get next month's tasks for |
+
+- **Success Response** :
+
+  - **Code** : `200 OK`
+  - **Content** : `{ "tasks": "<Array of Next Month's Task Objects>" }`
+
+- **Error Responses** :
+
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
+
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error retrieving next month's tasks" }`
+
+### Get This Year's Tasks
+
+- **URL** : `/tasks/:userId/this-year`
+- **Method** : `GET`
+- **Description** : Get all tasks due this year for a specific user.
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **URL Parameters** :
+
+  | Parameter | Type       | Description                                 |
+  | --------- | ---------- | ------------------------------------------- |
+  | `userId`  | `ObjectId` | ID of the user to get this year's tasks for |
+
+- **Success Response** :
+
+  - **Code** : `200 OK`
+  - **Content** : `{ "tasks": "<Array of This Year's Task Objects>" }`
+
+- **Error Responses** :
+
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
+
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error retrieving this year's tasks" }`
+
+### Get Next Year's Tasks
+
+- **URL** : `/tasks/:userId/next-year`
+- **Method** : `GET`
+- **Description** : Get all tasks due next year for a specific user.
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **URL Parameters** :
+
+  | Parameter | Type       | Description                                 |
+  | --------- | ---------- | ------------------------------------------- |
+  | `userId`  | `ObjectId` | ID of the user to get next year's tasks for |
+
+- **Success Response** :
+
+  - **Code** : `200 OK`
+  - **Content** : `{ "tasks": "<Array of Next Year's Task Objects>" }`
+
+- **Error Responses** :
+
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
+
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error retrieving next year's tasks" }`
+
+### Get Becoming Tasks
+
+- **URL** : `/tasks/:userId/becoming`
+- **Method** : `GET`
+- **Description** : Get all becoming tasks for a specific user.
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **URL Parameters** :
+
+  | Parameter | Type       | Description                              |
+  | --------- | ---------- | ---------------------------------------- |
+  | `userId`  | `ObjectId` | ID of the user to get becoming tasks for |
+
+- **Success Response** :
+
+  - **Code** : `200 OK`
+  - **Content** : `{ "tasks": "<Array of Becoming Task Objects>" }`
+
+- **Error Responses** :
+
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
+
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error retrieving becoming tasks" }`
+
+### Get Archived Tasks
+
+- **URL** : `/tasks/:userId/archived`
+- **Method** : `GET`
+- **Description** : Get all archived tasks for a specific user.
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **URL Parameters** :
+
+  | Parameter | Type       | Description                              |
+  | --------- | ---------- | ---------------------------------------- |
+  | `userId`  | `ObjectId` | ID of the user to get archived tasks for |
+
+- **Success Response** :
+
+  - **Code** : `200 OK`
+  - **Content** : `{ "tasks": "<Array of Archived Task Objects>" }`
+
+- **Error Responses** :
+
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
+
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Error retrieving archived tasks" }`
+
+## Invitation Endpoints
+
+### Send Invitation
+
+- **URL** : `/invitations/send-invitation`
+- **Method** : `POST`
+- **Description** : Send an invitation to another user.
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Request Body** :
+
+  | Field        | Type   | Description                            |
+  | ------------ | ------ | -------------------------------------- |
+  | `senderId`   | string | ID of the user sending the invitation. |
+  | `guestEmail` | string | Email of the user to invite.           |
+  | `message`    | string | Message to include in the invitation.  |
+
+- **Success Response** :
+
+  - **Code** : `200 OK`
+  - **Content** : `{ "invitations": "<Array of Invitation Objects>" }`
+
+- **Error Responses** :
+
+  - **Code** : `400 Bad Request`
+  - **Content** : `{ "message": "User does not exist" }`
+
+  - **Code** : `400 Bad Request\*\*
+  - **Content** : `{ "message": "You cannot send an invitation to yourself" }`
+
+  - **Code** : `400 Bad Request\*\*
+  - **Content** : `{ "message": "Invitation already sent to this user" }`
+
+  - **Code** : `400 Bad Request\*\*
+  - **Content** : `{ "message": "Invitation already received from this user" }`
+
+  - **Code** : `401 Unauthorized\*\*
+  - **Content** : `{ "message": "User not authenticated" }`
+
+  - **Code** : `500 Internal Server Error\*\*
+  - **Content** : `{ "message": "Internal server error" }`
+
+### Retrieve Sent Invitations
+
+- **URL** : `/invitations/sentout-invitations/:id`
+- **Method** : `GET`
+- **Description** : Retrieve all invitations sent by a user.
+- **URL Parameters** :
+
+  | Parameter | Type       | Description     |
+  | --------- | ---------- | --------------- |
+  | `id`      | `ObjectId` | ID of the user. |
+
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Success Response** :
+
+  - **Code** : `200 OK\*\*
+  - **Content** : `{ "invitations": "<Array of Invitation Objects>" }`
+
+- **Error Responses** :
+
+  - **Code** : `500 Internal Server Error\*\*
+  - **Content** : `{ "message": "Internal server error" }`
+
+### Retrieve Received Invitations
+
+- **URL** : `/invitations/received-invitations/:id`
+- **Method** : `GET`
+- **Description** : Retrieve all invitations received by a user.
+- **URL Parameters** :
+
+  | Parameter | Type       | Description     |
+  | --------- | ---------- | --------------- |
+  | `id`      | `ObjectId` | ID of the user. |
+
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Success Response** :
+
+  - **Code** : `200 OK\*\*
+  - **Content** : `{ "invitations": "<Array of Invitation Objects>" }`
+
+- **Error Responses** :
+
+  - **Code** : `500 Internal Server Error\*\*
+  - **Content** : `{ "message": "Internal server error" }`
+
+### Accept Invitation
+
+- **URL** : `/invitations/:invitationId/accept`
+- **Method** : `PUT\*\*
+- **Description** : Accept an invitation.
+- **URL Parameters** :
+
+  | Parameter      | Type       | Description           |
+  | -------------- | ---------- | --------------------- |
+  | `invitationId` | `ObjectId` | ID of the invitation. |
+
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Request Body** :
+
+  | Field    | Type   | Description               |
+  | -------- | ------ | ------------------------- |
+  | `userId` | string | ID of the user accepting. |
+
+- **Success Response** :
+
+  - **Code** : `200 OK\*\*
+  - **Content** : `{ "invitations": "<Array of Invitation Objects>", "userContacts": "<Array of User Contact Objects>" }`
+
+- **Error Responses** :
+
+  - **Code** : `400 Bad Request\*\*
+  - **Content** : `{ "message": "Invitation does not exist or is not pending" }`
+
+  - **Code** : `403 Forbidden\*\*
+  - **Content** : `{ "message": "You do not have sufficient rights to accept this invitation" }`
+
+  - **Code** : `500 Internal Server Error\*\*
+  - **Content** : `{ "message": "Internal server error" }`
+
+### Decline Invitation
+
+- **URL** : `/invitations/:invitationId/decline`
+- **Method** : `PUT\*\*
+- **Description** : Decline an invitation.
+- **URL Parameters** :
+
+  | Parameter      | Type       | Description           |
+  | -------------- | ---------- | --------------------- |
+  | `invitationId` | `ObjectId` | ID of the invitation. |
+
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Request Body** :
+
+  | Field    | Type   | Description               |
+  | -------- | ------ | ------------------------- |
+  | `userId` | string | ID of the user declining. |
+
+- **Success Response** :
+
+  - **Code** : `200 OK\*\*
+  - **Content** : `{ "invitations": "<Array of Invitation Objects>", "message": "Invitation declined" }`
+
+- **Error Responses** :
+
+  - **Code** : `400 Bad Request\*\*
+  - **Content** : `{ "message": "Invitation does not exist or is not pending" }`
+
+  - **Code** : `403 Forbidden\*\*
+  - **Content** : `{ "message": "You do not have sufficient rights to decline this invitation" }`
+
+  - **Code** : `500 Internal Server Error\*\*
+  - **Content** : `{ "message": "Internal server error" }`
+
+### Cancel Invitation
+
+- **URL** : `/invitations/:invitationId/cancel`
+- **Method** : `DELETE\*\*
+- **Description** : Cancel an invitation.
+- **URL Parameters** :
+
+  | Parameter      | Type       | Description           |
+  | -------------- | ---------- | --------------------- |
+  | `invitationId` | `ObjectId` | ID of the invitation. |
+
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Success Response** :
+
+  - **Code** : `200 OK\*\*
+  - **Content** : `{ "invitations": "<Array of Invitation Objects>", "message": "Invitation cancelled" }`
+
+- **Error Responses** :
+
+  - **Code** : `400 Bad Request\*\*
+  - **Content** : `{ "message": "Invitation does not exist or is already accepted" }`
+
+  - **Code** : `403 Forbidden\*\*
+  - **Content** : `{ "message": "You do not have sufficient rights to cancel this invitation" }`
+
+  - **Code** : `500 Internal Server Error\*\*
+  - **Content** : `{ "message": "Internal server error" }`
+
+## Workspace Invitation Endpoints
+
+### Send Workspace Invitation
+
+- **URL** : `/workspaceInvitations/send-invitation`
+- **Method** : `POST`
+- **Description** : Send an invitation to join a workspace.
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Request Body** :
+
+  | Field         | Type   | Description                            |
+  | ------------- | ------ | -------------------------------------- |
+  | `senderId`    | string | ID of the user sending the invitation. |
+  | `guestId`     | string | ID of the user to invite.              |
+  | `role`        | string | Role to assign to the invited user.    |
+  | `workspaceId` | string | ID of the workspace to invite to.      |
+
+- **Success Response** :
+
+  - **Code** : `200 OK`
+  - **Content** : `{ "workspaceInvitations": "<Array of Workspace Invitation Objects>", "workspaces": "<Array of Workspace Objects>" }`
+
+- **Error Responses** :
+
+  - **Code** : `400 Bad Request`
+  - **Content** : `{ "message": "User does not exist" }`
+
+  - **Code** : `400 Bad Request`
+  - **Content** : `{ "message": "You cannot send an invitation to yourself" }`
+
+  - **Code** : `400 Bad Request`
+  - **Content** : `{ "message": "Workspace does not exist" }`
+
+  - **Code** : `400 Bad Request`
+  - **Content** : `{ "message": "You cannot send an invitation to the default workspace" }`
+
+  - **Code** : `401 Unauthorized`
+  - **Content** : `{ "message": "User not authenticated" }`
+
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Internal server error" }`
+
+### Retrieve Sent Workspace Invitations
+
+- **URL** : `/workspaceInvitations/sentout-invitations/:id`
+- **Method** : `GET`
+- **Description** : Retrieve all workspace invitations sent by a user.
+- **URL Parameters** :
+
+  | Parameter | Type       | Description     |
+  | --------- | ---------- | --------------- |
+  | `id`      | `ObjectId` | ID of the user. |
+
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Success Response** :
+
+  - **Code** : `200 OK`
+  - **Content** : `{ "workspaceInvitations": "<Array of Workspace Invitation Objects>" }`
+
+- **Error Responses** :
+
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Internal server error" }`
+
+### Retrieve Received Workspace Invitations
+
+- **URL** : `/workspaceInvitations/received-invitations/:id`
+- **Method** : `GET`
+- **Description** : Retrieve all workspace invitations received by a user.
+- **URL Parameters** :
+
+  | Parameter | Type       | Description     |
+  | --------- | ---------- | --------------- |
+  | `id`      | `ObjectId` | ID of the user. |
+
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Success Response** :
+
+  - **Code** : `200 OK`
+  - **Content** : `{ "workspaceInvitations": "<Array of Workspace Invitation Objects>" }`
+
+- **Error Responses** :
+
+  - **Code** : `500 Internal Server Error\*\*
+  - **Content** : `{ "message": "Internal server error" }`
+
+### Accept Workspace Invitation
+
+- **URL** : `/workspaceInvitations/:invitationId/accept`
+- **Method** : `PUT\*\*
+- **Description** : Accept a workspace invitation.
+- **URL Parameters** :
+
+  | Parameter      | Type       | Description           |
+  | -------------- | ---------- | --------------------- |
+  | `invitationId` | `ObjectId` | ID of the invitation. |
+
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Request Body** :
+
+  | Field    | Type   | Description               |
+  | -------- | ------ | ------------------------- |
+  | `userId` | string | ID of the user accepting. |
+
+- **Success Response** :
+
+  - **Code** : `200 OK\*\*
+  - **Content** : `{ "workspaceInvitations": "<Array of Workspace Invitation Objects>", "message": "Workspace invitation accepted", "workspaces": "<Array of Workspace Objects>" }`
+
+- **Error Responses** :
+
+  - **Code** : `400 Bad Request\*\*
+  - **Content** : `{ "message": "Invitation does not exist or is not pending" }`
+
+  - **Code** : `403 Forbidden\*\*
+  - **Content** : `{ "message": "You do not have sufficient rights to accept this invitation" }`
+
+  - **Code** : `500 Internal Server Error\*\*
+  - **Content** : `{ "message": "Internal server error" }`
+
+### Decline Workspace Invitation
+
+- **URL** : `/workspaceInvitations/:invitationId/decline`
+- **Method** : `PUT\*\*
+- **Description** : Decline a workspace invitation.
+- **URL Parameters** :
+
+  | Parameter      | Type       | Description           |
+  | -------------- | ---------- | --------------------- |
+  | `invitationId` | `ObjectId` | ID of the invitation. |
+
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Request Body** :
+
+  | Field    | Type   | Description               |
+  | -------- | ------ | ------------------------- |
+  | `userId` | string | ID of the user declining. |
+
+- **Success Response** :
+
+  - **Code** : `200 OK\*\*
+  - **Content** : `{ "workspaceInvitations": "<Array of Workspace Invitation Objects>", "message": "Invitation declined" }`
+
+- **Error Responses** :
+
+  - **Code** : `400 Bad Request\*\*
+  - **Content** : `{ "message": "Invitation does not exist or is not pending" }`
+
+  - **Code** : `403 Forbidden\*\*
+  - **Content** : `{ "message": "You do not have sufficient rights to decline this invitation" }`
+
+  - **Code** : `500 Internal Server Error\*\*
+  - **Content** : `{ "message": "Internal server error" }`
+
+### Cancel Workspace Invitation
+
+- **URL** : `/workspaceInvitations/:invitationId/cancel`
+- **Method** : `DELETE\*\*
+- **Description** : Cancel a workspace invitation.
+- **URL Parameters** :
+
+  | Parameter      | Type       | Description           |
+  | -------------- | ---------- | --------------------- |
+  | `invitationId` | `ObjectId` | ID of the invitation. |
+
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Success Response** :
+
+  - **Code** : `200 OK\*\*
+  - **Content** : `{ "workspaceInvitations": "<Array of Workspace Invitation Objects>", "message": "Invitation cancelled and member removed from workspace", "workspaces": "<Array of Workspace Objects>" }`
+
+- **Error Responses** :
+
+  - **Code** : `400 Bad Request\*\*
+  - **Content** : `{ "message": "Invitation does not exist or is already accepted" }`
+
+  - **Code** : `403 Forbidden\*\*
+  - **Content** : `{ "message": "You do not have sufficient rights to cancel this invitation" }`
+
+  - **Code** : `500 Internal Server Error\*\*
+  - **Content** : `{ "message": "Internal server error" }`
+
+## Notification Endpoints
+
+### Set Notification
+
+- **URL** : `/notifications/set-notification`
+- **Method** : `POST`
+- **Description** : Set a new notification.
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Request Body** :
+
+  | Field         | Type   | Description                                                   |
+  | ------------- | ------ | ------------------------------------------------------------- |
+  | `creatorId`   | string | ID of the user creating the notification.                     |
+  | `taskId`      | string | (Optional) ID of the task related to the notification.        |
+  | `workspaceId` | string | (Optional) ID of the workspace related to the notification.   |
+  | `type`        | string | Type of the notification (e.g., taskUpdate, workspaceUpdate). |
+
+- **Success Response** :
+
+  - **Code** : `200 OK`
+  - **Content** : `{ "notificationsIds": "<Array of Notification IDs>" }`
+
+- **Error Responses** :
+
+  - **Code** : `400 Bad Request`
+  - **Content** : `{ "message": "Task ID is required for this type of notification" }`
+
+  - **Code** : `400 Bad Request`
+  - **Content** : `{ "message": "Workspace ID is required for this type of notification" }`
+
+  - **Code** : `404 Not Found`
+  - **Content** : `{ "message": "User not found" }`
+
+  - **Code** : `404 Not Found`
+  - **Content** : `{ "message": "Task not found" }`
+
+  - **Code** : `404 Not Found`
+  - **Content** : `{ "message": "Workspace not found" }`
+
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Internal server error", "error": "<Error Details>" }`
+
+### Get All Notifications
+
+- **URL** : `/notifications/:userId/get-all-notifications`
+- **Method** : `GET`
+- **Description** : Retrieve all notifications for a specific user with pagination.
+- **URL Parameters** :
+
+  | Parameter | Type       | Description     |
+  | --------- | ---------- | --------------- |
+  | `userId`  | `ObjectId` | ID of the user. |
+
+- **Query Parameters** :
+
+  | Parameter | Type   | Description                                           |
+  | --------- | ------ | ----------------------------------------------------- |
+  | `page`    | number | (Optional) Page number for pagination (default is 1). |
+  | `limit`   | number | (Optional) Number of items per page (default is 10).  |
+
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Success Response** :
+
+  - **Code** : `200 OK`
+  - **Content** : `{ "notifications": "<Array of Notification Objects>", "totalNumberOfNotifications": "<Total Number of Notifications>" }`
+
+- **Error Responses** :
+
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Internal server error", "error": "<Error Details>" }`
+
+### Get Notifications
+
+- **URL** : `/notifications/get-notifications/:userId`
+- **Method** : `GET`
+- **Description** : Retrieve notifications for a specific user.
+- **URL Parameters** :
+
+  | Parameter | Type       | Description     |
+  | --------- | ---------- | --------------- |
+  | `userId`  | `ObjectId` | ID of the user. |
+
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Success Response** :
+
+  - **Code** : `200 OK`
+  - **Content** : `{ "newNotifications": "<Array of New Notification Objects>", "earlierNotifications": "<Array of Earlier Notification Objects>" }`
+
+- **Error Responses** :
+
+  - **Code** : `500 Internal Server Error`
+  - **Content** : `{ "message": "Internal server error", "error": "<Error Details>" }`
+
+### Mark Notifications as Viewed
+
+- **URL** : `/notifications/mark-viewed/:userId`
+- **Method** : `PUT\*\*
+- **Description** : Mark multiple notifications as viewed.
+- **URL Parameters** :
+
+  | Parameter | Type       | Description     |
+  | --------- | ---------- | --------------- |
+  | `userId`  | `ObjectId` | ID of the user. |
+
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Request Body** :
+
+  | Field              | Type  | Description                                  |
+  | ------------------ | ----- | -------------------------------------------- |
+  | `notificationsIds` | array | Array of notification IDs to mark as viewed. |
+
+- **Success Response** :
+
+  - **Code** : `200 OK\*\*
+  - **Content** : `{ "message": "Notifications updated" }`
+
+- **Error Responses** :
+
+  - **Code** : `400 Bad Request\*\*
+  - **Content** : `{ "message": "Notifications IDs are required" }`
+
+  - **Code** : `404 Not Found\*\*
+  - **Content** : `{ "message": "User not found" }`
+
+  - **Code** : `500 Internal Server Error\*\*
+  - **Content** : `{ "message": "Internal server error", "error": "<Error Details>" }`
+
+### Mark Notification as Read
+
+- **URL** : `/notifications/mark-read/:notificationId`
+- **Method** : `PUT\*\*
+- **Description** : Mark a single notification as read.
+- **URL Parameters** :
+
+  | Parameter        | Type       | Description             |
+  | ---------------- | ---------- | ----------------------- |
+  | `notificationId` | `ObjectId` | ID of the notification. |
+
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Request Body** :
+
+  | Field    | Type   | Description                                      |
+  | -------- | ------ | ------------------------------------------------ |
+  | `userId` | string | ID of the user marking the notification as read. |
+
+- **Success Response** :
+
+  - **Code** : `200 OK\*\*
+  - **Content** : `{ "message": "Notification marked as read" }`
+
+- **Error Responses** :
+
+  - **Code** : `400 Bad Request\*\*
+  - **Content** : `{ "message": "Notification ID is required" }`
+
+  - **Code** : `400 Bad Request\*\*
+  - **Content** : `{ "message": "User ID is required" }`
+
+  - **Code** : `404 Not Found\*\*
+  - **Content** : `{ "message": "Notification not found" }`
+
+  - **Code** : `403 Forbidden\*\*
+  - **Content** : `{ "message": "User is not allowed to access this notification" }`
+
+  - **Code** : `500 Internal Server Error\*\*
+  - **Content** : `{ "message": "Internal server error", "error": "<Error Details>" }`
+
+### Delete Notification
+
+- **URL** : `/notifications/delete-notification/:notificationId`
+- **Method** : `DELETE\*\*
+- **Description** : Delete a notification.
+- **URL Parameters** :
+
+  | Parameter        | Type       | Description             |
+  | ---------------- | ---------- | ----------------------- |
+  | `notificationId` | `ObjectId` | ID of the notification. |
+
+- **Request Headers** :
+
+  | Header          | Type   | Description                       |
+  | --------------- | ------ | --------------------------------- |
+  | `Authorization` | string | Bearer token obtained from login. |
+
+- **Success Response** :
+
+  - **Code** : `200 OK\*\*
+  - **Content** : `{ "message": "Notification deleted" }`
+
+- **Error Responses** :
+
+  - **Code** : `400 Bad Request\*\*
+  - **Content** : `{ "message": "Notification ID is required" }`
+
+  - **Code** : `404 Not Found\*\*
+  - **Content** : `{ "message": "Notification not found" }`
+
+  - **Code** : `403 Forbidden\*\*
+  - **Content** : `{ "message": "User is not allowed to access this notification" }`
+
+  - **Code** : `500 Internal Server Error\*\*
+  - **Content** : `{ "message": "Internal server error", "error": "<Error Details>" }`
