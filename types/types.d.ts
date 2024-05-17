@@ -3,6 +3,12 @@ import { Document } from 'mongoose';
 
 // Define the structure of a Task object
 // This interface describes the properties that a Task object will have in the application
+
+export interface Comment {
+    userId: string;
+    content: string;
+    createdAt: Date;
+}
 export interface Task extends Document {
 	title: string;
 	userId: string;
@@ -10,7 +16,7 @@ export interface Task extends Document {
 	description?: string;
 	status: string;
 	estimatedTime?: number;
-	comments?: string;
+	comments?: Comment[];
 	priority?: string;
 	workspaceId: string;
 	deadline?: string;

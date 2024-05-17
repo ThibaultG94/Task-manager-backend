@@ -129,7 +129,7 @@ export const getWorkspaceTasks = async (
             const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
             tasks = tasks.map(task => ({
                 ...task,
-                assignedTo: task.assignedTo.map(userId => ({
+                assignedTo: (task.assignedTo as string[]).map(userId => ({
                     userId: userId,
                     email: userMap.get(userId)?.email,
                     username: userMap.get(userId)?.username
@@ -694,7 +694,7 @@ export const getUrgentTasks = async (req: express.Request, res: express.Response
         // Enrich the assignedTo field in all tasks
         const enrichedTasks = allUrgentTasks.map(task => ({
             ...task,
-            assignedTo: task.assignedTo.map(userId => ({
+            assignedTo: (task.assignedTo as string[]).map(userId => ({
                 userId: userId,
                 email: userMap.get(userId)?.email,
                 username: userMap.get(userId)?.username
@@ -703,10 +703,10 @@ export const getUrgentTasks = async (req: express.Request, res: express.Response
 
         // Sort and limit results
         const sortedTasks = enrichedTasks.sort((a, b) => {
-            const dateA = new Date(a.deadline).getTime();
-            const dateB = new Date(b.deadline).getTime();
-            const numericPriorityA = priorityToNumber(a.priority);
-            const numericPriorityB = priorityToNumber(b.priority);
+            const dateA = new Date((a.deadline as string) || '').getTime();
+            const dateB = new Date((b.deadline as string) || '').getTime();
+            const numericPriorityA = priorityToNumber(a.priority as string);
+            const numericPriorityB = priorityToNumber(b.priority as string);
             return dateA === dateB ? numericPriorityB - numericPriorityA : dateA - dateB;
         }).slice(0, 4);
 
@@ -760,22 +760,22 @@ export const getUserTasks = async (req: express.Request, res: express.Response) 
         // Enrich the assignedTo field in all tasks
         const enrichedTasks = allUserTasks.map(task => ({
             ...task,
-            assignedTo: task.assignedTo.map(userId => ({
+            assignedTo: (task.assignedTo as string[]).map(userId => ({
                 userId: userId,
                 email: userMap.get(userId)?.email,
                 username: userMap.get(userId)?.username
             }))
-        }));
+        }));        
 
         // Sort all tasks by deadline, then priority, then creation date
         const sortedTasks = enrichedTasks.sort((a, b) => {
-            const dateA = new Date(a.deadline).getTime();
-            const dateB = new Date(b.deadline).getTime();
+            const dateA = new Date((a.deadline as string) || '').getTime();
+            const dateB = new Date((b.deadline as string) || '').getTime();
             if (dateA !== dateB) {
                 return dateA - dateB;
             }
-            const numericPriorityA = priorityToNumber(a.priority);
-            const numericPriorityB = priorityToNumber(b.priority);
+            const numericPriorityA = priorityToNumber(a.priority as string);
+            const numericPriorityB = priorityToNumber(b.priority as string);
             if (numericPriorityA !== numericPriorityB) {
                 return numericPriorityB - numericPriorityA;
             }
@@ -995,7 +995,9 @@ export const getArchivedTasks = async (req: express.Request, res: express.Respon
             totalTasks = allRelevantTasks.length;
 
             let sortedTasks = allRelevantTasks.sort((a, b) => {
-                return new Date(b.archiveDate).getTime() - new Date(a.archiveDate).getTime();
+                const dateA = new Date((a.archiveDate as string) || '').getTime();
+                const dateB = new Date((b.archiveDate as string) || '').getTime();
+                return dateB - dateA;
             });
 
             archivedTasks = sortedTasks.slice(skip, skip + limit);
@@ -1010,7 +1012,7 @@ export const getArchivedTasks = async (req: express.Request, res: express.Respon
 
             archivedTasks = archivedTasks.map(task => ({
                 ...task,
-                assignedTo: task.assignedTo.map(userId => ({
+                assignedTo: (task.assignedTo as string[]).map(userId => ({
                     userId: userId,
                     email: userMap.get(userId)?.email,
                     username: userMap.get(userId)?.username

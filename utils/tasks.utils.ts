@@ -63,15 +63,15 @@ export async function fetchAndProcessTasks(userId: string, statusFilter: string)
     if (['En retard', "Aujourd'hui", "Demain"].includes(statusFilter)) {
         // Filter tasks by specified status
         for (const task of allTasks) {
-            const day = await FormatDateForDisplay(task.deadline);
+            const day = await FormatDateForDisplay(task.deadline as string);
             if (day === statusFilter) {
                 filteredTasks.push(task);
             }
         }
     } else {
         for (const task of allTasks) {
-            const day = await FormatDateForDisplay(task.deadline);
-            const category = GetCategoryDay(day, task.status, task.deadline);
+            const day = await FormatDateForDisplay(task.deadline as string);
+            const category = GetCategoryDay(day, task.status as string, task.deadline as string);
             if (category === statusFilter) {
                 filteredTasks.push(task);
             }

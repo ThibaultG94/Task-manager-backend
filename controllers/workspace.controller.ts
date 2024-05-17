@@ -285,7 +285,7 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
 
 			for (const task of tasks) {
 				// Filter assignedTo to remove deleted members
-				task.assignedTo = task.assignedTo.filter(userId => !removedMembersIds.includes(userId));
+				task.assignedTo = task.assignedTo.filter(userId => !removedMembersIds.includes(userId as string));
 			
 				// If assignedTo is empty after deletion, add the ID of the member initiating the request
 				if (task.assignedTo.length === 0) {
