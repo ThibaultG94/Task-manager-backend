@@ -109,6 +109,6 @@ app.use((req, res, next) => {
 
 // Lancer le serveur
 app.listen(port, () => {
-	cleanupVisitors();
+	// cleanupVisitors();
 	logger.info('Le serveur a démarré au port ' + port)
 });

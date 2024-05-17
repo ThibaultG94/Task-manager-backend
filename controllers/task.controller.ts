@@ -50,7 +50,22 @@ export const getTask = async (req: express.Request, res: express.Response) => {
             username: user.username
         }));
 
-        const responseTask = { ...task, assignedTo: enrichedAssignedTo };
+        const userCommentsDetails = await userModel.find({
+            '_id': { $in: task.comments.map(comment => comment.userId) }
+        }).select('email _id username').lean();
+
+        const enrichedComments = task.comments.map(comment => {
+            const user = userCommentsDetails.find(user => user._id.toString() === comment.userId);
+            return {
+                userId: comment.userId,
+                email: user?.email,
+                username: user?.username,
+                message: comment.content,
+                date: comment.createdAt
+            };
+        });
+
+        const responseTask = { ...task, assignedTo: enrichedAssignedTo, comments: enrichedComments };
 
         res.status(200).json({ task: responseTask });
     } catch (error) {
@@ -125,14 +140,28 @@ export const getWorkspaceTasks = async (
             const usersDetails = await userModel.find({ '_id': { $in: uniqueUserIds } })
                 .select('email _id username')
                 .lean();
-
             const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
+            
+            const commentUserIds = tasks.flatMap(task => task.comments.map(comment => comment.userId));
+            const uniqueCommentUserIds = [...new Set(commentUserIds)];
+            const commentUsersDetails = await userModel.find({ '_id': { $in: uniqueCommentUserIds } })
+            .select('email _id username')
+            .lean();
+            const commentUserMap = new Map(commentUsersDetails.map(user => [user._id.toString(), user]));
+            
             tasks = tasks.map(task => ({
                 ...task,
                 assignedTo: (task.assignedTo as string[]).map(userId => ({
                     userId: userId,
                     email: userMap.get(userId)?.email,
                     username: userMap.get(userId)?.username
+                })),
+                comments: task.comments.map(comment => ({
+                    userId: comment.userId,
+                    email: commentUserMap.get(comment.userId)?.email,
+                    username: commentUserMap.get(comment.userId)?.username,
+                    message: comment.content,
+                    date: comment.createdAt
                 }))
             }));
 
@@ -688,16 +717,29 @@ export const getUrgentTasks = async (req: express.Request, res: express.Response
         const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
             .select('email _id username')
             .lean();
-
         const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
+
+        const commentUserIds = allUrgentTasks.flatMap(task => task.comments ? task.comments.map(comment => comment.userId) : []);
+        const uniqueCommentUserIds = [...new Set(commentUserIds)];
+        const commentUsersDetails = await userModel.find({ '_id': { $in: uniqueCommentUserIds } })
+            .select('email _id username')
+            .lean();
+        const commentUserMap = new Map(commentUsersDetails.map(user => [user._id.toString(), user]));
 
         // Enrich the assignedTo field in all tasks
         const enrichedTasks = allUrgentTasks.map(task => ({
             ...task,
-            assignedTo: (task.assignedTo as string[]).map(userId => ({
+            assignedTo: (task.assignedTo || []).map(userId => ({
                 userId: userId,
-                email: userMap.get(userId)?.email,
-                username: userMap.get(userId)?.username
+                email: userMap.get(userId as string)?.email,
+                username: userMap.get(userId as string)?.username
+            })),
+            comments: (task.comments || []).map(comment => ({
+                userId: comment.userId,
+                email: commentUserMap.get(comment.userId)?.email,
+                username: commentUserMap.get(comment.userId)?.username,
+                message: comment.content,
+                date: comment.createdAt
             }))
         }));
 
@@ -750,22 +792,35 @@ export const getUserTasks = async (req: express.Request, res: express.Response) 
         }
 
         // Collect all unique assignedTo userIds from the tasks
-        const assignedUserIds = [...new Set(allUserTasks.flatMap(task => task.assignedTo))];
+        const assignedUserIds = [...new Set(allUserTasks.flatMap(task => task.assignedTo || []))];
         const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
             .select('email _id username')
             .lean();
-
         const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
 
-        // Enrich the assignedTo field in all tasks
+        const commentUserIds = allUserTasks.flatMap(task => task.comments ? task.comments.map(comment => comment.userId) : []);
+        const uniqueCommentUserIds = [...new Set(commentUserIds)];
+        const commentUsersDetails = await userModel.find({ '_id': { $in: uniqueCommentUserIds } })
+            .select('email _id username')
+            .lean();
+        const commentUserMap = new Map(commentUsersDetails.map(user => [user._id.toString(), user]));
+
+        // Enrich the assignedTo and comments field in all tasks
         const enrichedTasks = allUserTasks.map(task => ({
             ...task,
-            assignedTo: (task.assignedTo as string[]).map(userId => ({
+            assignedTo: (task.assignedTo || []).map(userId => ({
                 userId: userId,
-                email: userMap.get(userId)?.email,
-                username: userMap.get(userId)?.username
+                email: userMap.get(userId as string)?.email,
+                username: userMap.get(userId as string)?.username
+            })),
+            comments: (task.comments || []).map(comment => ({
+                userId: comment.userId,
+                email: commentUserMap.get(comment.userId)?.email,
+                username: commentUserMap.get(comment.userId)?.username,
+                message: comment.content,
+                date: comment.createdAt
             }))
-        }));        
+        }));     
 
         // Sort all tasks by deadline, then priority, then creation date
         const sortedTasks = enrichedTasks.sort((a, b) => {

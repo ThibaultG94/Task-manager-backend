@@ -89,18 +89,32 @@ export async function fetchAndProcessTasks(userId: string, statusFilter: string)
 
 
 async function enrichTasksWithUserDetails(tasks: any[]) {
-    const assignedUserIds = [...new Set(tasks.flatMap(task => task.assignedTo))];
+    const assignedUserIds = [...new Set(tasks.flatMap(task => task.assignedTo || []))];
     const usersDetails = await userModel.find({ '_id': { $in: assignedUserIds } })
         .select('email _id username')
         .lean();
     const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
 
+    const commentUserIds = tasks.flatMap(task => task.comments ? task.comments.map((comment: any) => comment.userId) : []);
+    const uniqueCommentUserIds = [...new Set(commentUserIds)];
+    const commentUsersDetails = await userModel.find({ '_id': { $in: uniqueCommentUserIds } })
+        .select('email _id username')
+        .lean();
+    const commentUserMap = new Map(commentUsersDetails.map(user => [user._id.toString(), user]));
+
     return tasks.map(task => ({
         ...task,
-        assignedTo: task.assignedTo.map((userId: string) => ({
+        assignedTo: (task.assignedTo || []).map((userId: string) => ({
             userId: userId,
             email: userMap.get(userId)?.email,
             username: userMap.get(userId)?.username
+        })),
+        comments: (task.comments || []).map((comment: any) => ({
+            userId: comment.userId,
+            email: commentUserMap.get(comment.userId)?.email,
+            username: commentUserMap.get(comment.userId)?.username,
+            message: comment.content,
+            date: comment.createdAt
         }))
     }));
 }
