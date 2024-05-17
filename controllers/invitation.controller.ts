@@ -100,7 +100,7 @@ export const sendInvitation = async (
 					invitationId: invitation._id,
 					userId: invitation.senderId,
 					type: 'invitationUpdate',
-					message: `${sender?.username} a accepté votre invitation`,
+					message: `${guestUser?.username} a accepté votre invitation`,
 					visitorNotification: true,
 				});
 
