@@ -41,19 +41,7 @@ export const getTask = async (req: express.Request, res: express.Response) => {
             });
         }
 
-        const usersDetails = await userModel.find({
-            '_id': { $in: task.assignedTo }
-        }).select('email _id username').lean();
-
-        const enrichedAssignedTo = usersDetails.map(user => ({
-            userId: user._id.toString(),
-            email: user.email,
-            username: user.username
-        }));
-
-        const responseTask = { ...task, assignedTo: enrichedAssignedTo };
-
-        res.status(200).json({ task: responseTask });
+        res.status(200).json({ task });
     } catch (error) {
         const result = (error as Error).message;
         logger.info(result);
@@ -697,40 +685,6 @@ export const getUrgentTasks = async (req: express.Request, res: express.Response
             .lean();
         const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
 
-        // Collect all unique comment userIds from the comments
-        const taskIds = allUrgentTasks.map(task => task._id.toString());
-        const comments = await commentModel.find({ taskId: { $in: taskIds } }).lean();
-
-        const commentUserIds = comments.map(comment => comment.userId);
-        const uniqueCommentUserIds = [...new Set(commentUserIds)];
-        const commentUsersDetails = await userModel.find({ '_id': { $in: uniqueCommentUserIds } })
-            .select('email _id username')
-            .lean();
-        const commentUserMap = new Map(commentUsersDetails.map(user => [user._id.toString(), user]));
-
-        const buildCommentTree = (comment: any, allComments: any): Comment => {
-            const replies = allComments.filter((c: any) => c.replyTo && c.replyTo.toString() === comment._id.toString());
-            return {
-                ...comment,
-                _id: comment._id.toString() as unknown as mongoose.Types.ObjectId,
-                replyTo: comment.replyTo ? comment.replyTo.toString() as unknown as mongoose.Types.ObjectId : null,
-                replies: replies.map((reply: any) => buildCommentTree(reply, allComments)),
-                user: {
-                    userId: comment.userId,
-                    email: commentUserMap.get(comment.userId)?.email,
-                    username: commentUserMap.get(comment.userId)?.username
-                }
-            };
-        };
-
-        const commentsByTaskId = comments.reduce<{ [key: string]: Comment[] }>((acc, comment) => {
-            if (comment.replyTo === null) {
-                acc[comment.taskId] = acc[comment.taskId] || [];
-                acc[comment.taskId].push(buildCommentTree(comment, comments));
-            }
-            return acc;
-        }, {});
-
         // Enrich the assignedTo field in all tasks
         const enrichedTasks = allUrgentTasks.map(task => ({
             ...task,
@@ -739,7 +693,6 @@ export const getUrgentTasks = async (req: express.Request, res: express.Response
                 email: userMap.get(userId)?.email,
                 username: userMap.get(userId)?.username
             })),
-            comments: commentsByTaskId[task._id.toString()] || []
         }));
 
         // Sort and limit results
