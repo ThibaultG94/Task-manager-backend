@@ -6,6 +6,6 @@ const router = express.Router();
 
 router.post('/comment', auth, addComment);
 router.post('/comment/reply', auth, addReply);
-router.get('/task/:taskId/comments', auth, getCommentsByTaskId);
+router.get('/task/:taskId', auth, getCommentsByTaskId);
 
 export default router;
