@@ -1,6 +1,6 @@
 import express from 'express';
 import client from '../utils/redisClient';
-import mongoose, { FilterQuery } from 'mongoose';
+import { FilterQuery } from 'mongoose';
 import TaskModel from '../models/task.model';
 import userModel from '../models/user.model';
 import workspaceModel from '../models/workspace.model';
@@ -10,7 +10,6 @@ import { Task } from '../types/types';
 import { priorityToNumber } from '../utils/priorityToNumber';
 import { fetchAndProcessTasks } from '../utils/tasks.utils';
 import { fetchAndEnrichUserWorkspaces } from '../utils/workspaces.utils';
-import commentModel from '../models/comment.model';
 
 // Endpoint to get a task by id
 export const getTask = async (req: express.Request, res: express.Response) => {
@@ -604,7 +603,7 @@ export const deleteTask = async (
                     creatorId: req.user._id,
                     userId: member.userId,
                     type: 'taskDeletion',
-                    message: `${user.username} a supprimé la tâche ${task.title} qui vous concerne dans le workspace ${workspace.title}`,
+                    message: `${user.username} a supprimé la tâche ${task.title} du workspace ${workspace.title}`,
                     workspaceId: workspace._id,
                     visitorNotification: isVisitor,
                 });
@@ -633,16 +632,6 @@ export const deleteTask = async (
 };
 
 // Endpoint to get Urgent Tasks
-interface Comment {
-    _id: string;
-    taskId: string;
-    userId: string;
-    content: string;
-    createdAt: Date;
-    replyTo: string | null;
-    replies?: Comment[];
-};
-
 export const getUrgentTasks = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.params.userId;
