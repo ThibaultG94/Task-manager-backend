@@ -11,6 +11,7 @@ import invitationRoutes from './routes/invitation.routes';
 import workspaceInvitationRoutes from './routes/workspaceInvitation.routes';
 import tipRoutes from './routes/tips.routes';
 import notificationRoutes from './routes/notification.routes';
+import commentsRoutes from './routes/comments.routes';
 import { apiLimiter } from './middlewares/rateLimiter.middlewares';
 import cookieParser from 'cookie-parser';
 import logger from './config/logger';
@@ -46,6 +47,7 @@ app.use('/invitations', invitationRoutes);
 app.use('/workspaceInvitations', workspaceInvitationRoutes);
 app.use('/tips', tipRoutes);
 app.use('/notifications', notificationRoutes);
+app.use('/comments', commentsRoutes);
 
 Sentry.init({
 	dsn: process.env.SENTRY_DSN,

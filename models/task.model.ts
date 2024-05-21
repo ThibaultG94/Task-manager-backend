@@ -1,23 +1,5 @@
 import mongoose from 'mongoose';
 
-const commentSchema = new mongoose.Schema(
-    {
-        userId: {
-            type: String,
-            required: true,
-        },
-        content: {
-            type: String,
-            required: true,
-        },
-        createdAt: {
-            type: Date,
-            default: Date.now,
-        },
-    },
-    { _id: false } // This prevents creating an _id field for each comment
-);
-
 // Defines the Task schema for MongoDB
 const taskSchema = new mongoose.Schema(
 	{
@@ -46,10 +28,6 @@ const taskSchema = new mongoose.Schema(
 			type: Number,
 			required: false,
 		},
-		comments: {
-            type: [commentSchema],
-            required: false,
-        },
 		priority: {
 			type: String,
 			enum: ['Low', 'Medium', 'High', 'Urgent'],
