@@ -45,3 +45,10 @@ export const getCommentsWithReplies = async (taskId: string) => {
     const commentsWithReplies = await Promise.all(comments.map(populateReplies));
     return enrichCommentsWithUserDetails(commentsWithReplies);
 };
+
+export const truncateText = (text: string, maxLength: number) => {
+    if (text.length > maxLength) {
+        return text.substring(0, maxLength - 3) + '...';
+    }
+    return text;
+};

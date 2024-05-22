@@ -2,8 +2,9 @@ import express from 'express';
 import commentModel from '../models/comment.model';
 import taskModel from '../models/task.model';
 import userModel from '../models/user.model';
-import { getCommentsWithReplies } from '../utils/comments.utils';
+import { getCommentsWithReplies, truncateText } from '../utils/comments.utils';
 import workspaceModel from '../models/workspace.model';
+import notificationModel from '../models/notification.model';
 
 export const addComment = async (req: express.Request, res: express.Response) => {
     try {
@@ -42,7 +43,7 @@ export const addComment = async (req: express.Request, res: express.Response) =>
         );
 
         // Check if the user making the request is a member of the workspace
-		if (task && !workspace.members.some((member) => member.userId === req.user._id) && req.user._id !== workspace.userId){
+		if (task && !isSuperAdmin && !isAdmin && !isTaskOwner && !isAssigned){
 			return res.status(403).json({
 				message:
 					'You do not have sufficients rights to perform this action',
@@ -57,9 +58,34 @@ export const addComment = async (req: express.Request, res: express.Response) =>
 
         await comment.save();
 
-        const membersToNotify = workspace.members.filter(
-            (member) => member.userId !== userId
-        );
+        // Determine the members to notify
+        const membersToNotify = workspace.members.filter((member) => {
+            return (
+                member.userId !== userId &&  // Exclude the user making the request
+                (
+                    member.role === 'superadmin' ||
+                    member.role === 'admin' ||
+                    task.userId === member.userId ||
+                    task.assignedTo.includes(member.userId)
+                )
+            );
+        });
+
+        const maxLength = 50;
+        const truncatedContent = truncateText(content, maxLength);
+
+        membersToNotify.forEach(async (member) => {
+            const notification = new notificationModel({
+                creatorId: userId,
+                userId: member.userId,
+                type: 'newComment',
+                message: `${user.username} a commenté la tâche ${task.title} du workspace ${workspace.title} : "${truncatedContent}"`,
+                taskId,
+                workspaceId: workspace._id,
+                visitorNotification: isVisitor,
+            });
+            await notification.save();
+        });   
 
         const enrichedComments = await getCommentsWithReplies(taskId);
 
@@ -99,6 +125,16 @@ export const addReply = async (req: express.Request, res: express.Response) => {
 export const getCommentsByTaskId = async (req: express.Request, res: express.Response) => {
     try {
         const { taskId } = req.params;
+
+        if (!taskId) {
+            return res.status(400).json({ message: 'Task ID is required' });
+        }
+
+        const task = await taskModel.findById(taskId);
+
+        if (!task) {
+            return res.status(404).json({ message: 'Task not found' });
+        }
 
         const enrichedComments = await getCommentsWithReplies(taskId);
 
