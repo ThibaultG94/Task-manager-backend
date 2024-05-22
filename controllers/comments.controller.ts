@@ -53,7 +53,8 @@ export const addComment = async (req: express.Request, res: express.Response) =>
         const comment = new commentModel({
             taskId,
             userId,
-            content
+            content,
+            visitorComment: isVisitor
         });
 
         await comment.save();
@@ -148,7 +149,8 @@ export const addReply = async (req: express.Request, res: express.Response) => {
             taskId: parentComment.taskId,
             userId,
             content,
-            replyTo: commentId
+            replyTo: commentId,
+            visitorComment: isVisitor
         });
 
         await reply.save();
