@@ -97,8 +97,47 @@ export const addComment = async (req: express.Request, res: express.Response) =>
 
 export const addReply = async (req: express.Request, res: express.Response) => {
     try {
-        const { commentId, content } = req.body;
+        const { commentId, content, taskId } = req.body;
         const userId = req.user._id;
+        const user = await userModel.findById(userId);
+        const isVisitor = user.role === 'visitor';
+
+        const task = await taskModel.findById(taskId);
+        if (!task) {
+            return res.status(404).json({ message: 'Task not found' });
+        }
+
+        // Find the workspace by ID
+		const workspace = await workspaceModel.findById(task.workspaceId);
+
+        if (!workspace) {
+			return res
+				.status(400)
+				.json({ message: 'This workspace does not exist' });
+		}
+
+        const isSuperAdmin = workspace.members.some(
+			(member) =>
+				member.userId === userId &&
+				member.role === 'superadmin'
+		);
+		const isAdmin = workspace.members.some(
+			(member) =>
+				member.userId === userId &&
+				member.role === 'admin'
+		);
+		const isTaskOwner = task.userId === userId;
+        const isAssigned = task.assignedTo.some(
+            (assignedId) => assignedId === userId
+        );
+
+        // Check if the user making the request is a member of the workspace
+		if (task && !isSuperAdmin && !isAdmin && !isTaskOwner && !isAssigned){
+			return res.status(403).json({
+				message:
+					'You do not have sufficients rights to perform this action',
+			});
+		}
 
         const parentComment = await commentModel.findById(commentId);
         if (!parentComment) {
@@ -113,6 +152,38 @@ export const addReply = async (req: express.Request, res: express.Response) => {
         });
 
         await reply.save();
+
+        // Determine the members to notify
+        const membersToNotify = workspace.members.filter((member) => {
+            return (
+                member.userId !== userId &&  // Exclude the user making the request
+                (
+                    member.role === 'superadmin' ||
+                    member.role === 'admin' ||
+                    task.userId === member.userId ||
+                    task.assignedTo.includes(member.userId)
+                )
+            );
+        });
+
+        const maxLength = 50;
+        const truncatedContent = truncateText(content, maxLength);
+
+        membersToNotify.forEach(async (member) => {
+            const message = parentComment.userId === member.userId ? 
+                `${user.username} a répondu à votre commentaire sur la tâche ${task.title} du workspace ${workspace.title} : "${truncatedContent}"` :
+                `${user.username} a répondu à un commentaire de la tâche ${task.title} du workspace ${workspace.title} : "${truncatedContent}"`;
+            const notification = new notificationModel({
+                creatorId: userId,
+                userId: member.userId,
+                type: 'replycomment',
+                message,
+                taskId,
+                workspaceId: workspace._id,
+                visitorNotification: isVisitor,
+            });
+            await notification.save();
+        });   
 
         const enrichedComments = await getCommentsWithReplies(parentComment.taskId);
 
