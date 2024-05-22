@@ -1,4 +1,6 @@
 import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import { connectDB } from './config/db';
 import dotenv from 'dotenv';
 import cors from 'cors';
@@ -16,6 +18,7 @@ import { apiLimiter } from './middlewares/rateLimiter.middlewares';
 import cookieParser from 'cookie-parser';
 import logger from './config/logger';
 import cleanupVisitors from './utils/cleanupVisitors';
+import mongoose from 'mongoose';
 
 const port: number = 5000;
 
@@ -24,6 +27,16 @@ dotenv.config();
 connectDB();
 
 export const app = express();
+
+// Create an HTTP server and configure it with Socket.io
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: ['http://127.0.0.1:3000', process.env.FRONTEND_URL],
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
 
 // CORS configuration
 app.use(
@@ -109,8 +122,43 @@ app.use((req, res, next) => {
 	next();
 });
 
-// Lancer le serveur
-app.listen(port, () => {
+// Socket.io connection
+io.on('connection', (socket) => {
+	console.log('a user connected');
+
+	// Load existing messages
+	Message.find().then(messages => {
+		socket.emit('init', messages);
+	  });
+  
+	socket.on('disconnect', () => {
+	  console.log('user disconnected');
+	});
+  
+	socket.on('send_message', async (data) => {
+	  const { user, message } = data;
+	  const newMessage = new Message({
+		user,
+		message,
+		timestamp: new Date()
+	  });
+  
+	  await newMessage.save();
+	  io.emit('receive_message', data);
+	});
+});
+
+// Launch server
+server.listen(port, () => {
 	// cleanupVisitors();
 	logger.info('Le serveur a démarré au port ' + port)
 });
+
+// MongoDB schema and model
+const messageSchema = new mongoose.Schema({
+	user: String,
+	message: String,
+	timestamp: Date
+});
+
+const Message = mongoose.model('Message', messageSchema);

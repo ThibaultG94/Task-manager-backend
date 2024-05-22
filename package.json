@@ -34,6 +34,7 @@
 		"passport": "^0.6.0",
 		"passport-local": "^1.0.0",
 		"redis": "^4.6.7",
+		"socket.io": "^4.7.5",
 		"swagger-express-ts": "^1.1.0",
 		"typedoc": "^0.24.8",
 		"winston": "^3.10.0"
@@ -48,6 +49,7 @@
 		"@types/mocha": "^10.0.1",
 		"@types/node": "^20.2.1",
 		"@types/nodemailer": "^6.4.8",
+		"@types/socket.io": "^3.0.2",
 		"@types/supertest": "^2.0.12",
 		"chai": "^4.3.7",
 		"mocha": "^10.2.0",
