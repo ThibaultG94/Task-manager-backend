@@ -14,11 +14,12 @@ import workspaceInvitationRoutes from './routes/workspaceInvitation.routes';
 import tipRoutes from './routes/tips.routes';
 import notificationRoutes from './routes/notification.routes';
 import commentsRoutes from './routes/comments.routes';
+import messagesRoutes from './routes/messages.routes';
 import { apiLimiter } from './middlewares/rateLimiter.middlewares';
 import cookieParser from 'cookie-parser';
 import logger from './config/logger';
+import Message from './models/message.model';
 import cleanupVisitors from './utils/cleanupVisitors';
-import mongoose from 'mongoose';
 
 const port: number = 5000;
 
@@ -61,6 +62,7 @@ app.use('/workspaceInvitations', workspaceInvitationRoutes);
 app.use('/tips', tipRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/comments', commentsRoutes);
+app.use('/messages', messagesRoutes);
 
 Sentry.init({
 	dsn: process.env.SENTRY_DSN,
@@ -153,12 +155,3 @@ server.listen(port, () => {
 	// cleanupVisitors();
 	logger.info('Le serveur a démarré au port ' + port)
 });
-
-// MongoDB schema and model
-const messageSchema = new mongoose.Schema({
-	user: String,
-	message: String,
-	timestamp: Date
-});
-
-const Message = mongoose.model('Message', messageSchema);
