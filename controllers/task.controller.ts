@@ -40,7 +40,21 @@ export const getTask = async (req: express.Request, res: express.Response) => {
             });
         }
 
-        res.status(200).json({ task });
+        const usersDetails = await userModel.find({ '_id': { $in: task.assignedTo } })
+            .select('email _id username')
+            .lean();
+        const userMap = new Map(usersDetails.map(user => [user._id.toString(), user]));
+
+        const enrichedTask = {
+            ...task,
+            assignedTo: (task.assignedTo || []).map(userId => ({
+                userId: userId,
+                email: userMap.get(userId)?.email,
+                username: userMap.get(userId)?.username
+            })),
+        };
+
+        res.status(200).json({ task: enrichedTask });
     } catch (error) {
         const result = (error as Error).message;
         logger.info(result);
