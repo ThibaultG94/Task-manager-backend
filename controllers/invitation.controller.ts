@@ -3,6 +3,7 @@ import invitationModel from '../models/invitation.model';
 import userModel from '../models/user.model';
 import notificationModel from '../models/notification.model';
 import { fetchAndCategorizeReceivedInvitations, fetchAndCategorizeSentInvitations } from '../utils/invitations.utils';
+import Conversation from '../models/conversation.model';
 
 // Endpoint to send an invitation
 export const sendInvitation = async (
@@ -105,6 +106,10 @@ export const sendInvitation = async (
 				});
 
 				await notification.save();
+
+				const users = [invitation.senderId, invitation.guestId];
+				const newConversation = new Conversation({ users, messages: [], visitorConversation: true});
+				await newConversation.save();
 			}
 		}
 
@@ -189,6 +194,10 @@ export const acceptInvitation = async (
 		});
 
 		await notification.save();
+
+		const users = [userOne?._id, userTwo?._id];
+		const newConversation = new Conversation({ users, messages: [] });
+		await newConversation.save();
 
 		const invitations = await fetchAndCategorizeReceivedInvitations(userId);
 

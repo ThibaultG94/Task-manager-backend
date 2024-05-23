@@ -1,15 +1,23 @@
 import mongoose from 'mongoose';
 
-const messageSchema = new mongoose.Schema({
-  user: { type: String, required: true },
-  message: { type: String, required: true },
-  timestamp: { type: Date, default: Date.now },
-  visitorModel: {
-    type: Boolean,
-    default: false,
-    required: false,
-},
-});
+const messageSchema = new mongoose.Schema(
+    {
+		senderId: { type: String, required: true },
+		guestId: { type: String, required: true },
+        conversationId: { type: String, required: true },
+        message: { type: String, required: true },
+        read: {
+			type: Boolean,
+			default: false,
+		},
+        visitorModel: {
+            type: Boolean,
+            default: false,
+            required: false,
+        },
+    },
+    { timestamps: true }
+);
 
 // TTL index for visitor accounts
 messageSchema.index(

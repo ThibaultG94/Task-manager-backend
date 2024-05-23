@@ -7,7 +7,7 @@ export const createConversation = async (req: express.Request, res: express.Resp
   try {
     const newConversation = new Conversation({ users, messages: [], visitorConversation });
     await newConversation.save();
-    res.status(201).json(newConversation);
+    res.status(201).json({ newConversation });
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ message: err.message });
