@@ -14,12 +14,14 @@ import workspaceInvitationRoutes from './routes/workspaceInvitation.routes';
 import tipRoutes from './routes/tips.routes';
 import notificationRoutes from './routes/notification.routes';
 import commentsRoutes from './routes/comments.routes';
+import conversationRoutes from './routes/conversations.routes';
 import messagesRoutes from './routes/messages.routes';
 import { apiLimiter } from './middlewares/rateLimiter.middlewares';
 import cookieParser from 'cookie-parser';
 import logger from './config/logger';
 import Message from './models/message.model';
 import cleanupVisitors from './utils/cleanupVisitors';
+import Conversation from './models/conversation.model';
 
 const port: number = 5000;
 
@@ -62,6 +64,7 @@ app.use('/workspaceInvitations', workspaceInvitationRoutes);
 app.use('/tips', tipRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/comments', commentsRoutes);
+app.use('/conversations', conversationRoutes);
 app.use('/messages', messagesRoutes);
 
 Sentry.init({
@@ -138,15 +141,26 @@ io.on('connection', (socket) => {
 	});
   
 	socket.on('send_message', async (data) => {
-	  const { user, message } = data;
+	  const { user, message, conversationId } = data;
 	  const newMessage = new Message({
 		user,
 		message,
-		timestamp: new Date()
+		timestamp: new Date(),
+		conversationId,
 	  });
   
 	  await newMessage.save();
-	  io.emit('receive_message', data);
+
+	  const conversation = await Conversation.findById(conversationId);
+	  conversation.messages.push(newMessage._id.toString());
+	  conversation.lastMessage = message;
+	  await conversation.save();
+  
+	  io.to(conversationId).emit('receive_message', data);
+	});
+
+	socket.on('join_conversation', (conversationId) => {
+		socket.join(conversationId);
 	});
 });
 
