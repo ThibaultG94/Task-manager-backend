@@ -20,8 +20,8 @@ import { apiLimiter } from './middlewares/rateLimiter.middlewares';
 import cookieParser from 'cookie-parser';
 import logger from './config/logger';
 import Message from './models/message.model';
-import cleanupVisitors from './utils/cleanupVisitors';
 import Conversation from './models/conversation.model';
+import cleanupVisitors from './utils/cleanupVisitors';
 
 const port: number = 5000;
 
@@ -129,39 +129,44 @@ app.use((req, res, next) => {
 
 // Socket.io connection
 io.on('connection', (socket) => {
-	console.log('a user connected');
+    console.log('a user connected');
 
-	// Load existing messages
-	Message.find().then(messages => {
-		socket.emit('init', messages);
-	  });
-  
-	socket.on('disconnect', () => {
-	  console.log('user disconnected');
-	});
-  
-	socket.on('send_message', async (data) => {
-	  const { user, message, conversationId } = data;
-	  const newMessage = new Message({
-		user,
-		message,
-		timestamp: new Date(),
-		conversationId,
-	  });
-  
-	  await newMessage.save();
+    socket.on('disconnect', () => {
+        console.log('user disconnected');
+    });
 
-	  const conversation = await Conversation.findById(conversationId);
-	  conversation.messages.push(newMessage._id.toString());
-	  conversation.lastMessage = message;
-	  await conversation.save();
-  
-	  io.to(conversationId).emit('receive_message', data);
-	});
+    socket.on('send_message', async (data) => {
+        const { message, conversationId, senderId } = data;
 
-	socket.on('join_conversation', (conversationId) => {
-		socket.join(conversationId);
-	});
+		console.log(data);
+
+        try {
+            // Create a new message
+            const newMessage = new Message({
+                senderId: data.senderId,
+                guestId: data.guestId,
+                conversationId,
+                message,
+                // timestamp: new Date()
+            });
+
+            await newMessage.save();
+
+            // Update the conversation with the new message ID
+            await Conversation.findByIdAndUpdate(conversationId, {
+                $push: { messages: newMessage._id },
+                lastMessage: newMessage._id
+            });
+
+            // Emit the message to other users in the conversation
+            io.emit('receive_message', {
+                ...newMessage.toObject(),
+				content: newMessage.message,
+            });
+        } catch (error) {
+            console.error('Error sending message:', error);
+        }
+    });
 });
 
 // Launch server

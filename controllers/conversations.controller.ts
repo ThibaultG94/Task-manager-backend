@@ -31,10 +31,20 @@ export const getConversations = async (req: express.Request, res: express.Respon
                 email: user?.email,
             }
         }));
-        return { ...conversation, users };
+        const messages = await Promise.all(conversation.messages.map(async (messageId) => {
+            const message = await Message.findById(messageId);
+            return {
+                _id: message?._id,
+                content: message?.message,
+                senderId: message?.senderId,
+                guestId: message?.guestId,
+                conversationId: message?.conversationId,
+                read: message?.read,
+                createdAt: message?.createdAt,
+            }
+        }));
+        return { ...conversation, users, messages };
     }));
-
-    console.log(userConversations);
 
     res.status(200).json({ userConversations });
   } catch (error) {
