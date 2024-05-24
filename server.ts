@@ -138,16 +138,13 @@ io.on('connection', (socket) => {
     socket.on('send_message', async (data) => {
         const { message, conversationId, senderId } = data;
 
-		console.log(data);
-
         try {
             // Create a new message
             const newMessage = new Message({
-                senderId: data.senderId,
+                senderId,
                 guestId: data.guestId,
                 conversationId,
                 message,
-                // timestamp: new Date()
             });
 
             await newMessage.save();
