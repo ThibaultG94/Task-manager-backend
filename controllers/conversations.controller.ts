@@ -1,6 +1,7 @@
 import express from 'express';
 import Conversation from '../models/conversation.model';
 import Message from '../models/message.model';
+import userModel from '../models/user.model';
 
 export const createConversation = async (req: express.Request, res: express.Response) => {
   const { users, visitorConversation = false } = req.body;
@@ -16,10 +17,26 @@ export const createConversation = async (req: express.Request, res: express.Resp
 
 export const getConversations = async (req: express.Request, res: express.Response) => {
   try {
-    const conversations = await Conversation.find({ users: req.user._id })
-      .populate('users')
-      .populate('messages');
-    res.status(200).json(conversations);
+    const conversations = await Conversation.find({ users: req.user._id }).lean();
+    if (!conversations) {
+        return res.status(404).json({ message: 'Conversations not found' });
+    }
+
+    const userConversations = await Promise.all(conversations.map(async (conversation) => {
+        const users = await Promise.all(conversation.users.map(async (userId) => {
+            const user = await userModel.findById(userId);
+            return {
+                _id: user?._id,
+                username: user?.username,
+                email: user?.email,
+            }
+        }));
+        return { ...conversation, users };
+    }));
+
+    console.log(userConversations);
+
+    res.status(200).json({ userConversations });
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ message: err.message });

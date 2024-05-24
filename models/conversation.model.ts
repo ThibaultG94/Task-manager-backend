@@ -5,10 +5,12 @@ const conversationSchema = new mongoose.Schema(
         users: {
 			type: [String],
 			required: true,
+            ref: 'User',
 		},
         messages: {
 			type: [String],
 			required: true,
+            ref: 'Message',
 		},
         lastMessage: {
             type: String,

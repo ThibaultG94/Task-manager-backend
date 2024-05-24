@@ -4,8 +4,8 @@ import Message from '../models/message.model';
 // Create a message
 export const createMessage = async (req: Request, res: Response) => {
   try {
-    const { user, message } = req.body;
-    const newMessage = new Message({ user, message });
+    const { senderId, guestId, message } = req.body;
+    const newMessage = new Message({ senderId, guestId, message });
     await newMessage.save();
     res.status(201).json(newMessage);
   } catch (error) {
