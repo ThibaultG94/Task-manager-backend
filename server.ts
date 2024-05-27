@@ -145,6 +145,7 @@ io.on('connection', (socket) => {
                 guestId: data.guestId,
                 conversationId,
                 message,
+				read: false,
             });
 
             await newMessage.save();
@@ -164,6 +165,24 @@ io.on('connection', (socket) => {
             console.error('Error sending message:', error);
         }
     });
+
+	socket.on('read_message', async (data) => {
+		const { conversationId, userId } = data;
+	
+		try {
+		const messagesGuestUser = await Message.find({ conversationId: conversationId, guestId: userId });
+	
+		const updatePromises = messagesGuestUser.map((message) => {
+			return Message.findByIdAndUpdate(message._id, { read: true });
+		});
+	
+		await Promise.all(updatePromises);
+	
+		io.emit('message_read', { conversationId, userId });
+		} catch (error) {
+		console.error('Error updating messages:', error);
+		}
+	});  
 });
 
 // Launch server
