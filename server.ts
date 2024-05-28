@@ -21,6 +21,8 @@ import cookieParser from 'cookie-parser';
 import logger from './config/logger';
 import Message from './models/message.model';
 import Conversation from './models/conversation.model';
+import jwt from 'jsonwebtoken';
+import { Socket, UserPayload } from "./types/types";
 import cleanupVisitors from './utils/cleanupVisitors';
 
 const port: number = 5000;
@@ -127,9 +129,28 @@ app.use((req, res, next) => {
 	next();
 });
 
+io.use((socket: Socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (token) {
+    jwt.verify(token, process.env.JWT_SECRET, (err: any, decoded: any) => {
+      if (err) {
+        return next(new Error("Authentication error"));
+      }
+      socket.user = decoded as UserPayload;
+      next();
+    });
+  } else {
+    next(new Error("Authentication error"));
+  }
+});
+
 // Socket.io connection
-io.on('connection', (socket) => {
-    console.log('a user connected');
+io.on('connection', (socket: Socket) => {
+	if (socket.user) {
+		console.log("A user connected", socket.user.username);
+	  } else {
+		console.log("A connection attempt was made without authentication");
+	  }
 
     socket.on('disconnect', () => {
         console.log('user disconnected');

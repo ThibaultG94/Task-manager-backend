@@ -1,5 +1,6 @@
 import { Request } from 'express';
 import { Document } from 'mongoose';
+import { Socket as DefaultSocket } from "socket.io";
 
 // Define the structure of a Task object
 // This interface describes the properties that a Task object will have in the application
@@ -76,6 +77,7 @@ export interface UserDocument extends UserBase, Document {
 export interface UserPayload {
 	_id: string;
 	role: string;
+	username: string;
 }
 
 export interface UserToken {
@@ -92,3 +94,7 @@ declare module 'express-serve-static-core' {
 		};
 	}
 }
+
+export interface Socket extends DefaultSocket {
+	user?: UserPayload;
+  }
