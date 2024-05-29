@@ -1,9 +1,34 @@
 import express from 'express';
 import client from '../utils/redisClient';
+import { notificationNamespace } from '../server';
 import notificationModel from '../models/notification.model';
 import userModel from '../models/user.model';
 import taskModel from '../models/task.model';
 import workspaceModel from '../models/workspace.model';
+
+// Function to send a notification
+const sendNotification = async (creatorId: string, userId: string, message: string, type: string, isVisitor: boolean, creator: any, taskId?: string, workspaceId?: string) => {
+    const notification = new notificationModel({
+        creatorId: creatorId,
+        userId: userId,
+        taskId: taskId,
+        type: type,
+        message: message,
+        workspaceId: workspaceId,
+        visitorNotification: isVisitor,
+    });
+    await notification.save();
+
+    const notifToEmit = {
+        ...notification.toObject(),
+        creatorUsername: creator.username,
+    };
+
+    // Emit notification via Socket.io
+    notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
+
+    return notification._id;
+};
 
 // Endpoint to set a notification
 export const setNotification = async (req: express.Request, res: express.Response) => {
@@ -16,7 +41,6 @@ export const setNotification = async (req: express.Request, res: express.Respons
         }
 
         const isVisitor = creator.role === 'visitor';
-
         let notificationsIds: any = [];
 
         // Handle invitation updates
@@ -26,57 +50,44 @@ export const setNotification = async (req: express.Request, res: express.Respons
                     message: "Task ID is required for this type of notification",
                 });
             }
-        
+
             const task = await taskModel.findById(taskId);
             if (!task) {
                 return res.status(404).json({ message: 'Task not found' });
             }
-        
+
             // Retrieving the workspace to obtain the list of members
             const workspace = await workspaceModel.findById(task.workspaceId);
             if (!workspace) {
                 return res.status(404).json({ message: 'Workspace not found' });
             }
-        
+
             // Create notifications for users assigned to the task
-            const promises = task.assignedTo.map(async (userId) => {
+            const taskMessage = `${creator.username} a mis à jour la tâche ${task.title}`;
+            const assignedPromises = task.assignedTo.map(async (userId) => {
                 if (creatorId !== userId) {
-                    const message = `${creator.username} a mis à jour la tâche ${task.title}`;
-                    const notification = new notificationModel({
-                        creatorId,
-                        taskId,
-                        userId,
-                        type,
-                        message,
-                        visitorNotification: isVisitor,
-                    });
-                    await notification.save();
-                    notificationsIds.push(notification._id);
+                    const notificationId = await sendNotification(creatorId, userId, taskMessage, type, isVisitor, creator, taskId, task.workspaceId);
+                    notificationsIds.push(notificationId);
                 }
             });
 
-            await Promise.all(promises);
-        
+            await Promise.all(assignedPromises);
+
             // Create notification for superadmins, admins, and workspace owner
-            workspace.members.forEach(async (member) => {
-                if ((member.role === 'superadmin' || member.role === 'admin' || member.userId === task.userId) && creatorId !== member.userId) {
-                    const message = `${creator.username} a mis à jour la tâche ${task.title}`;
-                    const notification = new notificationModel({
-                        creatorId,
-                        taskId,
-                        userId: member.userId,
-                        type,
-                        message,
-                        visitorNotification: isVisitor,
-                    });
-                    await notification.save();
-                    notificationsIds.push(notification._id);
-                }
-            });
-        
+            const adminPromises = workspace.members
+                .filter(member => !task.assignedTo.includes(member.userId))
+                .map(async (member) => {
+                    if ((member.role === 'superadmin' || member.role === 'admin' || member.userId === task.userId) && creatorId !== member.userId) {
+                        const notificationId = await sendNotification(creatorId, member.userId, taskMessage, type, isVisitor, creator, taskId, task.workspaceId);
+                        notificationsIds.push(notificationId);
+                    }
+                });
+
+            await Promise.all(adminPromises);
+
             return res.status(200).json({ notificationsIds });
-        }
-         else if (type === 'workspaceUpdate') {
+
+        } else if (type === 'workspaceUpdate') {
             if (!workspaceId) {
                 return res.status(400).json({
                     message: "Workspace ID is required for this type of notification",
@@ -89,22 +100,17 @@ export const setNotification = async (req: express.Request, res: express.Respons
             }
 
             // Create a notification for each member in the workspace, excluding the creator
-            workspace.members.forEach(async (member) => {
+            const workspaceMessage = `${creator.username} a mis à jour le workspace ${workspace.title}`;
+            const workspacePromises = workspace.members.map(async (member: any) => {
                 if (creatorId !== member.userId) {
-                    const message = `${creator.username} a mis à jour le workspace ${workspace.title}`;
-                    const notification = new notificationModel({
-                        creatorId,
-                        workspaceId,
-                        userId: member.userId,
-                        type,
-                        message,
-                        visitorNotification: isVisitor,
-                    });
-                    await notification.save();
+                    const notificationId = await sendNotification(creatorId, member.userId, workspaceMessage, type, isVisitor, creator, undefined, workspaceId);
+                    notificationsIds.push(notificationId);
                 }
             });
 
-            return res.status(200).json({ message: 'Notifications sent to workspace members' });
+            await Promise.all(workspacePromises);
+
+            return res.status(200).json({ notificationsIds });
         }
 
     } catch (error) {

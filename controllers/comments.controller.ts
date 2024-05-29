@@ -1,4 +1,5 @@
 import express from 'express';
+import { notificationNamespace } from '../server';
 import commentModel from '../models/comment.model';
 import taskModel from '../models/task.model';
 import userModel from '../models/user.model';
@@ -86,6 +87,14 @@ export const addComment = async (req: express.Request, res: express.Response) =>
                 visitorNotification: isVisitor,
             });
             await notification.save();
+
+            const notifToEmit = {
+                ...notification.toObject(),
+                creatorUsername: user.username,
+            };
+
+            // Emit notification via Socket.io
+            notificationNamespace.to(member.userId.toString()).emit('new_notification', notifToEmit);
         });   
 
         const enrichedComments = await getCommentsWithReplies(taskId);
@@ -185,6 +194,14 @@ export const addReply = async (req: express.Request, res: express.Response) => {
                 visitorNotification: isVisitor,
             });
             await notification.save();
+
+            const notifToEmit = {
+                ...notification.toObject(),
+                creatorUsername: user.username,
+            };
+
+            // Emit notification via Socket.io
+            notificationNamespace.to(member.userId.toString()).emit('new_notification', notifToEmit);
         });   
 
         const enrichedComments = await getCommentsWithReplies(parentComment.taskId);

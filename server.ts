@@ -69,6 +69,8 @@ app.use('/comments', commentsRoutes);
 app.use('/conversations', conversationRoutes);
 app.use('/messages', messagesRoutes);
 
+const notificationNamespace = io.of('/notifications');
+
 Sentry.init({
 	dsn: process.env.SENTRY_DSN,
 	integrations: [
@@ -144,6 +146,31 @@ io.use((socket: Socket, next) => {
   }
 });
 
+notificationNamespace.use((socket: Socket, next) => {
+	const token = socket.handshake.auth.token;
+	if (token) {
+	  jwt.verify(token, process.env.JWT_SECRET, (err: any, decoded: any) => {
+		if (err) {
+		  return next(new Error("Authentication error"));
+		}
+		socket.user = decoded as UserPayload;
+		next();
+	  });
+	} else {
+	  next(new Error("Authentication error"));
+	}
+  });
+
+  notificationNamespace.on('connection', (socket: Socket) => {
+	if (socket.user) {
+		console.log("Notification socket connected:", socket.user.username);
+		// Rejoindre la salle basée sur le userId
+		socket.join(socket.user._id);
+	  } else {
+		console.log("A connection attempt was made without authentication");
+	  }
+  });
+
 // Socket.io connection
 io.on('connection', (socket: Socket) => {
 	if (socket.user) {
@@ -211,3 +238,5 @@ server.listen(port, () => {
 	// cleanupVisitors();
 	logger.info('Le serveur a démarré au port ' + port)
 });
+
+export { notificationNamespace };

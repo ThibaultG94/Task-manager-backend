@@ -1,4 +1,5 @@
 import express from 'express';
+import { notificationNamespace } from '../server';
 import userModel from '../models/user.model';
 import workspaceModel from '../models/workspace.model';
 import workspaceInvitationModel from '../models/workspaceInvitation.model';
@@ -111,6 +112,15 @@ export const sendInvitationWorkspace = async (
 		});
 
 		await notification.save();
+
+		const notifToEmit = {
+			...notification.toObject(),
+			creatorUsername: sender.username,
+		};
+	
+		// Emit notification via Socket.io
+		notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
+
 		await workspaceInvitation.save();
 		await workspace.save();
 
@@ -203,6 +213,14 @@ export const acceptWorkspaceInvitation = async (
 
         await senderNotification.save();
 
+		const notifToEmit = {
+			...senderNotification.toObject(),
+			creatorUsername: guestUser.username,
+		};
+	
+		// Emit notification via Socket.io
+		notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
+
         // Send notifications to other members
         const otherMembers = workspace.members.filter(
             member => member.userId !== invitation.guestId && member.userId !== invitation.senderId
@@ -219,6 +237,14 @@ export const acceptWorkspaceInvitation = async (
             });
 
             await notification.save();
+
+			const notifToEmit = {
+				...notification.toObject(),
+				creatorUsername: guestUser.username,
+			};
+		
+			// Emit notification via Socket.io
+			notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
         }
 
         await invitation.save();

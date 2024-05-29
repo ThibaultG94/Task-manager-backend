@@ -1,6 +1,7 @@
 import express from 'express';
 import client from '../utils/redisClient';
 import { FilterQuery } from 'mongoose';
+import { notificationNamespace } from '../server';
 import TaskModel from '../models/task.model';
 import userModel from '../models/user.model';
 import workspaceModel from '../models/workspace.model';
@@ -10,6 +11,7 @@ import { Task } from '../types/types';
 import { priorityToNumber } from '../utils/priorityToNumber';
 import { fetchAndProcessTasks } from '../utils/tasks.utils';
 import { fetchAndEnrichUserWorkspaces } from '../utils/workspaces.utils';
+import commentModel from '../models/comment.model';
 
 // Endpoint to get a task by id
 export const getTask = async (req: express.Request, res: express.Response) => {
@@ -227,37 +229,45 @@ export const createTask = async (
             const taskId = task._id;
             const creator = await userModel.findById(userId);
             const message = `${creator.username} vous a assigné la tâche ${task.title}`;
-
-            // Notifications pour les utilisateurs assignés
-            const assignedUserIds = task.assignedTo.filter(memberId => memberId !== userId);
-            for (const memberId of assignedUserIds) {
+            
+            // Fonction pour envoyer une notification
+            const sendNotification = async (creatorId: string, userId: string, taskId: string, message: string, workspaceId: string, type: string) => {
                 const notification = new notificationModel({
-                    creatorId: userId,
-                    userId: memberId,
+                    creatorId: creatorId,
+                    userId: userId,
                     taskId: taskId,
-                    type: 'taskCreation',
+                    type: type,
                     message: message,
                     workspaceId: workspaceId,
                     visitorNotification: isVisitor,
                 });
                 await notification.save();
+            
+                const notifToEmit = {
+                    ...notification.toObject(),
+                    creatorUsername: creator.username,
+                };
+            
+                // Emit notification via Socket.io
+                notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
+            };
+            
+            // Notifications pour les utilisateurs assignés
+            const assignedUserIds = task.assignedTo.filter(memberId => memberId !== userId);
+            for (const memberId of assignedUserIds) {
+                await sendNotification(userId, memberId, taskId.toString(), message, workspaceId, 'taskCreation');
             }
-
-            // Notifications pour les superadmins et admins du workspace qui ne sont pas l'utilisateur à l'origine de la requête
-            workspace.members.forEach(async (member) => {
+            
+            // Filter out assigned users from workspace members
+            const nonAssignedMembers = workspace.members.filter(member => !assignedUserIds.includes(member.userId));
+            
+            nonAssignedMembers.forEach(async (member) => {
                 if ((member.role === 'superadmin' || member.role === 'admin') && member.userId !== req.user._id) {
-                    const notificationForAdmins = new notificationModel({
-                        creatorId: userId,
-                        userId: member.userId,
-                        taskId: taskId,
-                        type: 'taskCreation',
-                        message: `Une nouvelle tâche '${task.title}' a été créée dans le workspace ${workspace.title}.`,
-                        workspaceId: workspaceId,
-                        visitorNotification: isVisitor,
-                    });
-                    await notificationForAdmins.save();
+                    const adminMessage = `Une nouvelle tâche '${task.title}' a été créée dans le workspace ${workspace.title}.`;
+                    await sendNotification(userId, member.userId, taskId.toString(), adminMessage, workspaceId, 'taskCreation');
                 }
             });
+            
 
             await workspaceModel.findByIdAndUpdate(
                 workspaceId,
@@ -488,30 +498,45 @@ export const editTask = async (
                 });
             } else {
                 task.assignedTo = updates.assignedTo;
-            
+
+                const sendNotification = async (creatorId: string, userId: string, message: string, type: string, taskId: string, workspaceId: string, creator: any) => {
+                    const notification = new notificationModel({
+                        creatorId: creatorId,
+                        userId: userId,
+                        message: message,
+                        type: type,
+                        taskId: taskId,
+                        workspaceId: workspaceId,
+                        visitorNotification: isVisitor,
+                    });
+                    await notification.save();
+
+                    const notifToEmit = {
+                        ...notification.toObject(),
+                        creatorUsername: creator.username,
+                    };
+                
+                    // Emit notification via Socket.io
+                    notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
+                };
+
                 // Handle notifications for unassigned users
+                const user = await userModel.findById(req.user._id);
                 usersToRemove.forEach(async (userId) => {
                     if (userId !== req.user._id) { // Ensure the notification is not created for the user making the request
                         const userRole = userRoles.get(userId) || 'member'; // Assuming 'member' as default if no role is found
                         const isUserSuperAdmin = userRole === 'superadmin';
                         const isUserAdmin = userRole === 'admin';
                         const isUserOwner = task.userId === userId;
-            
+
                         if (!isUserSuperAdmin && !isUserAdmin && !isUserOwner) { // Check if the unassigned user is not a superadmin, admin, or the owner
                             await notificationModel.deleteMany({ taskId: task._id, userId: userId });
                         }
-            
+
                         // Create new notification for unassigned user
-                        const newNotification = new notificationModel({
-                            creatorId: req.user._id,
-                            userId: userId,
-                            message: `Vous avez été désaffecté de la tâche: ${task.title}`,
-                            type: isUserSuperAdmin || isUserAdmin || isUserOwner ? 'taskUpdate' : 'workspaceUpdate',
-                            taskId: task._id,
-                            workspaceId: task.workspaceId,
-                            visitorNotification: isVisitor,
-                        });
-                        await newNotification.save();
+                        const message = `Vous avez été désaffecté de la tâche: ${task.title}`;
+                        const type = isUserSuperAdmin || isUserAdmin || isUserOwner ? 'taskUpdate' : 'workspaceUpdate';
+                        await sendNotification(req.user._id, userId, message, type, task._id, task.workspaceId, user);
                     }
                 });
             }
@@ -598,32 +623,44 @@ export const deleteTask = async (
 
         // Send notifications to assigned users except the user who is deleting the task
         const assignedUserIds = task.assignedTo.filter(userId => userId !== req.user._id);
-        assignedUserIds.forEach(async (userId) => {
+
+        const sendNotification = async (userId: string, message: string) => {
             const notification = new notificationModel({
                 creatorId: req.user._id,
                 userId: userId,
                 type: 'taskDeletion',
-                message: `${user.username} a supprimé la tâche ${task.title} du workspace ${workspace.title}`,
+                message: message,
                 workspaceId: workspace._id,
                 visitorNotification: isVisitor,
             });
             await notification.save();
+        
+            const notifToEmit = {
+                ...notification.toObject(),
+                creatorUsername: user.username,
+            };
+        
+            // Emit notification via Socket.io
+            notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
+        };
+        
+        assignedUserIds.forEach(async (userId) => {
+            const message = `${user.username} a supprimé la tâche ${task.title} du workspace ${workspace.title}`;
+            await sendNotification(userId, message);
         });
-
-        // Additionally notify superadmins and admins of the workspace
-        workspace.members.forEach(async (member) => {
+        
+        // Filter out assigned users from workspace members
+        const nonAssignedMembers = workspace.members.filter(member => !assignedUserIds.includes(member.userId));
+        
+        nonAssignedMembers.forEach(async (member) => {
             if ((member.role === 'superadmin' || member.role === 'admin') && member.userId !== req.user._id) {
-                const notification = new notificationModel({
-                    creatorId: req.user._id,
-                    userId: member.userId,
-                    type: 'taskDeletion',
-                    message: `${user.username} a supprimé la tâche ${task.title} du workspace ${workspace.title}`,
-                    workspaceId: workspace._id,
-                    visitorNotification: isVisitor,
-                });
-                await notification.save();
+                const message = `${user.username} a supprimé la tâche ${task.title} du workspace ${workspace.title}`;
+                await sendNotification(member.userId, message);
             }
         });
+
+        // Find comments related to the task and delete them
+        await commentModel.deleteMany({ taskId: task._id });
 
         // Delete the task
         await task.deleteOne();

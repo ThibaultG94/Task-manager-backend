@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { User, UserBase } from '../types/types';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import { notificationNamespace } from '../server';
 import refreshTokenModel from '../models/refreshToken.model';
 import workspaceModel from '../models/workspace.model';
 import { Workspace } from '../types/types';
@@ -138,6 +139,15 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		});
 
 		await notification.save();
+
+		const notifToEmit = {
+			...notification.toObject(),
+			creatorUsername: tempUser.username,
+		};
+		
+		// Emit notification via Socket.io
+		notificationNamespace.to(tempUser._id.toString()).emit('new_notification', notifToEmit);
+
 		await workspaceInvitation.save();
 		await workspace.save();
 
@@ -477,23 +487,7 @@ export const deleteUser = async (
 // Enpoint to get a user
 export const getUser = async (req: express.Request, res: express.Response) => {
 	try {
-		// Extract the user ID and role from the token
-		const userIdFromToken = req.user._id;
-		const userRoleFromToken = req.user.role;
-
 		const userIdFromParams = req.params.id;
-
-		// Deny the request if a user asks for data of another user and the requester is not an admin or a superadmin
-		if (
-			userIdFromToken !== userIdFromParams &&
-			userRoleFromToken !== 'admin' &&
-			userRoleFromToken !== 'superadmin'
-		) {
-			return res.status(403).json({
-				message:
-					'You do not have sufficient rights to perform this action',
-			});
-		}
 
 		// Fetch the user from the database, omitting the password field
 		const user: UserBase = await UserModel.findById(
@@ -501,18 +495,6 @@ export const getUser = async (req: express.Request, res: express.Response) => {
 		).select('-password');
 		if (!user) {
 			return res.status(404).json({ message: 'User not found' });
-		}
-
-		// Deny the request if an admin user asks for data of another admin or superadmin and the requester is not a superadmin
-		if (
-			user.role !== 'user' &&
-			userRoleFromToken !== 'superadmin' &&
-			userIdFromToken !== userIdFromParams
-		) {
-			return res.status(403).json({
-				message:
-					'You do not have sufficient rights to perform this action',
-			});
 		}
 
 		// Send the user data back in the response

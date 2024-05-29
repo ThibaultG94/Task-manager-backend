@@ -1,4 +1,5 @@
 import express from 'express';
+import { notificationNamespace } from '../server';
 import invitationModel from '../models/invitation.model';
 import userModel from '../models/user.model';
 import notificationModel from '../models/notification.model';
@@ -69,6 +70,14 @@ export const sendInvitation = async (
 			});
 
 			await notification.save();
+
+			const notifToEmit = {
+				...notification.toObject(),
+				creatorUsername: sender.username,
+			};
+		
+			// Emit notification via Socket.io
+			notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
 		} else {
 			const invitation = new invitationModel({
 				senderId: req.user._id,
@@ -90,6 +99,14 @@ export const sendInvitation = async (
 
 			await notification.save();
 
+			const notifToEmit = {
+				...notification.toObject(),
+				creatorUsername: sender.username,
+			};
+		
+			// Emit notification via Socket.io
+			notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
+
 			if (guestUser.email === "thibault.guilhem@gmail.com") {
 				invitation.status = 'ACCEPTED';
 				sender?.contacts.push(guestUser?._id);
@@ -106,6 +123,14 @@ export const sendInvitation = async (
 				});
 
 				await notification.save();
+
+				const notifToEmit = {
+					...notification.toObject(),
+					creatorUsername: guestUser.username,
+				};
+			
+				// Emit notification via Socket.io
+				notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
 
 				const users = [invitation.senderId, invitation.guestId];
 				const newConversation = new Conversation({ users, messages: [], visitorConversation: true});
@@ -194,6 +219,14 @@ export const acceptInvitation = async (
 		});
 
 		await notification.save();
+
+		const notifToEmit = {
+			...notification.toObject(),
+			creatorUsername: userOne.username,
+		};
+	
+		// Emit notification via Socket.io
+		notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
 
 		const users = [userOne?._id, userTwo?._id];
 		const newConversation = new Conversation({ users, messages: [] });
