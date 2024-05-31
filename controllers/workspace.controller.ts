@@ -222,7 +222,7 @@ export const editWorkspace = async (req: express.Request, res: express.Response)
 						};
 					
 						// Emit notification via Socket.io
-						notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
+						notificationNamespace.to(member.userId.toString()).emit('new_notification', notifToEmit);
 
 						await workspaceInvitation.save();
 					}
@@ -383,7 +383,7 @@ export const deleteWorkspace = async (req: express.Request, res: express.Respons
 		for (const member of membersToNotify) {
 			const notification = new notificationModel({
 				creatorId: req.user._id,
-				userId: member.userId,  // Destinataire unique de la notification
+				userId: member.userId,
 				type: 'workspaceDeletion',
 				message: `${user.username} a supprimé le workspace ${workspace.title}`,
 				workspaceId: workspace._id,
@@ -398,7 +398,7 @@ export const deleteWorkspace = async (req: express.Request, res: express.Respons
 			};
 		
 			// Emit notification via Socket.io
-			notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
+			notificationNamespace.to(member.userId.toString()).emit('new_notification', notifToEmit);
 		}
 
         // Here, we handle the cleanup of all associated workspace invitations before proceeding with workspace deletion
@@ -474,7 +474,7 @@ export const exitWorkspace = async (req: express.Request, res: express.Response)
 				};
 			
 				// Emit notification via Socket.io
-				notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
+				notificationNamespace.to(member.userId.toString()).emit('new_notification', notifToEmit);
 			}
 		}
 
