@@ -119,7 +119,7 @@ export const sendInvitationWorkspace = async (
 		};
 	
 		// Emit notification via Socket.io
-		notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
+		notificationNamespace.to(guestId.toString()).emit('new_notification', notifToEmit);
 
 		await workspaceInvitation.save();
 		await workspace.save();
@@ -219,7 +219,7 @@ export const acceptWorkspaceInvitation = async (
 		};
 	
 		// Emit notification via Socket.io
-		notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
+		notificationNamespace.to(invitation.senderId.toString()).emit('new_notification', notifToEmit);
 
         // Send notifications to other members
         const otherMembers = workspace.members.filter(
@@ -244,7 +244,7 @@ export const acceptWorkspaceInvitation = async (
 			};
 		
 			// Emit notification via Socket.io
-			notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
+			notificationNamespace.to(member.userId.toString()).emit('new_notification', notifToEmit);
         }
 
         await invitation.save();

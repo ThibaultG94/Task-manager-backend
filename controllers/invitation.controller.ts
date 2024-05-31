@@ -77,7 +77,7 @@ export const sendInvitation = async (
 			};
 		
 			// Emit notification via Socket.io
-			notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
+			notificationNamespace.to(guestUser._id.toString()).emit('new_notification', notifToEmit);
 		} else {
 			const invitation = new invitationModel({
 				senderId: req.user._id,
@@ -105,7 +105,7 @@ export const sendInvitation = async (
 			};
 		
 			// Emit notification via Socket.io
-			notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
+			notificationNamespace.to(guestUser._id.toString()).emit('new_notification', notifToEmit);
 
 			if (guestUser.email === "thibault.guilhem@gmail.com") {
 				invitation.status = 'ACCEPTED';
@@ -130,7 +130,7 @@ export const sendInvitation = async (
 				};
 			
 				// Emit notification via Socket.io
-				notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
+				notificationNamespace.to(invitation.senderId.toString()).emit('new_notification', notifToEmit);
 
 				const users = [invitation.senderId, invitation.guestId];
 				const newConversation = new Conversation({ users, messages: [], visitorConversation: true});
@@ -226,7 +226,7 @@ export const acceptInvitation = async (
 		};
 	
 		// Emit notification via Socket.io
-		notificationNamespace.to(userId.toString()).emit('new_notification', notifToEmit);
+		notificationNamespace.to(invitation.senderId.toString()).emit('new_notification', notifToEmit);
 
 		const users = [userOne?._id, userTwo?._id];
 		const newConversation = new Conversation({ users, messages: [] });
