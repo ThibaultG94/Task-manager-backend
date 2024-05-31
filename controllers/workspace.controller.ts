@@ -450,7 +450,7 @@ export const exitWorkspace = async (req: express.Request, res: express.Response)
 		}
 
 		// Delete all workspace notifications
-		await notificationModel.deleteMany({ workspaceId: workspace._id });
+		await notificationModel.deleteMany({ workspaceId: workspace._id, userId: req.user._id});
 
 		// Create an individual notification for each workspace member
 		const membersToNotify = workspace.members.filter(member => member.userId !== req.user._id);
