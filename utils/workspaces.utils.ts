@@ -73,3 +73,11 @@ export async function fetchAndEnrichUserWorkspaces(userId: string) {
 
     return workspaces;
 }
+
+// Function to get the number of common workspaces
+export const getCommonWorkspacesCount = async (userId: string, contactId: string) => {
+	const workspaces = await workspaceModel.find({
+		'members.userId': { $all: [userId, contactId] },
+	});
+	return workspaces.length;
+};

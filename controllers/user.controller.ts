@@ -14,6 +14,8 @@ import jwt from 'jsonwebtoken';
 import taskModel from '../models/task.model';
 import workspaceInvitationModel from '../models/workspaceInvitation.model';
 import notificationModel from '../models/notification.model';
+import { getMessagesCount } from '../utils/messages.utils';
+import { getCommonWorkspacesCount } from '../utils/workspaces.utils';
 
 // Enpoint to create a user
 export const registerUser = async (
@@ -523,25 +525,39 @@ export const getContacts = async (
 			});
 		}
 
-		const user: User = await UserModel.findById(userIdFromToken);
+		const user: User = await UserModel.findById(userIdFromToken.toString());
 
 		if (!user) {
 			return res.status(404).json({ message: 'User not found' });
 		}
 
-		const contactsPromises = user.contacts.map((contactId) =>
-			UserModel.findById(contactId).then((userContact) => ({
-				id: userContact?._id,
-				username: userContact?.username,
-				email: userContact?.email,
-			}))
-		);
+		const contactsPromises = user.contacts.map(async (contactId: any) => {
+			const contact = await UserModel.findById(contactId.toString());
+			const messagesCount = await getMessagesCount(userIdFromToken.toString(), contactId.toString());
+			const commonWorkspacesCount = await getCommonWorkspacesCount(userIdFromToken.toString(), contactId.toString());
 
-		const userContacts = await Promise.all(contactsPromises);
+			return {
+				id: contact?._id,
+				username: contact?.username,
+				email: contact?.email,
+				messagesCount,
+				commonWorkspacesCount,
+			};
+		});
+
+		let userContacts = await Promise.all(contactsPromises);
+
+		// Sort by messagesCount and commonWorkspacesCount
+		userContacts = userContacts.sort((a, b) => {
+			if (b.messagesCount !== a.messagesCount) {
+				return b.messagesCount - a.messagesCount;
+			}
+			return b.commonWorkspacesCount - a.commonWorkspacesCount;
+		})
 
 		res.status(200).json({ userContacts });
 	} catch (err) {
-		const result = (err as Error).message;
+		const result = "result: " + (err as Error).message;
 		logger.error(result);
 
 		res.status(500).json({ message: 'Internal server error' });
