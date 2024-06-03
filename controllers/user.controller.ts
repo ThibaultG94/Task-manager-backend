@@ -564,6 +564,62 @@ export const getContacts = async (
 	}
 };
 
+// Endpoint to get blocked contacts
+export const getBlockedContacts = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const userIdFromToken = req.user._id;
+		const userId = req.params.id;
+
+		if (userIdFromToken !== userId) {
+			return res.status(403).json({
+				message:
+					'You do not have sufficient rights to perform this action',
+			});
+		}
+
+		const user: User = await UserModel.findById(userIdFromToken.toString());
+
+		if (!user) {
+			return res.status(404).json({ message: 'User not found' });
+		}
+
+		const blockedContactsPromises = user.blocked.map(async (contactId: any) => {
+			const contact = await UserModel.findById(contactId.toString());
+			const messagesCount = await getMessagesCount(userIdFromToken.toString(), contactId.toString());
+			const commonWorkspacesCount = await getCommonWorkspacesCount(userIdFromToken.toString(), contactId.toString());
+
+			return {
+				id: contact?._id,
+				username: contact?.username,
+				email: contact?.email,
+				messagesCount,
+				commonWorkspacesCount,
+			};
+		});
+
+		let userBlockedContacts = await Promise.all(blockedContactsPromises);
+
+		// Sort by messagesCount and commonWorkspacesCount
+		userBlockedContacts = userBlockedContacts.sort((a, b) => {
+			if (b.messagesCount !== a.messagesCount) {
+				return b.messagesCount - a.messagesCount;
+			}
+			return b.commonWorkspacesCount - a.commonWorkspacesCount;
+		})
+
+		res.status(200).json({ userBlockedContacts });
+	} catch (err) {
+		const result = "result: " + (err as Error).message;
+		logger.error(result);
+
+		res.status(500).json({ message: 'Internal server error' });
+	}
+};
+
+
 // Endpoint to get users from a same workspace
 export const getUsers = async (req: express.Request, res: express.Response) => {
 	try {

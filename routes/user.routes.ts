@@ -16,6 +16,7 @@ import {
 	deleteContact,
 	createVisitorSession,
 	blockContact,
+	getBlockedContacts,
 } from '../controllers/user.controller';
 import {
 	validate,
@@ -57,6 +58,9 @@ router.get('/:id/account', validateUserID, auth, getUser);
 
 // Route to get user's contacts information
 router.get('/:id/contacts', validateUserID, auth, getContacts);
+
+// Route to get user's blocked contacts information
+router.get('/:id/contacts-blocked', validateUserID, auth, getBlockedContacts);
 
 // Route to get user's from a same workspace basics information by the workspace id
 router.get('/:workspaceId/members', auth, getUsers);
