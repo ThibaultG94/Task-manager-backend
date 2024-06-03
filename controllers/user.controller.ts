@@ -884,15 +884,29 @@ export const deleteContact = async (req: express.Request, res: express.Response)
 			]
 		});		
 
-        const contactsPromises = user.contacts.map((contactId) =>
-			UserModel.findById(contactId).then((userContact) => ({
-				id: userContact?._id,
-				username: userContact?.username,
-				email: userContact?.email,
-			}))
-		);
+        const contactsPromises = user.contacts.map(async (contactId: any) => {
+			const contact = await UserModel.findById(contactId.toString());
+			const messagesCount = await getMessagesCount(userId.toString(), contactId.toString());
+			const commonWorkspacesCount = await getCommonWorkspacesCount(userId.toString(), contactId.toString());
 
-		const userContacts = await Promise.all(contactsPromises);
+			return {
+				id: contact?._id,
+				username: contact?.username,
+				email: contact?.email,
+				messagesCount,
+				commonWorkspacesCount,
+			};
+		});
+
+		let userContacts = await Promise.all(contactsPromises);
+
+		// Sort by messagesCount and commonWorkspacesCount
+		userContacts = userContacts.sort((a, b) => {
+			if (b.messagesCount !== a.messagesCount) {
+				return b.messagesCount - a.messagesCount;
+			}
+			return b.commonWorkspacesCount - a.commonWorkspacesCount;
+		})
 
 		res.status(200).json({ userContacts });
     } catch (error) {
@@ -902,7 +916,7 @@ export const deleteContact = async (req: express.Request, res: express.Response)
     }
 };
 
-export const blockUser = async (req: express.Request, res: express.Response) => {
+export const blockContact = async (req: express.Request, res: express.Response) => {
 	try {
 		const userId = req.user._id;
 		const contactId = req.params.contactId;
@@ -921,15 +935,31 @@ export const blockUser = async (req: express.Request, res: express.Response) => 
 
 		await user.save();
 
-		const contactsPromises = user.contacts.map((contactId) =>
-			UserModel.findById(contactId).then((userContact) => ({
-				id: userContact?._id,
-				username: userContact?.username,
-				email: userContact?.email,
-			}))
-		);
+		const contactsPromises = user.contacts.map(async (contactId: any) => {
+			const contact = await UserModel.findById(contactId.toString());
+			const messagesCount = await getMessagesCount(userId.toString(), contactId.toString());
+			const commonWorkspacesCount = await getCommonWorkspacesCount(userId.toString(), contactId.toString());
 
-		const userContacts = await Promise.all(contactsPromises);
+			return {
+				id: contact?._id,
+				username: contact?.username,
+				email: contact?.email,
+				messagesCount,
+				commonWorkspacesCount,
+			};
+		});
+
+		let userContacts = await Promise.all(contactsPromises);
+
+		// Sort by messagesCount and commonWorkspacesCount
+		userContacts = userContacts.sort((a, b) => {
+			if (b.messagesCount !== a.messagesCount) {
+				return b.messagesCount - a.messagesCount;
+			}
+			return b.commonWorkspacesCount - a.commonWorkspacesCount;
+		})
+
+		res.status(200).json({ userContacts });
 
 		res.status(200).json({ userContacts });
 	} catch (error) {
