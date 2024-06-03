@@ -65,10 +65,7 @@ router.get('/:workspaceId/members', auth, getUsers);
 router.put('/:id/update', validateUserID, auth, updateUser);
 
 // Route to delete a user's account by their id
-router.delete('/:contactId/delete', validateUserID, auth, deleteUser);
-
-// Route to block a user's account by their id
-router.delete('/:contactId/block', validateUserID, auth, blockUser);
+router.delete('/:id/delete', validateUserID, auth, deleteUser);
 
 // Route to refresh token
 router.post('/token', refreshUserToken);
@@ -87,5 +84,8 @@ router.post('/reset-password/:token', resetPassword);
 
 // Route to delete contact
 router.delete('/:contactId/delete-contact', auth, deleteContact);
+
+// Route to block a user's account by their id
+router.delete('/:id/block-contact', validateUserID, auth, blockUser);
 
 export default router;

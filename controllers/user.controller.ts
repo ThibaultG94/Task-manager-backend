@@ -855,7 +855,7 @@ export const resetPassword = async (
 export const deleteContact = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.user._id;
-        const contactId = req.params.contactId;
+        const contactId = req.params.id;
 
         const user: User = await UserModel.findById(userId);
 		if (!user.contacts.map(contact => contact.toString()).includes(contactId)) {
@@ -895,7 +895,7 @@ export const deleteContact = async (req: express.Request, res: express.Response)
 export const blockUser = async (req: express.Request, res: express.Response) => {
 	try {
 		const userId = req.user._id;
-		const contactId = req.params.contactId;
+		const contactId = req.params.id;
 
 		const user = await UserModel.findById(userId);
 		if (!user) {
