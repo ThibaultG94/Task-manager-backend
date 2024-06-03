@@ -908,10 +908,20 @@ export const blockUser = async (req: express.Request, res: express.Response) => 
 		user.blocked.push(contactId);
 		// remove contact from contacts
 		user.contacts = user.contacts.filter((contact) => contact.toString() !== contactId);
-		
+
 		await user.save();
 
-		return res.status(200).send({ message: 'Contact blocked' });
+		const contactsPromises = user.contacts.map((contactId) =>
+			UserModel.findById(contactId).then((userContact) => ({
+				id: userContact?._id,
+				username: userContact?.username,
+				email: userContact?.email,
+			}))
+		);
+
+		const userContacts = await Promise.all(contactsPromises);
+
+		res.status(200).json({ userContacts });
 	} catch (error) {
 		const result = (error as Error).message;
 		logger.error(result);
