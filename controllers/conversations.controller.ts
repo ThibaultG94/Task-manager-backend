@@ -17,33 +17,45 @@ export const createConversation = async (req: express.Request, res: express.Resp
 
 export const getConversations = async (req: express.Request, res: express.Response) => {
   try {
+    // Récupérer les utilisateurs bloqués par le user actuel
+    const currentUser = await userModel.findById(req.user._id);
+    const blockedUserIds = currentUser?.blocked || [];
+
+    // Récupérer les conversations de l'utilisateur actuel
     const conversations = await Conversation.find({ users: req.user._id }).lean();
     if (!conversations) {
-        return res.status(404).json({ message: 'Conversations not found' });
+      return res.status(404).json({ message: 'Conversations not found' });
     }
 
-    const userConversations = await Promise.all(conversations.map(async (conversation) => {
-        const users = await Promise.all(conversation.users.map(async (userId) => {
-            const user = await userModel.findById(userId);
-            return {
-                _id: user?._id,
-                username: user?.username,
-                email: user?.email,
-            }
-        }));
-        const messages = await Promise.all(conversation.messages.map(async (messageId) => {
-            const message = await Message.findById(messageId);
-            return {
-                _id: message?._id,
-                content: message?.message,
-                senderId: message?.senderId,
-                guestId: message?.guestId,
-                conversationId: message?.conversationId,
-                read: message?.read,
-                createdAt: message?.createdAt,
-            }
-        }));
-        return { ...conversation, users, messages };
+    // Filtrer les conversations pour exclure celles contenant des utilisateurs bloqués
+    const filteredConversations = conversations.filter(conversation => 
+      !conversation.users.some(userId => blockedUserIds.includes(userId.toString()))
+    );
+
+    const userConversations = await Promise.all(filteredConversations.map(async (conversation) => {
+      const users = await Promise.all(conversation.users.map(async (userId) => {
+        const user = await userModel.findById(userId);
+        return {
+          _id: user?._id,
+          username: user?.username,
+          email: user?.email,
+        };
+      }));
+
+      const messages = await Promise.all(conversation.messages.map(async (messageId) => {
+        const message = await Message.findById(messageId);
+        return {
+          _id: message?._id,
+          content: message?.message,
+          senderId: message?.senderId,
+          guestId: message?.guestId,
+          conversationId: message?.conversationId,
+          read: message?.read,
+          createdAt: message?.createdAt,
+        };
+      }));
+
+      return { ...conversation, users, messages };
     }));
 
     res.status(200).json({ userConversations });

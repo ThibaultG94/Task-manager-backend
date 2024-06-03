@@ -891,3 +891,30 @@ export const deleteContact = async (req: express.Request, res: express.Response)
         res.status(500).send({ message: 'Internal server error', details: result.toString() });
     }
 };
+
+export const blockUser = async (req: express.Request, res: express.Response) => {
+	try {
+		const userId = req.user._id;
+		const contactId = req.params.contactId;
+
+		const user = await UserModel.findById(userId);
+		if (!user) {
+			return res.status(404).send({ message: 'User not found' });
+		}
+		if (!user.contacts.map(contact => contact.toString()).includes(contactId)) {
+			return res.status(404).send({ message: 'Contact not found' });
+		}
+		// add contact to blocked contacts
+		user.blocked.push(contactId);
+		// remove contact from contacts
+		user.contacts = user.contacts.filter((contact) => contact.toString() !== contactId);
+		
+		await user.save();
+
+		return res.status(200).send({ message: 'Contact blocked' });
+	} catch (error) {
+		const result = (error as Error).message;
+		logger.error(result);
+		res.status(500).send({ message: 'Internal server error' });
+	}
+};

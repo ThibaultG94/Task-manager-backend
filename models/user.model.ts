@@ -40,6 +40,10 @@ const userSchema = new mongoose.Schema({
 			type: Array,
 			default: [],
 		}, 
+		blocked: {
+			type: Array,
+			default: [],
+		}
 	},
 	{ timestamps: true },
 );
