@@ -855,7 +855,7 @@ export const resetPassword = async (
 export const deleteContact = async (req: express.Request, res: express.Response) => {
     try {
         const userId = req.user._id;
-        const contactId = req.params.id;
+        const contactId = req.params.contactId;
 
         const user: User = await UserModel.findById(userId);
 		if (!user.contacts.map(contact => contact.toString()).includes(contactId)) {
@@ -863,14 +863,24 @@ export const deleteContact = async (req: express.Request, res: express.Response)
 			return res.status(404).send({ message: 'Contact not found' });
 		}
 		
+		const contact: User = await UserModel.findById(contactId);
+		if (!contact.contacts.map(contact => contact.toString()).includes(userId)) {
+			console.log("Contact non trouvé dans les contacts de l'utilisateur.");
+			return res.status(404).send({ message: 'Contact not found' });
+		}
+
 		user.contacts = user.contacts.filter((contact) => contact.toString() !== contactId);
-        await user.save();
+		contact.contacts = contact.contacts.filter((contact) => contact.toString() !== userId);
+
+		await user.save();
+		await contact.save();
+
 
         // Search invitation and delete it
 		await invitationModel.findOneAndDelete({
 			$or: [
-				{ invitedId: userId, inviterId: contactId },
-				{ invitedId: contactId, inviterId: userId }
+				{ senderId: userId, guestId: contactId },
+				{ senderId: contactId, guestId: userId }
 			]
 		});		
 
@@ -895,7 +905,7 @@ export const deleteContact = async (req: express.Request, res: express.Response)
 export const blockUser = async (req: express.Request, res: express.Response) => {
 	try {
 		const userId = req.user._id;
-		const contactId = req.params.id;
+		const contactId = req.params.contactId;
 
 		const user = await UserModel.findById(userId);
 		if (!user) {

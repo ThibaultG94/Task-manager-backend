@@ -86,6 +86,6 @@ router.post('/reset-password/:token', resetPassword);
 router.delete('/:contactId/delete-contact', auth, deleteContact);
 
 // Route to block a user's account by their id
-router.delete('/:id/block-contact', validateUserID, auth, blockUser);
+router.delete('/:contactId/block-contact', auth, blockUser);
 
 export default router;
