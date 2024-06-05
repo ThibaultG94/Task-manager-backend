@@ -55,6 +55,11 @@ export async function fetchAndEnrichUserWorkspaces(userId: string) {
         },
         {}
     );
+
+    const sortMembersByRole = (members: any[]) => {
+        const roleOrder: { [key: string]: number } = { superadmin: 1, admin: 2, member: 3 };
+        return members.sort((a, b) => roleOrder[a.role] - roleOrder[b.role]);
+    };
     
     for (let workspace of workspaces) {
         const statusCounts = await countTasksByStatus(workspace._id.toString());
@@ -67,7 +72,9 @@ export async function fetchAndEnrichUserWorkspaces(userId: string) {
                 email: userInfo?.email,
             };
         });
-        workspace.members = enrichedMembers;
+
+        // Sort enriched members by role
+        workspace.members = sortMembersByRole(enrichedMembers);
         workspace.taskStatusCounts = statusCounts;
     }
 
