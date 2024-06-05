@@ -17,6 +17,7 @@ import {
 	createVisitorSession,
 	blockContact,
 	getBlockedContacts,
+	unBlockContact,
 } from '../controllers/user.controller';
 import {
 	validate,
@@ -91,5 +92,8 @@ router.delete('/:contactId/delete-contact', auth, deleteContact);
 
 // Route to block a user's account by their id
 router.delete('/:contactId/block-contact', auth, blockContact);
+
+// Route to unblock a user's account by their id
+router.delete('/:contactId/unblock-contact', auth, unBlockContact);
 
 export default router;

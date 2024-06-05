@@ -1015,9 +1015,107 @@ export const blockContact = async (req: express.Request, res: express.Response) 
 			return b.commonWorkspacesCount - a.commonWorkspacesCount;
 		})
 
-		res.status(200).json({ userContacts });
+		const blockedContactsPromises = user.blocked.map(async (contactId: any) => {
+			const contact = await UserModel.findById(contactId);
+			const messagesCount = await getMessagesCount(userId.toString(), contactId.toString());
+			const commonWorkspacesCount = await getCommonWorkspacesCount(userId.toString(), contactId.toString());
 
-		res.status(200).json({ userContacts });
+			return {
+				id: contact?._id,
+				username: contact?.username,
+				email: contact?.email,
+				messagesCount,
+				commonWorkspacesCount,
+			};
+		});
+
+		let userBlockedContacts = await Promise.all(blockedContactsPromises);
+
+		// Sort by messagesCount and commonWorkspacesCount
+		userBlockedContacts = userBlockedContacts.sort((a, b) => {
+			if (b.messagesCount !== a.messagesCount) {
+				return b.messagesCount - a.messagesCount;
+			}
+			return b.commonWorkspacesCount - a.commonWorkspacesCount;
+		})
+
+		res.status(200).json({ userContacts, userBlockedContacts });
+	} catch (error) {
+		const result = (error as Error).message;
+		logger.error(result);
+		res.status(500).send({ message: 'Internal server error' });
+	}
+};
+
+export const unBlockContact = async (req: express.Request, res: express.Response) => {
+	try {
+		const userId = req.user._id;
+		const contactId = req.params.contactId;
+
+		const user = await UserModel.findById(userId);
+		if (!user) {
+			return res.status(404).send({ message: 'User not found' });
+		}
+		if (!user.blocked.map(contact => contact.toString()).includes(contactId)) {
+			return res.status(404).send({ message: 'Contact not found' });
+		}
+		// remove contact from blocked contacts
+		user.blocked = user.blocked.filter((contact) => contact.toString() !== contactId);
+		// add contact to contacts
+		user.contacts.push(contactId);
+
+		await user.save();
+
+		const contactsPromises = user.contacts.map(async (contactId: any) => {
+			const contact = await UserModel.findById(contactId.toString());
+			const messagesCount = await getMessagesCount(userId.toString(), contactId.toString());
+			const commonWorkspacesCount = await getCommonWorkspacesCount(userId.toString(), contactId.toString());
+
+			return {
+				id: contact?._id,
+				username: contact?.username,
+				email: contact?.email,
+				messagesCount,
+				commonWorkspacesCount,
+			};
+		});
+
+		let userContacts = await Promise.all(contactsPromises);
+
+		// Sort by messagesCount and commonWorkspacesCount
+		userContacts = userContacts.sort((a, b) => {
+			if (b.messagesCount !== a.messagesCount) {
+				return b.messagesCount - a.messagesCount;
+			}
+			return b.commonWorkspacesCount - a.commonWorkspacesCount;
+		})
+
+
+		const blockedContactsPromises = user.blocked.map(async (contactId: any) => {
+			const contact = await UserModel.findById(contactId);
+			const messagesCount = await getMessagesCount(userId.toString(), contactId.toString());
+			const commonWorkspacesCount = await getCommonWorkspacesCount(userId.toString(), contactId.toString());
+
+			return {
+				id: contact?._id,
+				username: contact?.username,
+				email: contact?.email,
+				messagesCount,
+				commonWorkspacesCount,
+			};
+		});
+
+		let userBlockedContacts = await Promise.all(blockedContactsPromises);
+
+		// Sort by messagesCount and commonWorkspacesCount
+		userBlockedContacts = userBlockedContacts.sort((a, b) => {
+			if (b.messagesCount !== a.messagesCount) {
+				return b.messagesCount - a.messagesCount;
+			}
+			return b.commonWorkspacesCount - a.commonWorkspacesCount;
+		})
+
+		res.status(200).json({ userContacts, userBlockedContacts });
 	} catch (error) {
 		const result = (error as Error).message;
 		logger.error(result);
