@@ -1,10 +1,11 @@
 import express from 'express';
-import { notificationNamespace } from '../server';
+import { notificationNamespace, messageNamespace } from '../server';
 import invitationModel from '../models/invitation.model';
 import userModel from '../models/user.model';
 import notificationModel from '../models/notification.model';
 import { fetchAndCategorizeReceivedInvitations, fetchAndCategorizeSentInvitations } from '../utils/invitations.utils';
 import Conversation from '../models/conversation.model';
+import Message from '../models/message.model';
 
 // Endpoint to send an invitation
 export const sendInvitation = async (
@@ -135,6 +136,36 @@ export const sendInvitation = async (
 				const users = [invitation.senderId, invitation.guestId];
 				const newConversation = new Conversation({ users, messages: [], visitorConversation: true});
 				await newConversation.save();
+				
+				// create a new message from thibault to the visitor in the conversation
+				const newMessage = new Message({
+					senderId: invitation.guestId,
+					guestId: invitation.senderId,
+					conversationId: newConversation._id,
+					message: "Bonjour, comment puis-je vous aider ?",
+					read: false,
+					visitorMessage: true,
+				});
+
+				await newMessage.save();
+
+				newConversation.messages.push(newMessage._id.toString());
+				await newConversation.save();
+
+				// Log to check if messageNamespace is defined
+				if (messageNamespace) {
+					console.log('Message namespace is defined');
+				} else {
+					console.log('Message namespace is undefined');
+				}
+
+				// Emit the message via Socket.io using messageNamespace
+				messageNamespace.to(invitation.senderId.toString()).emit('receive_message', {
+					...newMessage.toObject(),
+					content: newMessage.message,
+					senderUsername: guestUser.username,
+					guestUsername: sender?.username,
+				});
 			}
 		}
 

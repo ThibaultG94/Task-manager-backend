@@ -8,7 +8,7 @@ import './utils/redisClient';
 import * as Sentry from '@sentry/node';
 import taskRoutes from './routes/task.routes';
 import userRoutes from './routes/user.routes';
-import workspaceRoutes from './routes/worskpace.routes';
+import workspaceRoutes from './routes/workspace.routes';
 import invitationRoutes from './routes/invitation.routes';
 import workspaceInvitationRoutes from './routes/workspaceInvitation.routes';
 import tipRoutes from './routes/tips.routes';
@@ -45,11 +45,11 @@ const io = new Server(server, {
 
 // CORS configuration
 app.use(
-	cors({
-		origin: ['http://127.0.0.1:3000', process.env.FRONTEND_URL],
-		credentials: true,
-		optionsSuccessStatus: 200,
-	})
+  cors({
+    origin: ['http://127.0.0.1:3000', process.env.FRONTEND_URL],
+    credentials: true,
+    optionsSuccessStatus: 200,
+  })
 );
 
 // Middlewares for parsing request bodies
@@ -70,22 +70,23 @@ app.use('/conversations', conversationRoutes);
 app.use('/messages', messagesRoutes);
 
 const notificationNamespace = io.of('/notifications');
+const messageNamespace = io.of('/messages'); // New message namespace
 
 Sentry.init({
-	dsn: process.env.SENTRY_DSN,
-	integrations: [
-		// enable HTTP calls tracing
-		new Sentry.Integrations.Http({ tracing: true }),
-		// enable Express.js middleware tracing
-		new Sentry.Integrations.Express({ app }),
-		// Automatically instrument Node.js libraries and frameworks
-		...Sentry.autoDiscoverNodePerformanceMonitoringIntegrations(),
-	],
+  dsn: process.env.SENTRY_DSN,
+  integrations: [
+    // enable HTTP calls tracing
+    new Sentry.Integrations.Http({ tracing: true }),
+    // enable Express.js middleware tracing
+    new Sentry.Integrations.Express({ app }),
+    // Automatically instrument Node.js libraries and frameworks
+    ...Sentry.autoDiscoverNodePerformanceMonitoringIntegrations(),
+  ],
 
-	// Set tracesSampleRate to 1.0 to capture 100%
-	// of transactions for performance monitoring.
-	// We recommend adjusting this value in production
-	tracesSampleRate: 1.0,
+  // Set tracesSampleRate to 1.0 to capture 100%
+  // of transactions for performance monitoring.
+  // We recommend adjusting this value in production
+  tracesSampleRate: 1.0,
 });
 
 // RequestHandler creates a separate execution context, so that all
@@ -96,41 +97,42 @@ app.use(Sentry.Handlers.tracingHandler());
 
 // All controllers should live here
 app.get('/', function rootHandler(req, res) {
-	res.end('Hello world!');
+  res.end('Hello world!');
 });
 
 // Sentry.captureException(new Error('test exception'));
 
 app.get('/debug-centry', function mainHandler(req, res) {
-	res.status(500);
-	throw new Error('My first Sentry error!');
+  res.status(500);
+  throw new Error('My first Sentry error!');
 });
 
 // The error handler must be before any other error middleware and after all controllers
 app.use(
-	Sentry.Handlers.errorHandler({
-		shouldHandleError(error) {
-			// Capture all 404 and 500 errors
-			if (error.status === 404 || error.status === 500) {
-				return true;
-			}
-			return false;
-		},
-	})
+  Sentry.Handlers.errorHandler({
+    shouldHandleError(error) {
+      // Capture all 404 and 500 errors
+      if (error.status === 404 || error.status === 500) {
+        return true;
+      }
+      return false;
+    },
+  })
 );
 
 app.use(function onError(req, res, next) {
-	// The error id is attached to `res.sentry` to be returned
-	// and optionally displayed to the user for support.
-	res.statusCode = 500;
-	res.end(res + '\n');
+  // The error id is attached to `res.sentry` to be returned
+  // and optionally displayed to the user for support.
+  res.statusCode = 500;
+  res.end(res + '\n');
 });
 
 app.use((req, res, next) => {
-	logger.info(`${req.method} ${req.url}`);
-	next();
+  logger.info(`${req.method} ${req.url}`);
+  next();
 });
 
+// Middleware for socket authentication
 io.use((socket: Socket, next) => {
   const token = socket.handshake.auth.token;
   if (token) {
@@ -147,96 +149,115 @@ io.use((socket: Socket, next) => {
 });
 
 notificationNamespace.use((socket: Socket, next) => {
-	const token = socket.handshake.auth.token;
-	if (token) {
-	  jwt.verify(token, process.env.JWT_SECRET, (err: any, decoded: any) => {
-		if (err) {
-		  return next(new Error("Authentication error"));
-		}
-		socket.user = decoded as UserPayload;
-		next();
-	  });
-	} else {
-	  next(new Error("Authentication error"));
-	}
+  const token = socket.handshake.auth.token;
+
+  if (token) {
+    jwt.verify(token, process.env.JWT_SECRET, (err: any, decoded: any) => {
+      if (err) {
+        return next(new Error("Authentication error"));
+      }
+      socket.user = decoded as UserPayload;
+      next();
+    });
+  } else {
+    next(new Error("Authentication error"));
+  }
+});
+
+notificationNamespace.on('connection', (socket: Socket) => {
+  if (socket.user) {
+    console.log("Notification socket connected:", socket.user.username);
+    // Rejoindre la salle basée sur le userId
+    socket.join(socket.user._id);
+  } else {
+    console.log("A connection attempt was made without authentication");
+  }
+});
+
+// Middleware for message namespace
+messageNamespace.use((socket: Socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (token) {
+    jwt.verify(token, process.env.JWT_SECRET, (err: any, decoded: any) => {
+      if (err) {
+        return next(new Error("Authentication error"));
+      }
+      socket.user = decoded as UserPayload;
+      next();
+    });
+  } else {
+    next(new Error("Authentication error"));
+  }
+});
+
+messageNamespace.on('connection', (socket: Socket) => {
+  if (socket.user) {
+    console.log("Message socket connected:", socket.user.username);
+    socket.join(socket.user._id);
+  } else {
+    console.log("A connection attempt was made without authentication");
+  }
+
+  socket.on('disconnect', () => {
+    console.log('user disconnected');
   });
 
-  notificationNamespace.on('connection', (socket: Socket) => {
-	if (socket.user) {
-		console.log("Notification socket connected:", socket.user.username);
-		// Rejoindre la salle basée sur le userId
-		socket.join(socket.user._id);
-	  } else {
-		console.log("A connection attempt was made without authentication");
-	  }
+  socket.on('send_message', async (data) => {
+    const { message, conversationId, senderId } = data;
+
+    try {
+      // Create a new message
+      const newMessage = new Message({
+        senderId,
+        guestId: data.guestId,
+        conversationId,
+        message,
+        read: false,
+      });
+
+      await newMessage.save();
+
+      // Update the conversation with the new message ID
+      await Conversation.findByIdAndUpdate(conversationId, {
+        $push: { messages: newMessage._id },
+        lastMessage: newMessage._id
+      });
+
+      // Emit the message to other users in the conversation
+      messageNamespace.to(data.guestId).emit('receive_message', {
+        ...newMessage.toObject(),
+        content: newMessage.message,
+      });
+      console.log('Message emitted:', newMessage);
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
   });
 
-// Socket.io connection
-io.on('connection', (socket: Socket) => {
-	if (socket.user) {
-		console.log("A user connected", socket.user.username);
-	  } else {
-		console.log("A connection attempt was made without authentication");
-	  }
+  socket.on('read_message', async (data) => {
+    const { conversationId, userId } = data;
 
-    socket.on('disconnect', () => {
-        console.log('user disconnected');
-    });
+    try {
+      const messagesGuestUser = await Message.find({ conversationId: conversationId, guestId: userId });
 
-    socket.on('send_message', async (data) => {
-        const { message, conversationId, senderId } = data;
+      const updatePromises = messagesGuestUser.map((message) => {
+        return Message.findByIdAndUpdate(message._id, { read: true });
+      });
 
-        try {
-            // Create a new message
-            const newMessage = new Message({
-                senderId,
-                guestId: data.guestId,
-                conversationId,
-                message,
-				read: false,
-            });
+      await Promise.all(updatePromises);
 
-            await newMessage.save();
-
-            // Update the conversation with the new message ID
-            await Conversation.findByIdAndUpdate(conversationId, {
-                $push: { messages: newMessage._id },
-                lastMessage: newMessage._id
-            });
-
-            // Emit the message to other users in the conversation
-            io.emit('receive_message', {
-                ...newMessage.toObject(),
-				content: newMessage.message,
-            });
-        } catch (error) {
-            console.error('Error sending message:', error);
-        }
-    });
-
-	socket.on('read_message', async (data) => {
-		const { conversationId, userId } = data;
-	
-		try {
-		const messagesGuestUser = await Message.find({ conversationId: conversationId, guestId: userId });
-	
-		const updatePromises = messagesGuestUser.map((message) => {
-			return Message.findByIdAndUpdate(message._id, { read: true });
-		});
-	
-		await Promise.all(updatePromises);
-	
-		io.emit('message_read', { conversationId, userId });
-		} catch (error) {
-		console.error('Error updating messages:', error);
-		}
-	});  
+      messageNamespace.to(conversationId).emit('message_read', { conversationId, userId });
+    } catch (error) {
+      console.error('Error updating messages:', error);
+    }
+  });
 });
 
 // Launch server
 server.listen(port, () => {
-	// cleanupVisitors();
-	logger.info('Le serveur a démarré au port ' + port)
+  logger.info('Le serveur a démarré au port ' + port)
 });
 
-export { notificationNamespace };
+export { notificationNamespace, messageNamespace };
+
+

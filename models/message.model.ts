@@ -10,7 +10,7 @@ const messageSchema = new mongoose.Schema(
 			type: Boolean,
 			default: false,
 		},
-        visitorModel: {
+        visitorMessage: {
             type: Boolean,
             default: false,
             required: false,
