@@ -2,6 +2,7 @@ import express from 'express';
 import Conversation from '../models/conversation.model';
 import Message from '../models/message.model';
 import userModel from '../models/user.model';
+import { messageNamespace } from '../server';
 
 export const createConversation = async (req: express.Request, res: express.Response) => {
   const { users, visitorConversation = false } = req.body;
@@ -95,6 +96,34 @@ export const addMessageToConversation = async (req: express.Request, res: expres
     conversation.lastMessage = content;
     await conversation.save();
     res.status(200).json(newMessage);
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const markConversationAsRead = async (req: express.Request, res: express.Response) => {
+  const { id } = req.params;
+  try {
+    const conversation = await Conversation.findById(id);
+    if (!conversation) {
+      return res.status(404).json({ message: 'Conversation not found' });
+    }
+    const otherUser = conversation.users.find(userId => userId.toString() !== req.user._id.toString());
+    const messages = await Message.find({ conversationId: id });
+    await Promise.all(messages.map(async (message) => {
+      if (message.guestId === req.user._id.toString()) {
+        message.read = true;
+        await message.save();
+      }
+    }));
+
+    messageNamespace.to(otherUser).emit('message_read', {
+      conversationId: id,
+      userId: req.user._id.toString(),
+    });
+    
+    return res.status(200).json({ message: 'Conversation marked as read' });
   } catch (error) {
     const err = error as Error;
     res.status(500).json({ message: err.message });

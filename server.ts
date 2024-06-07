@@ -19,8 +19,6 @@ import messagesRoutes from './routes/messages.routes';
 import { apiLimiter } from './middlewares/rateLimiter.middlewares';
 import cookieParser from 'cookie-parser';
 import logger from './config/logger';
-import Message from './models/message.model';
-import Conversation from './models/conversation.model';
 import jwt from 'jsonwebtoken';
 import { Socket, UserPayload } from "./types/types";
 import cleanupVisitors from './utils/cleanupVisitors';
@@ -70,48 +68,33 @@ app.use('/conversations', conversationRoutes);
 app.use('/messages', messagesRoutes);
 
 const notificationNamespace = io.of('/notifications');
-const messageNamespace = io.of('/messages'); // New message namespace
+const messageNamespace = io.of('/messages');
 
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   integrations: [
-    // enable HTTP calls tracing
     new Sentry.Integrations.Http({ tracing: true }),
-    // enable Express.js middleware tracing
     new Sentry.Integrations.Express({ app }),
-    // Automatically instrument Node.js libraries and frameworks
     ...Sentry.autoDiscoverNodePerformanceMonitoringIntegrations(),
   ],
-
-  // Set tracesSampleRate to 1.0 to capture 100%
-  // of transactions for performance monitoring.
-  // We recommend adjusting this value in production
   tracesSampleRate: 1.0,
 });
 
-// RequestHandler creates a separate execution context, so that all
-// transactions/spans/breadcrumbs are isolated across requests
 app.use(Sentry.Handlers.requestHandler());
-// TracingHandler creates a trace for every incoming request
 app.use(Sentry.Handlers.tracingHandler());
 
-// All controllers should live here
 app.get('/', function rootHandler(req, res) {
   res.end('Hello world!');
 });
-
-// Sentry.captureException(new Error('test exception'));
 
 app.get('/debug-centry', function mainHandler(req, res) {
   res.status(500);
   throw new Error('My first Sentry error!');
 });
 
-// The error handler must be before any other error middleware and after all controllers
 app.use(
   Sentry.Handlers.errorHandler({
     shouldHandleError(error) {
-      // Capture all 404 and 500 errors
       if (error.status === 404 || error.status === 500) {
         return true;
       }
@@ -121,8 +104,6 @@ app.use(
 );
 
 app.use(function onError(req, res, next) {
-  // The error id is attached to `res.sentry` to be returned
-  // and optionally displayed to the user for support.
   res.statusCode = 500;
   res.end(res + '\n');
 });
@@ -167,11 +148,14 @@ notificationNamespace.use((socket: Socket, next) => {
 notificationNamespace.on('connection', (socket: Socket) => {
   if (socket.user) {
     console.log("Notification socket connected:", socket.user.username);
-    // Rejoindre la salle basée sur le userId
     socket.join(socket.user._id);
   } else {
     console.log("A connection attempt was made without authentication");
   }
+
+  socket.on('disconnect', () => {
+    console.log('Notification user disconnected');
+  });
 });
 
 // Middleware for message namespace
@@ -201,56 +185,6 @@ messageNamespace.on('connection', (socket: Socket) => {
   socket.on('disconnect', () => {
     console.log('user disconnected');
   });
-
-  socket.on('send_message', async (data) => {
-    const { message, conversationId, senderId } = data;
-
-    try {
-      // Create a new message
-      const newMessage = new Message({
-        senderId,
-        guestId: data.guestId,
-        conversationId,
-        message,
-        read: false,
-      });
-
-      await newMessage.save();
-
-      // Update the conversation with the new message ID
-      await Conversation.findByIdAndUpdate(conversationId, {
-        $push: { messages: newMessage._id },
-        lastMessage: newMessage._id
-      });
-
-      // Emit the message to other users in the conversation
-      messageNamespace.to(data.guestId).emit('receive_message', {
-        ...newMessage.toObject(),
-        content: newMessage.message,
-      });
-      console.log('Message emitted:', newMessage);
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
-  });
-
-  socket.on('read_message', async (data) => {
-    const { conversationId, userId } = data;
-
-    try {
-      const messagesGuestUser = await Message.find({ conversationId: conversationId, guestId: userId });
-
-      const updatePromises = messagesGuestUser.map((message) => {
-        return Message.findByIdAndUpdate(message._id, { read: true });
-      });
-
-      await Promise.all(updatePromises);
-
-      messageNamespace.to(conversationId).emit('message_read', { conversationId, userId });
-    } catch (error) {
-      console.error('Error updating messages:', error);
-    }
-  });
 });
 
 // Launch server
@@ -259,5 +193,3 @@ server.listen(port, () => {
 });
 
 export { notificationNamespace, messageNamespace };
-
-
