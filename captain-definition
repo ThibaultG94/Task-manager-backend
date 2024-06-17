@@ -1,0 +1,4 @@
+{
+    "shemaVersion": 2,
+    "dockerfilePath": "./Dockerfile"
+}
