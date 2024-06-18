@@ -5,7 +5,7 @@
 	"main": "./server.ts",
 	"scripts": {
 		"server": "NODE_ENV=development nodemon ./server.ts",
-		"server:prod": "NODE_ENV=production node ./server.ts",
+		"server:prod": "node ./server.ts",
 		"start": "pm2 start -x ts-node -- server.ts",
 		"test": "NODE_ENV=test mocha -r ts-node/register tests/*.test.ts"
 	},
