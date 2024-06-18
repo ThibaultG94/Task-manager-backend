@@ -330,6 +330,8 @@ export const loginUser = async (
         sameSite: 'none',
       });
 
+	  console.log("NODE_ENV: ", process.env.NODE_ENV);
+
       return res.status(200).json({
         token: token,
         refreshToken: refreshToken,
