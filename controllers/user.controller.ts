@@ -310,24 +310,35 @@ export const loginUser = async (
 		// generate an authentication token and a refresh token for the user
 		if (user && isPasswordValid) {
 			const token = user.generateAuthToken();
-			const refreshToken = user.generateRefreshToken();
+      const refreshToken = user.generateRefreshToken();
 
-			// Store the refresh token in the database
-			const newRefreshToken = new refreshTokenModel({
-				token: refreshToken,
-				userId: user._id,
-			});
-			await newRefreshToken.save();
+      const newRefreshToken = new refreshTokenModel({
+        token: refreshToken,
+        userId: user._id,
+      });
+      await newRefreshToken.save();
 
-			return res.status(200).json({
-				token: token,
-				refreshToken: refreshToken,
-				user: {
-					id: user._id,
-					username: user.username,
-					email: user.email,
-				},
-			});
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'none',
+      });
+
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'none',
+      });
+
+      return res.status(200).json({
+        token: token,
+        refreshToken: refreshToken,
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+        },
+      });
 		} else {
 			// If the user does not exist or the password is not valid, return a 400 status
 			return res.status(400).json({ message: 'Identifiants incorrects' });
