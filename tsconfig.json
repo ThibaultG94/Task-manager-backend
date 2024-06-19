@@ -9,7 +9,9 @@
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "strictNullChecks": false
+    "strictNullChecks": false,
+    "outDir": "./dist",
+    "sourceMap": false
   },
   "include": ["./*/*.ts", "./server.ts"],
   "exclude": ["node_modules", ".vscode"]

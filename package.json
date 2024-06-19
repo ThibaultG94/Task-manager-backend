@@ -1,11 +1,12 @@
 {
 	"name": "task-manager-backend",
-	"version": "2.0.0",
+	"version": "1.0.1",
 	"description": "About Backend service for Task Manager app, built with TypeScript, Node.js, Express, MongoDB, and Redis",
 	"main": "./server.ts",
 	"scripts": {
 		"server": "NODE_ENV=development nodemon ./server.ts",
-		"serv": "nodemon ./server.ts",
+		"serv": "node dist/server.js",
+		"build": "tsc",
 		"start": "pm2 start -x ts-node -- server.ts",
 		"test": "NODE_ENV=test mocha -r ts-node/register tests/*.test.ts"
 	},
