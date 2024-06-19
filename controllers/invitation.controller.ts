@@ -152,13 +152,6 @@ export const sendInvitation = async (
 				newConversation.messages.push(newMessage._id.toString());
 				await newConversation.save();
 
-				// Log to check if messageNamespace is defined
-				if (messageNamespace) {
-					console.log('Message namespace is defined');
-				} else {
-					console.log('Message namespace is undefined');
-				}
-
 				// Emit the message via Socket.io using messageNamespace
 				messageNamespace.to(invitation.senderId.toString()).emit('receive_message', {
 					...newMessage.toObject(),

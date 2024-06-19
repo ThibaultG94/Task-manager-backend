@@ -330,8 +330,6 @@ export const loginUser = async (
         sameSite: 'none',
       });
 
-	  console.log("NODE_ENV: ", process.env.NODE_ENV);
-
       return res.status(200).json({
         token: token,
         refreshToken: refreshToken,
@@ -928,13 +926,11 @@ export const deleteContact = async (req: express.Request, res: express.Response)
 
         const user: User = await UserModel.findById(userId);
 		if (!user.contacts.map(contact => contact.toString()).includes(contactId)) {
-			console.log("Contact non trouvé dans les contacts de l'utilisateur.");
 			return res.status(404).send({ message: 'Contact not found' });
 		}
 		
 		const contact: User = await UserModel.findById(contactId);
 		if (!contact.contacts.map(contact => contact.toString()).includes(userId)) {
-			console.log("Contact non trouvé dans les contacts de l'utilisateur.");
 			return res.status(404).send({ message: 'Contact not found' });
 		}
 

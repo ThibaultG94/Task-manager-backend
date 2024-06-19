@@ -86,7 +86,6 @@ describe('User create workspace', async function () {
 				isDefault: true,
 			})
 			.expect(200);
-		console.log('Test');
 
 		workspaceUserSevenId = response.body.workspace._id;
 	});
