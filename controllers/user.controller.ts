@@ -111,6 +111,12 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 			}
 		);
 
+		res.cookie('token', token, {
+			httpOnly: true,
+			secure: process.env.NODE_ENV === 'production',
+			sameSite: 'none',
+		  });
+
 		// Find the user which is an admin
 		const superAdminUser = await UserModel.findOne({ role: 'superadmin' });
 		const workspaceId = "66432773c64f1dbf12d7fcbb";
