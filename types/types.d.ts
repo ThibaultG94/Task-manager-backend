@@ -97,4 +97,4 @@ declare module 'express-serve-static-core' {
 
 export interface Socket extends DefaultSocket {
 	user?: UserPayload;
-  }
+}
