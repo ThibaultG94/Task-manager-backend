@@ -16,6 +16,7 @@ import notificationRoutes from './routes/notification.routes';
 import commentsRoutes from './routes/comments.routes';
 import conversationRoutes from './routes/conversations.routes';
 import messagesRoutes from './routes/messages.routes';
+import avatarRoutes from './routes/avatar.routes';
 import { apiLimiter } from './middlewares/rateLimiter.middlewares';
 import cookieParser from 'cookie-parser';
 import logger from './config/logger';
@@ -66,6 +67,7 @@ app.use('/notifications', notificationRoutes);
 app.use('/comments', commentsRoutes);
 app.use('/conversations', conversationRoutes);
 app.use('/messages', messagesRoutes);
+app.use('/avatars', avatarRoutes)
 
 const notificationNamespace = io.of('/notifications');
 const messageNamespace = io.of('/messages');
