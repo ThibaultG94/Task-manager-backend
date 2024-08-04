@@ -447,6 +447,47 @@ export const updateUser = async (
 	}
 };
 
+export const updateUserAvatar = async (
+	req: express.Request,
+	res: express.Response
+) => {
+	try {
+		const userIdFromToken = req.user._id;
+		const userId = req.params.id;
+
+		if (userIdFromToken !== userId) {
+			return res.status(403).json({
+				message:
+					'You do not have sufficient rights to perform this action',
+			});
+		}
+
+		const user: User = await UserModel.findById(userIdFromToken.toString());
+
+		if (!user) {
+			return res.status(404).json({ message: 'User not found' });
+		}
+
+		const updates = req.body;
+
+		if (updates.avatar !== undefined) {
+			user.avatar = updates.avatar;
+		}
+
+		const updatedUser = await user.save();
+
+		res.status(200).json({
+			message: 'User avatar updated',
+			user: updatedUser,
+		});
+	} catch (err) {
+		const result = (err as Error).message;
+		logger.error(result);
+
+		res.status(500).json({ message: 'Internal server error' });
+	}
+}
+
 // Endpoint to delete a user
 export const deleteUser = async (
 	req: express.Request,
