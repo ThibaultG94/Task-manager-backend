@@ -18,6 +18,7 @@ import {
 	blockContact,
 	getBlockedContacts,
 	unBlockContact,
+	updateUserAvatar,
 } from '../controllers/user.controller';
 import {
 	validate,
@@ -68,6 +69,9 @@ router.get('/:workspaceId/members', auth, getUsers);
 
 // Route to update a user's information by their id
 router.put('/:id/update', validateUserID, auth, updateUser);
+
+// Route to update a user's avatar by their id
+router.put('/:id/avatar', validateUserID, auth, updateUserAvatar);
 
 // Route to delete a user's account by their id
 router.delete('/:id/delete', validateUserID, auth, deleteUser);

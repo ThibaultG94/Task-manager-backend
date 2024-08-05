@@ -43,7 +43,11 @@ const userSchema = new mongoose.Schema({
 		blocked: {
 			type: Array,
 			default: [],
-		}
+		},
+		avatar: {
+			type: String,
+			default: null,
+		},
 	},
 	{ timestamps: true },
 );
