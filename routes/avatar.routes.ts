@@ -12,7 +12,8 @@ cloudinary.v2.config({
 router.get('/signature', auth, async (req, res) => {
   const timestamp = Math.round(new Date().getTime() / 1000);
   const params = {
-    timestamp: timestamp
+    timestamp: timestamp,
+    transformation: 'c_fill,g_auto,h_150,w_150'
   };
   const signature = cloudinary.v2.utils.api_sign_request(params, process.env.CLOUDINARY_API_SECRET);
 
