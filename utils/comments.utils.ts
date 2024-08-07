@@ -15,7 +15,7 @@ export const enrichCommentsWithUserDetails = async (comments: any[]) => {
     collectUserIds(comments);
 
     // Fetch user details
-    const users = await userModel.find({ _id: { $in: Array.from(userIds) } }).select('username email').lean();
+    const users = await userModel.find({ _id: { $in: Array.from(userIds) } }).select('username email avatar').lean();
     const userMap = new Map(users.map(user => [user._id.toString(), user]));
 
     // Add user details to comments and replies
