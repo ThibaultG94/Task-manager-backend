@@ -599,6 +599,7 @@ export const getContacts = async (
 				id: contact?._id,
 				username: contact?.username,
 				email: contact?.email,
+				avatar: contact?.avatar,
 				messagesCount,
 				commonWorkspacesCount,
 			};
