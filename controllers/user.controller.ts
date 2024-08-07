@@ -18,73 +18,72 @@ import { getMessagesCount } from '../utils/messages.utils';
 import { getCommonWorkspacesCount } from '../utils/workspaces.utils';
 
 // Enpoint to create a user
-export const registerUser = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	// Extract username, email, password and role from the request body
-	const { username, email, password, role } = req.body;
+export const registerUser = async (req: express.Request, res: express.Response) => {
+    // Extract username, email, password and role from the request body
+    const { username, email, password, role } = req.body;
 
-	if (
-		(typeof username && typeof email && typeof password && typeof role) !==
-		'string'
-	) {
-		return res.status(422).send('Invalid input');
-	}
+    if ((typeof username && typeof email && typeof password && typeof role) !== 'string') {
+        return res.status(422).send('Invalid input');
+    }
 
-	try {
-		// Attempt to find an existing user with the provided email
-		const existingUser = await UserModel.findOne({ email });
+    try {
+        // Attempt to find an existing user with the provided email
+        const existingUser = await UserModel.findOne({ email });
 
-		if (existingUser) {
-			return res.status(400).json({
-				message:
-					'Email already in use. Please change email address or login.',
-			});
-		}
+        if (existingUser) {
+            return res.status(400).json({
+                message: 'Email already in use. Please change email address or login.',
+            });
+        }
 
-		// If no user with the provided email exists, create a new user
-		// with the provided details and save them to the database
-		const newUser = new UserModel({ username, email, password, role });
-		await newUser.save();
+        // Extract the first letter of the username and format it to match the Cloudinary avatar IDs
+        const firstLetter = username.charAt(0).toUpperCase();
+        const avatar = `${firstLetter}_username`;  // Adjust 'username' with your Cloudinary username part of the ID
 
-		// After the user is saved, create a new workspace for them
-		const workspace = new workspaceModel({
-			title: 'Default Workspace',
-			userId: newUser._id,
-			description: 'This is your default workspace',
-			members: [
-				{
-					userId: newUser._id,
-					username: newUser.username,
-					email: newUser.email,
-					role: 'superadmin',
-				},
-			],
-			isDefault: true,
-		});
+        // If no user with the provided email exists, create a new user
+        // with the provided details and the avatar field, then save them to the database
+        const newUser = new UserModel({
+            username,
+            email,
+            password,
+            role,
+            avatar,
+        });
+        await newUser.save();
 
-		await workspace.save();
+        // After the user is saved, create a new workspace for them
+        const workspace = new workspaceModel({
+            title: 'Default Workspace',
+            userId: newUser._id,
+            description: 'This is your default workspace',
+            members: [{
+                userId: newUser._id,
+                username: newUser.username,
+                email: newUser.email,
+                role: 'superadmin',
+            }],
+            isDefault: true,
+        });
 
-		if (process.env.NODE_ENV === 'test') {
-			res.status(201).json({
-				message:
-					'User successfully registered and default workspace created',
-				user: newUser,
-			});
-		} else {
-			res.status(201).json({
-				message:
-					'User successfully registered and default workspace created',
-			});
-		}
-	} catch (err) {
-		const result = (err as Error).message;
-		logger.error(result);
-		res.status(500).json({
-			message: 'Internal server error',
-		});
-	}
+        await workspace.save();
+
+        if (process.env.NODE_ENV === 'test') {
+            res.status(201).json({
+                message: 'User successfully registered and default workspace created',
+                user: newUser,
+            });
+        } else {
+            res.status(201).json({
+                message: 'User successfully registered and default workspace created',
+            });
+        }
+    } catch (err) {
+        const result = (err as Error).message;
+        logger.error(result);
+        res.status(500).json({
+            message: 'Internal server error',
+        });
+    }
 };
 
 // Endpoint to create a temporary visitor session
