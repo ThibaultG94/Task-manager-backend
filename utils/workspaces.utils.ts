@@ -5,7 +5,8 @@ import { countTasksByStatus } from './tasks.utils';
 
 type UserInfo = {
     username: string,
-    email: string
+    email: string,
+    avatar: string
 };
 
 interface EnrichedWorkspace extends mongoose.Document {
@@ -42,7 +43,7 @@ export async function fetchAndEnrichUserWorkspaces(userId: string) {
         .find({
             _id: { $in: memberIds.map((id) => new mongoose.Types.ObjectId(id)) },
         })
-        .select('email _id username')
+        .select('email _id username avatar')
         .lean();
 
     const usersMap = users.reduce<{ [key: string]: UserInfo }>(
@@ -50,6 +51,7 @@ export async function fetchAndEnrichUserWorkspaces(userId: string) {
             acc[user._id.toString()] = {
                 username: user.username,
                 email: user.email,
+                avatar: user.avatar,
             };
             return acc;
         },
@@ -70,6 +72,7 @@ export async function fetchAndEnrichUserWorkspaces(userId: string) {
                 role: member.role,
                 username: userInfo?.username,
                 email: userInfo?.email,
+                avatar: userInfo?.avatar,
             };
         });
 
