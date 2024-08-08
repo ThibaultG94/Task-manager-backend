@@ -164,11 +164,19 @@ export const getAllNotifications = async (req: express.Request, res: express.Res
                 }),
                 {}
             );
+            const avatarMap: any = creators.reduce(
+                (acc, creator) => ({
+                    ...acc,
+                    [creator._id.toString()]: creator.avatar,
+                }),
+                {}
+            );
 
             const mapNotifications: any = (notifications: any) =>
                 notifications.map((n: any) => ({
                     ...n,
                     creatorUsername: creatorMap[n.creatorId],
+                    avatar: avatarMap[n.creatorId],
                 }));
 
             notifications = mapNotifications(notifications);
@@ -244,11 +252,16 @@ export const getNotifications = async (
             (acc, user) => ({ ...acc, [user._id.toString()]: user.username }),
             {}
         );
+        const avatarMap: any = users.reduce(
+            (acc, user) => ({ ...acc, [user._id.toString()]: user.avatar }),
+            {}
+        );
 
         const mapNotifications: any = (notifications: any) =>
             notifications.map((n: any) => ({
                 ...n,
                 creatorUsername: usernameMap[n.creatorId],
+                avatar: avatarMap[n.creatorId],
             }));
 
         return res.status(200).json({
