@@ -95,6 +95,7 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 			email: `visitor_${Date.now()}@tempmail.com`,
 			password: bcrypt.hashSync('visitor', 10),
 			role: 'visitor',
+			avatar: 'V_username',
 		});
 		await tempUser.save();
 
@@ -267,6 +268,9 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		await fourthTask.save();
 		await fifthTask.save();
 		await sixthTask.save();
+
+		console.log(token);
+		console.log(process.env.NODE_ENV);
 
 		// Send back the token
 		return res.status(200).json({
