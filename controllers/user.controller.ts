@@ -269,9 +269,6 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		await fifthTask.save();
 		await sixthTask.save();
 
-		console.log(token);
-		console.log(process.env.NODE_ENV);
-
 		// Send back the token
 		return res.status(200).json({
 			message: 'Visitor session created',
