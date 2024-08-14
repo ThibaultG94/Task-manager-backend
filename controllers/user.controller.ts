@@ -99,26 +99,6 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		});
 		await tempUser.save();
 
-		// Generate token with shorter expiration
-		const token = jwt.sign(
-			{
-				_id: tempUser._id.toHexString(),
-				username: tempUser.username,
-				email: tempUser.email,
-				role: tempUser.role
-			},
-			process.env.JWT_SECRET as string,
-			{
-				expiresIn: '1h'  // 1 hour validity
-			}
-		);
-
-		res.cookie('token', token, {
-			httpOnly: true,
-			secure: process.env.NODE_ENV === 'production',
-			sameSite: 'none',
-		});
-
 		// Find the user which is an admin
 		const superAdminUser = await UserModel.findOne({ role: 'superadmin' });
 		const workspaceId = "66432773c64f1dbf12d7fcbb";
@@ -269,15 +249,39 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		await fifthTask.save();
 		await sixthTask.save();
 
+		const finalUser = await UserModel.findById(tempUser._id);
+
+		console.log(tempUser);
+
+		// Generate token with shorter expiration
+		const token = jwt.sign(
+			{
+				_id: finalUser._id.toHexString(),
+				username: finalUser.username,
+				email: finalUser.email,
+				role: finalUser.role
+			},
+			process.env.JWT_SECRET as string,
+			{
+				expiresIn: '1h'  // 1 hour validity
+			}
+		);
+
+		res.cookie('token', token, {
+			httpOnly: true,
+			secure: process.env.NODE_ENV === 'production',
+			sameSite: 'none',
+		});
+
 		// Send back the token
 		return res.status(200).json({
 			message: 'Visitor session created',
 			token: token,
 			tempUser: {
-				id: tempUser._id,
-				username: tempUser.username,
-				email: tempUser.email,
-				role: tempUser.role
+				id: finalUser._id,
+				username: finalUser.username,
+				email: finalUser.email,
+				role: finalUser.role
 			}
 		});
 	} catch (error) {
