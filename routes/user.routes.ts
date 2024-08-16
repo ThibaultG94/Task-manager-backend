@@ -44,6 +44,7 @@ router.post(
 // Route to register a new visitor
 router.post(
 	'/visitor',
+	apiRegisterAndLoginLimiter,
 	createVisitorSession
 );
 

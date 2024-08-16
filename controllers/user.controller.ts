@@ -262,13 +262,13 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 
 		res.cookie('token', token, {
 			httpOnly: true,
-			secure: process.env.NODE_ENV === 'production',
+			secure: true,
 			sameSite: 'none',
 		});
 
 		res.cookie('refreshToken', refreshToken, {
 			httpOnly: true,
-			secure: process.env.NODE_ENV === 'production',
+			secure: true,
 			sameSite: 'none',
 		});
 
