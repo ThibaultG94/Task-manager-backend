@@ -249,25 +249,24 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		await fifthTask.save();
 		await sixthTask.save();
 
-		const finalUser = await UserModel.findById(tempUser._id);
+		const finalUser: User = await UserModel.findById(tempUser._id);
 
-		console.log(tempUser);
+		const token = finalUser.generateAuthToken();
+      	const refreshToken = finalUser.generateRefreshToken();
 
-		// Generate token with shorter expiration
-		const token = jwt.sign(
-			{
-				_id: finalUser._id.toHexString(),
-				username: finalUser.username,
-				email: finalUser.email,
-				role: finalUser.role
-			},
-			process.env.JWT_SECRET as string,
-			{
-				expiresIn: '1h'  // 1 hour validity
-			}
-		);
+		const newRefreshToken = new refreshTokenModel({
+			token: refreshToken,
+			userId: finalUser._id,
+		});
+		await newRefreshToken.save();
 
 		res.cookie('token', token, {
+			httpOnly: true,
+			secure: process.env.NODE_ENV === 'production',
+			sameSite: 'none',
+		});
+
+		res.cookie('refreshToken', refreshToken, {
 			httpOnly: true,
 			secure: process.env.NODE_ENV === 'production',
 			sameSite: 'none',
@@ -277,6 +276,7 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		return res.status(200).json({
 			message: 'Visitor session created',
 			token: token,
+			refreshToken: refreshToken,
 			tempUser: {
 				id: finalUser._id,
 				username: finalUser.username,
