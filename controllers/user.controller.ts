@@ -791,14 +791,14 @@ export const refreshUserToken = async (
 			res.cookie('token', token, {
 				httpOnly: true,
 				secure: process.env.NODE_ENV !== 'development',
-				sameSite: 'strict',
+				sameSite: 'none',
 				path: '/',
 			});
 
 			res.cookie('refreshToken', newRefreshToken, {
 				httpOnly: true,
 				secure: process.env.NODE_ENV !== 'development',
-				sameSite: 'strict',
+				sameSite: 'none',
 				path: '/users/token',
 			});
 
