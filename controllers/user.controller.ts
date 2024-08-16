@@ -91,7 +91,7 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 	try {
 		// Create a temporary user with visitor role
 		const tempUser = new UserModel({
-			username: 'Visitor_' + Date.now(),
+			username: 'Visitor',
 			email: `visitor_${Date.now()}@tempmail.com`,
 			password: bcrypt.hashSync('visitor', 10),
 			role: 'visitor',
