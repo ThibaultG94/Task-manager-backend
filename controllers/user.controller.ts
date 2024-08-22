@@ -85,13 +85,13 @@ export const registerUser = async (req: express.Request, res: express.Response) 
 			await newRefreshToken.save();
 
 			res.cookie('token', token, {
-				httpOnly: true,
+				httpOnly: false,
 				secure: process.env.NODE_ENV === 'production',
 				sameSite: 'none',
 			});
 
 			res.cookie('refreshToken', refreshToken, {
-				httpOnly: true,
+				httpOnly: false,
 				secure: process.env.NODE_ENV === 'production',
 				sameSite: 'none',
 			});
@@ -291,13 +291,13 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		await newRefreshToken.save();
 
 		res.cookie('token', token, {
-			httpOnly: true,
+			httpOnly: false,
 			secure: true,
 			sameSite: 'none',
 		});
 
 		res.cookie('refreshToken', refreshToken, {
-			httpOnly: true,
+			httpOnly: false,
 			secure: true,
 			sameSite: 'none',
 		});
@@ -361,13 +361,13 @@ export const loginUser = async (
 			await newRefreshToken.save();
 
 			res.cookie('token', token, {
-				httpOnly: true,
+				httpOnly: false,
 				secure: process.env.NODE_ENV === 'production',
 				sameSite: 'none',
 			});
 
 			res.cookie('refreshToken', refreshToken, {
-				httpOnly: true,
+				httpOnly: false,
 				secure: process.env.NODE_ENV === 'production',
 				sameSite: 'none',
 			});
@@ -819,14 +819,14 @@ export const refreshUserToken = async (
 
 			// Set the new token and refresh token in HttpOnly cookies
 			res.cookie('token', token, {
-				httpOnly: true,
+				httpOnly: false,
 				secure: process.env.NODE_ENV !== 'development',
 				sameSite: 'none',
 				// path: '/',
 			});
 
 			res.cookie('refreshToken', newRefreshToken, {
-				httpOnly: true,
+				httpOnly: false,
 				secure: process.env.NODE_ENV !== 'development',
 				sameSite: 'none',
 				// path: '/users/token',
