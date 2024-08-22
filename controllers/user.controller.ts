@@ -868,8 +868,8 @@ export const logoutUser = async (
 			return res.status(400).json({ message: 'No token to delete' });
 		}
 
-		res.redirect('/');
 		res.status(200).json({ message: 'User logged out successfully' });
+		return res.redirect('/');
 	} catch (err) {
 		res.status(500).json({ message: 'Internal server error' });
 	}
