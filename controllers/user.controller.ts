@@ -73,9 +73,39 @@ export const registerUser = async (req: express.Request, res: express.Response) 
                 user: newUser,
             });
         } else {
-            res.status(201).json({
-                message: 'User successfully registered and default workspace created',
-            });
+			const user: User = await UserModel.findById(newUser._id);
+
+			const token = user.generateAuthToken();
+      		const refreshToken = user.generateRefreshToken();
+
+			const newRefreshToken = new refreshTokenModel({
+				token: refreshToken,
+				userId: user._id,
+			});
+			await newRefreshToken.save();
+
+			res.cookie('token', token, {
+				httpOnly: true,
+				secure: process.env.NODE_ENV === 'production',
+				sameSite: 'none',
+			});
+
+			res.cookie('refreshToken', refreshToken, {
+				httpOnly: true,
+				secure: process.env.NODE_ENV === 'production',
+				sameSite: 'none',
+			});
+
+			return res.status(200).json({
+				token: token,
+				refreshToken: refreshToken,
+				message: 'User successfully registered and default workspace created',
+				user: {
+				id: user._id,
+				username: user.username,
+				email: user.email,
+				},
+			});
         }
     } catch (err) {
         const result = (err as Error).message;
