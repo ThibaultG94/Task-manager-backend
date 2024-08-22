@@ -855,12 +855,12 @@ export const logoutUser = async (
 
 		if (refreshToken) {
 			await refreshTokenModel.deleteOne({ token: refreshToken });
-			res.cookie('refreshToken', '', {expires: new Date(1), path: '/'});
+			res.cookie('refreshToken', {expires: new Date(1), path: '/', sameSite: 'none'});
 			res.clearCookie('refreshToken');
 		}
 
 		if (token) {
-			res.cookie('token', '', {expires: new Date(1), path: '/'});
+			res.cookie('token', {expires: new Date(1), path: '/', sameSite: 'none'});
 			res.clearCookie('token');
 		}
 
@@ -868,7 +868,7 @@ export const logoutUser = async (
 			return res.status(400).json({ message: 'No token to delete' });
 		}
 
-		res.status(200).json({ message: 'User logged out successfully' });
+		// res.status(200).json({ message: 'User logged out successfully' });
 		return res.redirect('/');
 	} catch (err) {
 		res.status(500).json({ message: 'Internal server error' });
