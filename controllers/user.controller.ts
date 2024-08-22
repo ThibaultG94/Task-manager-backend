@@ -855,10 +855,12 @@ export const logoutUser = async (
 
 		if (refreshToken) {
 			await refreshTokenModel.deleteOne({ token: refreshToken });
+			res.cookie('refreshToken', '', {expires: new Date(1), path: '/'});
 			res.clearCookie('refreshToken');
 		}
 
 		if (token) {
+			res.cookie('token', '', {expires: new Date(1), path: '/'});
 			res.clearCookie('token');
 		}
 

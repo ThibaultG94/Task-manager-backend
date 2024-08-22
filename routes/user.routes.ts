@@ -81,7 +81,7 @@ router.delete('/:id/delete', validateUserID, auth, deleteUser);
 router.post('/token', refreshUserToken);
 
 // Route to log out a user
-router.post('/logout', logoutUser);
+router.get('/logout', logoutUser);
 
 // Route to obtain the account information of the currently logged-in user
 router.get('/my-account', auth, getMe);
