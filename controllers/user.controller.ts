@@ -85,13 +85,13 @@ export const registerUser = async (req: express.Request, res: express.Response) 
 			await newRefreshToken.save();
 
 			res.cookie('token', token, {
-				httpOnly: false,
+				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
 				sameSite: 'none',
 			});
 
 			res.cookie('refreshToken', refreshToken, {
-				httpOnly: false,
+				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
 				sameSite: 'none',
 			});
@@ -291,13 +291,13 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		await newRefreshToken.save();
 
 		res.cookie('token', token, {
-			httpOnly: false,
+			httpOnly: process.env.NODE_ENV === 'production',
 			secure: true,
 			sameSite: 'none',
 		});
 
 		res.cookie('refreshToken', refreshToken, {
-			httpOnly: false,
+			httpOnly: process.env.NODE_ENV === 'production',
 			secure: true,
 			sameSite: 'none',
 		});
@@ -361,13 +361,13 @@ export const loginUser = async (
 			await newRefreshToken.save();
 
 			res.cookie('token', token, {
-				httpOnly: false,
+				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
 				sameSite: 'none',
 			});
 
 			res.cookie('refreshToken', refreshToken, {
-				httpOnly: false,
+				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
 				sameSite: 'none',
 			});
@@ -819,14 +819,14 @@ export const refreshUserToken = async (
 
 			// Set the new token and refresh token in HttpOnly cookies
 			res.cookie('token', token, {
-				httpOnly: false,
+				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV !== 'development',
 				sameSite: 'none',
 				// path: '/',
 			});
 
 			res.cookie('refreshToken', newRefreshToken, {
-				httpOnly: false,
+				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV !== 'development',
 				sameSite: 'none',
 				// path: '/users/token',
@@ -866,6 +866,7 @@ export const logoutUser = async (
 			return res.status(400).json({ message: 'No token to delete' });
 		}
 
+		res.redirect('/');
 		res.status(200).json({ message: 'User logged out successfully' });
 	} catch (err) {
 		res.status(500).json({ message: 'Internal server error' });
