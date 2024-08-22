@@ -822,14 +822,14 @@ export const refreshUserToken = async (
 				httpOnly: true,
 				secure: process.env.NODE_ENV !== 'development',
 				sameSite: 'none',
-				path: '/',
+				// path: '/',
 			});
 
 			res.cookie('refreshToken', newRefreshToken, {
 				httpOnly: true,
 				secure: process.env.NODE_ENV !== 'development',
 				sameSite: 'none',
-				path: '/users/token',
+				// path: '/users/token',
 			});
 
 			res.status(200).json({
