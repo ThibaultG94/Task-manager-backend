@@ -860,33 +860,37 @@ export const refreshUserToken = async (
 	}
 };
 
-export const logoutUser = async (
-	req: express.Request,
-	res: express.Response
-) => {
-	try {
-		const { refreshToken, token } = req.cookies;
+export const logoutUser = async (req: express.Request, res: express.Response) => {
+    try {
+        const { refreshToken, token } = req.cookies;
 
-		if (refreshToken) {
-			await refreshTokenModel.deleteOne({ token: refreshToken });
-			res.cookie('refreshToken', {expires: new Date(1), path: '/', sameSite: 'none'});
-			res.clearCookie('refreshToken');
-		}
+        if (refreshToken) {
+            await refreshTokenModel.deleteOne({ token: refreshToken });
+            res.clearCookie('refreshToken', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'none',
+                path: '/',
+            });
+        }
 
-		if (token) {
-			res.cookie('token', {expires: new Date(1), path: '/', sameSite: 'none'});
-			res.clearCookie('token');
-		}
+        if (token) {
+            res.clearCookie('token', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'none',
+                path: '/',
+            });
+        }
 
-		if (!refreshToken && !token) {
-			return res.status(400).json({ message: 'No token to delete' });
-		}
+        if (!refreshToken && !token) {
+            return res.status(400).json({ message: 'No token to delete' });
+        }
 
-		// res.redirect('/');
-		res.status(200).json({ message: 'User logged out successfully' });
-	} catch (err) {
-		res.status(500).json({ message: 'Internal server error' });
-	}
+        res.status(200).json({ message: 'User logged out successfully' });
+    } catch (err) {
+        res.status(500).json({ message: 'Internal server error' });
+    }
 };
 
 // Endpoint to obtain the user currently logged in
