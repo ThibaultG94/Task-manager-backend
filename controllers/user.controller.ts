@@ -87,15 +87,15 @@ export const registerUser = async (req: express.Request, res: express.Response) 
 			res.cookie('token', token, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'none',
-				domain: process.env.FRONTEND_URL,
+				sameSite: 'lax',
+				domain: process.env.FRONTEND_URL + '/',
 			});
 
 			res.cookie('refreshToken', refreshToken, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'none',
-				domain: process.env.FRONTEND_URL,
+				sameSite: 'lax',
+				domain: process.env.FRONTEND_URL + '/',
 			});
 
 			return res.status(200).json({
@@ -295,15 +295,15 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		res.cookie('token', token, {
 			httpOnly: process.env.NODE_ENV === 'production',
 			secure: true,
-			sameSite: 'none',
-			domain: process.env.FRONTEND_URL,
+			sameSite: 'lax',
+			domain: process.env.FRONTEND_URL + '/',
 		});
 
 		res.cookie('refreshToken', refreshToken, {
 			httpOnly: process.env.NODE_ENV === 'production',
 			secure: true,
-			sameSite: 'none',
-			domain: process.env.FRONTEND_URL,
+			sameSite: 'lax',
+			domain: process.env.FRONTEND_URL + '/',
 		});
 
 		// Send back the token
@@ -367,15 +367,15 @@ export const loginUser = async (
 			res.cookie('token', token, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'none',
-				domain: process.env.FRONTEND_URL,
+				sameSite: 'lax',
+				domain: process.env.FRONTEND_URL + '/',
 			});
 
 			res.cookie('refreshToken', refreshToken, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'none',
-				domain: process.env.FRONTEND_URL,
+				sameSite: 'lax',
+				domain: process.env.FRONTEND_URL + '/',
 			});
 
 			return res.status(200).json({
@@ -827,16 +827,16 @@ export const refreshUserToken = async (
 			res.cookie('token', token, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV !== 'development',
-				sameSite: 'none',
-				domain: process.env.FRONTEND_URL,
+				sameSite: 'lax',
+				domain: process.env.FRONTEND_URL + '/',
 				// path: '/',
 			});
 
 			res.cookie('refreshToken', newRefreshToken, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV !== 'development',
-				sameSite: 'none',
-				domain: process.env.FRONTEND_URL,
+				sameSite: 'lax',
+				domain: process.env.FRONTEND_URL + '/',
 				// path: '/users/token',
 			});
 
