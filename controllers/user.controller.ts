@@ -87,13 +87,15 @@ export const registerUser = async (req: express.Request, res: express.Response) 
 			res.cookie('token', token, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'none',
+				sameSite: 'lax',
+				domain: process.env.FRONTEND_URL,
 			});
 
 			res.cookie('refreshToken', refreshToken, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'none',
+				sameSite: 'lax',
+				domain: process.env.FRONTEND_URL,
 			});
 
 			return res.status(200).json({
@@ -293,13 +295,15 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		res.cookie('token', token, {
 			httpOnly: process.env.NODE_ENV === 'production',
 			secure: true,
-			sameSite: 'none',
+			sameSite: 'lax',
+			domain: process.env.FRONTEND_URL,
 		});
 
 		res.cookie('refreshToken', refreshToken, {
 			httpOnly: process.env.NODE_ENV === 'production',
 			secure: true,
-			sameSite: 'none',
+			sameSite: 'lax',
+			domain: process.env.FRONTEND_URL,
 		});
 
 		// Send back the token
@@ -363,13 +367,15 @@ export const loginUser = async (
 			res.cookie('token', token, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'none',
+				sameSite: 'lax',
+				domain: process.env.FRONTEND_URL,
 			});
 
 			res.cookie('refreshToken', refreshToken, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'none',
+				sameSite: 'lax',
+				domain: process.env.FRONTEND_URL,
 			});
 
 			return res.status(200).json({
@@ -821,14 +827,16 @@ export const refreshUserToken = async (
 			res.cookie('token', token, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV !== 'development',
-				sameSite: 'none',
+				sameSite: 'lax',
+				domain: process.env.FRONTEND_URL,
 				// path: '/',
 			});
 
 			res.cookie('refreshToken', newRefreshToken, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV !== 'development',
-				sameSite: 'none',
+				sameSite: 'lax',
+				domain: process.env.FRONTEND_URL,
 				// path: '/users/token',
 			});
 
@@ -868,8 +876,8 @@ export const logoutUser = async (
 			return res.status(400).json({ message: 'No token to delete' });
 		}
 
-		// res.status(200).json({ message: 'User logged out successfully' });
-		return res.redirect('/');
+		// res.redirect('/');
+		res.status(200).json({ message: 'User logged out successfully' });
 	} catch (err) {
 		res.status(500).json({ message: 'Internal server error' });
 	}
