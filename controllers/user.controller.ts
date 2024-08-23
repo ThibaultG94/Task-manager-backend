@@ -88,7 +88,7 @@ export const registerUser = async (req: express.Request, res: express.Response) 
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
 				sameSite: 'lax',
-				domain: process.env.NODE_ENV === 'production' ? ".tskmngr.fr" : 'localhost',
+				domain: process.env.NODE_ENV === 'production' ? "tskmngr.fr." : 'localhost',
 				path: '/',
 			});
 
@@ -96,7 +96,7 @@ export const registerUser = async (req: express.Request, res: express.Response) 
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
 				sameSite: 'lax',
-				domain: process.env.NODE_ENV === 'production' ? ".tskmngr.fr" : 'localhost',
+				domain: process.env.NODE_ENV === 'production' ? "tskmngr.fr." : 'localhost',
 				path: '/',
 			});
 
@@ -298,7 +298,7 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 			httpOnly: process.env.NODE_ENV === 'production',
 			secure: true,
 			sameSite: 'lax',
-			domain: process.env.NODE_ENV === 'production' ? ".tskmngr.fr" : 'localhost',
+			domain: process.env.NODE_ENV === 'production' ? "tskmngr.fr." : 'localhost',
 			path: '/',
 		});
 
@@ -306,7 +306,7 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 			httpOnly: process.env.NODE_ENV === 'production',
 			secure: true,
 			sameSite: 'lax',
-			domain: process.env.NODE_ENV === 'production' ? ".tskmngr.fr" : 'localhost',
+			domain: process.env.NODE_ENV === 'production' ? "tskmngr.fr." : 'localhost',
 			path: '/',
 		});
 
@@ -372,7 +372,7 @@ export const loginUser = async (
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
 				sameSite: 'lax',
-				domain: process.env.NODE_ENV === 'production' ? ".tskmngr.fr" : 'localhost',
+				domain: process.env.NODE_ENV === 'production' ? "tskmngr.fr." : 'localhost',
 				path: '/',
 			});
 
@@ -380,7 +380,7 @@ export const loginUser = async (
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
 				sameSite: 'lax',
-				domain: process.env.NODE_ENV === 'production' ? ".tskmngr.fr" : 'localhost',
+				domain: process.env.NODE_ENV === 'production' ? "tskmngr.fr." : 'localhost',
 				path: '/',
 			});
 
@@ -834,7 +834,7 @@ export const refreshUserToken = async (
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV !== 'development',
 				sameSite: 'lax',
-				domain: process.env.NODE_ENV === 'production' ? ".tskmngr.fr" : 'localhost',
+				domain: process.env.NODE_ENV === 'production' ? "tskmngr.fr." : 'localhost',
 				path: '/',
 				// path: '/',
 			});
@@ -843,7 +843,7 @@ export const refreshUserToken = async (
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV !== 'development',
 				sameSite: 'lax',
-				domain: process.env.NODE_ENV === 'production' ? ".tskmngr.fr" : 'localhost',
+				domain: process.env.NODE_ENV === 'production' ? "tskmngr.fr." : 'localhost',
 				path: '/',
 				// path: '/users/token',
 			});
