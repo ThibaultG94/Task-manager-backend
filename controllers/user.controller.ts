@@ -87,7 +87,7 @@ export const registerUser = async (req: express.Request, res: express.Response) 
 			res.cookie('token', token, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'lax',
+				sameSite: 'none',
 
 				path: '/',
 			});
@@ -95,7 +95,7 @@ export const registerUser = async (req: express.Request, res: express.Response) 
 			res.cookie('refreshToken', refreshToken, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'lax',
+				sameSite: 'none',
 
 				path: '/',
 			});
@@ -297,14 +297,14 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		res.cookie('token', token, {
 			httpOnly: process.env.NODE_ENV === 'production',
 			secure: true,
-			sameSite: 'lax',
+			sameSite: 'none',
 			path: '/',
 		});
 
 		res.cookie('refreshToken', refreshToken, {
 			httpOnly: process.env.NODE_ENV === 'production',
 			secure: true,
-			sameSite: 'lax',
+			sameSite: 'none',
 			path: '/',
 		});
 
@@ -369,7 +369,7 @@ export const loginUser = async (
 			res.cookie('token', token, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'lax',
+				sameSite: 'none',
 
 				path: '/',
 			});
@@ -377,7 +377,7 @@ export const loginUser = async (
 			res.cookie('refreshToken', refreshToken, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'lax',
+				sameSite: 'none',
 
 				path: '/',
 			});
@@ -831,7 +831,7 @@ export const refreshUserToken = async (
 			res.cookie('token', token, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV !== 'development',
-				sameSite: 'lax',
+				sameSite: 'none',
 
 				path: '/',
 				// path: '/',
@@ -840,7 +840,7 @@ export const refreshUserToken = async (
 			res.cookie('refreshToken', newRefreshToken, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV !== 'development',
-				sameSite: 'lax',
+				sameSite: 'none',
 
 				path: '/',
 				// path: '/users/token',
