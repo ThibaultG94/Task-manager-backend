@@ -87,16 +87,16 @@ export const registerUser = async (req: express.Request, res: express.Response) 
 			res.cookie('token', token, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'none',
-				// domain: process.env.NODE_ENV === 'production' ? ".tskmngr.fr" : 'localhost',
+				sameSite: 'lax',
+
 				path: '/',
 			});
 
 			res.cookie('refreshToken', refreshToken, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'none',
-				// domain: process.env.NODE_ENV === 'production' ? ".tskmngr.fr" : 'localhost',
+				sameSite: 'lax',
+
 				path: '/',
 			});
 
@@ -297,16 +297,14 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		res.cookie('token', token, {
 			httpOnly: process.env.NODE_ENV === 'production',
 			secure: true,
-			sameSite: 'none',
-			// domain: process.env.NODE_ENV === 'production' ? ".tskmngr.fr" : 'localhost',
+			sameSite: 'lax',
 			path: '/',
 		});
 
 		res.cookie('refreshToken', refreshToken, {
 			httpOnly: process.env.NODE_ENV === 'production',
 			secure: true,
-			sameSite: 'none',
-			// domain: process.env.NODE_ENV === 'production' ? ".tskmngr.fr" : 'localhost',
+			sameSite: 'lax',
 			path: '/',
 		});
 
@@ -371,16 +369,16 @@ export const loginUser = async (
 			res.cookie('token', token, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'none',
-				// domain: process.env.NODE_ENV === 'production' ? ".tskmngr.fr" : 'localhost',
+				sameSite: 'lax',
+
 				path: '/',
 			});
 
 			res.cookie('refreshToken', refreshToken, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'none',
-				// domain: process.env.NODE_ENV === 'production' ? ".tskmngr.fr" : 'localhost',
+				sameSite: 'lax',
+
 				path: '/',
 			});
 
@@ -833,8 +831,8 @@ export const refreshUserToken = async (
 			res.cookie('token', token, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV !== 'development',
-				sameSite: 'none',
-				// domain: process.env.NODE_ENV === 'production' ? ".tskmngr.fr" : 'localhost',
+				sameSite: 'lax',
+
 				path: '/',
 				// path: '/',
 			});
@@ -842,8 +840,8 @@ export const refreshUserToken = async (
 			res.cookie('refreshToken', newRefreshToken, {
 				httpOnly: process.env.NODE_ENV === 'production',
 				secure: process.env.NODE_ENV !== 'development',
-				sameSite: 'none',
-				// domain: process.env.NODE_ENV === 'production' ? ".tskmngr.fr" : 'localhost',
+				sameSite: 'lax',
+
 				path: '/',
 				// path: '/users/token',
 			});
