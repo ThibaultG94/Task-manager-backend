@@ -108,7 +108,7 @@ export const sendInvitation = async (
 			// Emit notification via Socket.io
 			notificationNamespace.to(guestUser._id.toString()).emit('new_notification', notifToEmit);
 
-			if (guestUser.email === "thibault.guilhem@gmail.com") {
+			if (guestUser.email === "contact@thibaultguilhem.com") {
 				invitation.status = 'ACCEPTED';
 				sender?.contacts.push(guestUser?._id);
 				await invitation.save();
