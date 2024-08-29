@@ -134,7 +134,7 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 		await tempUser.save();
 
 		// Find the user which is an admin
-		const superAdminUser = await UserModel.findOne({ role: 'superadmin' });
+		const superAdminUser = await UserModel.findOne({ role: 'superadmin', _id: "66a8de65e5908886beaddc54" });
 		const workspaceId = "66432773c64f1dbf12d7fcbb";
 		const workspace = await workspaceModel.findById(workspaceId);
 
