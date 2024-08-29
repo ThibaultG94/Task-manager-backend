@@ -256,7 +256,7 @@ export const createVisitorSession = async (req: express.Request, res: express.Re
 			title: 'Ajoutez un contact',
 			workspaceId: firstWorkspaceId,
 			userId: tempUser._id,
-			description: "Dans la sidebar à gauche, cliquez sur l'icône d'ajout de contact et sélectionnez l'onglet 'Ajouter un contact'. Vous pouvez maintenant m'ajouter avec mon email thibault.guilhem@gmail.com !",
+			description: "Dans la sidebar à gauche, cliquez sur l'icône d'ajout de contact et sélectionnez l'onglet 'Ajouter un contact'. Vous pouvez maintenant m'ajouter avec mon email contact@thibaultguilhem.com !",
 			status: 'Pending',
 			deadline: dateToday,
 			priority: 'Low',
